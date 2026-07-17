@@ -47,13 +47,10 @@ function construirFila(g, actorId, actorNombre) {
   if (!proveedor) return { error: 'Falta proveedor.' };
   if (!areaSolicitante) return { error: 'Falta área solicitante.' };
 
-  let mes = parseInt(g.mes, 10);
-  if (!Number.isInteger(mes) || mes < 1 || mes > 12) mes = parseInt(fecha.slice(5, 7), 10);
-
   return {
     row: {
       fecha: fecha,
-      mes: mes,
+      mes: parseInt(fecha.slice(5, 7), 10),
       numero_documento: numeroDocumento,
       proveedor: proveedor,
       descripcion: String(g.descripcion || '').trim(),

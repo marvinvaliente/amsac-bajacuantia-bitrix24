@@ -246,22 +246,8 @@
         <label for="gFecha">Fecha *</label>
         <input type="date" id="gFecha" required />
 
-        <label for="gMes">Mes *</label>
-        <input type="number" id="gMes" list="gMesList" min="1" max="12" step="1" required />
-        <datalist id="gMesList">
-          <option value="1">Enero</option>
-          <option value="2">Febrero</option>
-          <option value="3">Marzo</option>
-          <option value="4">Abril</option>
-          <option value="5">Mayo</option>
-          <option value="6">Junio</option>
-          <option value="7">Julio</option>
-          <option value="8">Agosto</option>
-          <option value="9">Septiembre</option>
-          <option value="10">Octubre</option>
-          <option value="11">Noviembre</option>
-          <option value="12">Diciembre</option>
-        </datalist>
+        <label for="gMes">Mes</label>
+        <input type="text" id="gMes" readonly />
 
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
@@ -551,11 +537,12 @@
   var formGasto = document.getElementById('formGasto');
   var gFecha = document.getElementById('gFecha');
   var gMes = document.getElementById('gMes');
+  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   gFecha.addEventListener('change', function () {
-    if (!gFecha.value) return;
+    if (!gFecha.value) { gMes.value = ''; return; }
     var m = parseInt(gFecha.value.slice(5, 7), 10);
-    if (m) gMes.value = m;
+    gMes.value = m ? (m + ' - ' + MESES[m - 1]) : '';
   });
 
   function limpiarFormGasto() {
@@ -571,7 +558,7 @@
   function cargarGastoEnFormulario(g) {
     editingId = g.id;
     gFecha.value = g.fecha;
-    gMes.value = g.mes != null ? g.mes : '';
+    gFecha.dispatchEvent(new Event('change'));
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
     document.getElementById('gDescripcion').value = g.descripcion || '';
@@ -589,14 +576,8 @@
     ev.preventDefault();
     var msgEl = document.getElementById('gastoMsg');
     hideMsg(msgEl);
-    var mesVal = parseInt(gMes.value, 10);
-    if (!Number.isInteger(mesVal) || mesVal < 1 || mesVal > 12) {
-      showMsg(msgEl, 'error', 'El mes debe ser un número entero entre 1 y 12.');
-      return;
-    }
     var gasto = {
       fecha: gFecha.value,
-      mes: mesVal,
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
       descripcion: document.getElementById('gDescripcion').value.trim(),
