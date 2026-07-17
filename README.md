@@ -1,0 +1,86 @@
+# Gastos de Baja Cuantía — App local para Bitrix24
+
+App de una sola página (`index.source.html`), instalada como "Aplicación local" en
+`amsac.bitrix24.es`, igual que `amsac-transporte-bitrix24`. La identidad, permisos y
+listado de empleados/departamentos vienen del contexto de sesión de Bitrix24
+(`BX24.js`); los datos de los gastos se guardan en el **mismo proyecto Supabase**
+que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
+
+## Qué hace
+
+- Cualquier usuario **autorizado** (o un administrador) puede registrar un gasto de
+  baja cuantía: fecha, número de documento, proveedor, descripción, área
+  solicitante, monto retenido y monto total. El mes se calcula automáticamente
+  desde la fecha.
+- El mismo formulario permite editar o eliminar un gasto ya registrado (solo quien
+  lo creó o un administrador).
+- **Carga por Excel**: sube un `.xlsx`/`.xls`/`.csv` con las columnas `fecha`,
+  `mes`, `numero_documento`, `proveedor`, `descripcion`, `area_solicitante`,
+  `monto_retenido`, `monto_total`. La app valida cada fila antes de importar y
+  muestra cuáles quedaron bien y cuáles tienen error, sin bloquear el resto.
+- **Historial**: lista de gastos (los administradores ven todos o solo los
+  propios; el resto de usuarios autorizados solo ve los suyos).
+- **Reportes** (solo administradores): filtra todos los gastos por Nombre, Cargo
+  y Unidad del usuario que los registró (tomados de Bitrix24: `user.get` /
+  `department.get`), más rango de fechas, y descarga el resultado en **Excel** o
+  **PDF** con todas las columnas de la tabla.
+- **Configurar usuarios** (solo administradores): checklist de todos los usuarios
+  activos del portal para marcar quiénes pueden registrar/cargar gastos. Se
+  guarda con `app.option.set`, ligado a la instalación de la app — igual patrón
+  que "Configurar motoristas" en la app de transporte.
+
+## Base de datos (Supabase)
+
+1. Entra al proyecto Supabase que ya usa `amsac-transporte-bitrix24`.
+2. SQL Editor → New query → pega y ejecuta el contenido de [`schema.sql`](schema.sql).
+   Crea `gastos_registros` y `gastos_historial`; no toca ninguna tabla `transporte_*`.
+
+## Variables de entorno (Vercel)
+
+Mismas credenciales que ya usa el proyecto de transporte (mismo proyecto Supabase):
+
+- `SUPABASE_URL`
+- `SUPABASE_SECRET` (service role key — solo se usa en las funciones `api/*.js`, nunca en el navegador)
+
+## Desarrollo local
+
+`index.source.html` es el archivo fuente editable. `api/handler.js` es un
+**archivo generado**: sirve el HTML como string desde una función serverless. Tras
+editar `index.source.html`, regenera `handler.js` con:
+
+```bash
+node build.js
+```
+
+No edites `api/handler.js` directamente; los cambios se perderían en el próximo build.
+
+## Despliegue
+
+Igual que transporte: conectar la carpeta a un proyecto Vercel (`vercel.json` ya
+trae el rewrite `/index.html → /api/handler`) y configurar las variables de
+entorno anteriores.
+
+## Instalación en Bitrix24
+
+1. Entra a **Aplicaciones → Recursos para desarrolladores → Otro → "Cree webhooks
+   entrantes o salientes, o una aplicación local"**.
+2. Elige **"Aplicación local"**, tipo **Estática** (Static), apuntando a la URL
+   desplegada en Vercel (ej. `https://<tu-proyecto>.vercel.app/index.html`).
+3. Nombre sugerido: `Gastos de Baja Cuantía`.
+4. **Permisos (scopes)**: marca `user` (para `user.current`, `user.admin`,
+   `user.get`, `department.get`) — no necesita `calendar` como transporte.
+5. Guarda e instala la app en el portal.
+6. Ábrela una vez como administrador y ve a **"Configurar usuarios"** para marcar
+   quiénes pueden registrar gastos. Guarda.
+7. Comparte el acceso desde el menú de aplicaciones del portal con el resto de
+   usuarios autorizados.
+
+## Notas técnicas
+
+- No hay servidor de sesiones propio: la identidad (`actor_id`, `actor_is_admin`)
+  llega desde el navegador en cada llamada a `/api/gastos`, igual modelo de
+  confianza que `transporte_*` (herramienta interna, no expuesta al público).
+- "Cargo" y "Unidad" en Reportes salen de `WORK_POSITION` y `UF_DEPARTMENT` de
+  `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
+- Excel (carga e importación) usa SheetJS (`xlsx.full.min.js` por CDN) en el
+  navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en transporte.
