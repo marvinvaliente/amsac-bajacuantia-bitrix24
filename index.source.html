@@ -421,6 +421,7 @@
   var isAdmin = false;
   var allUsers = [];        // {ID, NAME, LAST_NAME, UF_DEPARTMENT, WORK_POSITION}
   var allDepartments = [];  // {ID, NAME}
+  var departamentosError = null; // detalle del error si department.get falla (permiso/scope)
   var autorizadosIds = [];  // string[] Bitrix user IDs que pueden cargar gastos
   var canLoad = false;
   var editingId = null;
@@ -644,9 +645,15 @@
     var opciones = filtro
       ? areasDisponibles.filter(function (a) { return a.toLowerCase().indexOf(filtro) !== -1; })
       : areasDisponibles;
-    gAreaDropdown.innerHTML = opciones.length
-      ? opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('')
-      : '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+    if (opciones.length) {
+      gAreaDropdown.innerHTML = opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('');
+    } else if (!areasDisponibles.length) {
+      gAreaDropdown.innerHTML = '<div class="combo-empty">No se pudieron cargar las unidades de Bitrix24' +
+        (departamentosError ? ' (falta el permiso "department" en la app)' : '') +
+        '. Puedes escribir el área manualmente.</div>';
+    } else {
+      gAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+    }
   }
   function abrirAreaDropdown() { renderAreaDropdown(); gAreaDropdown.classList.add('open'); }
   function cerrarAreaDropdown() { gAreaDropdown.classList.remove('open'); }
@@ -1038,12 +1045,13 @@
       bx('user.current', {}),
       bx('user.admin', {}),
       bxListAll('user.get', { FILTER: { ACTIVE: true } }),
-      bxListAll('department.get', {}).catch(function () { return []; })
+      bxListAll('department.get', {}).catch(function (err) { departamentosError = err; return []; })
     ]).then(function (results) {
       currentUser = results[0];
       isAdmin = !!results[1];
       allUsers = results[2];
       allDepartments = results[3];
+      if (departamentosError) console.error('department.get falló:', departamentosError);
       poblarAreasDesdeDepartamentos();
       return loadAutorizados();
     }).then(function (list) {
