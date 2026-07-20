@@ -329,6 +329,76 @@
         <button type="button" id="btnVerTodos" class="secondary">Todos</button>
         <button type="button" id="btnVerMios" class="secondary">Solo los míos</button>
       </div>
+
+      <div class="filters-grid" style="margin-bottom:10px">
+        <div>
+          <label for="hFechaDesde">Fecha desde</label>
+          <input type="date" id="hFechaDesde" />
+        </div>
+        <div>
+          <label for="hFechaHasta">Fecha hasta</label>
+          <input type="date" id="hFechaHasta" />
+        </div>
+        <div>
+          <label for="hMes">Mes</label>
+          <select id="hMes">
+            <option value="">Todos</option>
+            <option value="1">1 - Enero</option>
+            <option value="2">2 - Febrero</option>
+            <option value="3">3 - Marzo</option>
+            <option value="4">4 - Abril</option>
+            <option value="5">5 - Mayo</option>
+            <option value="6">6 - Junio</option>
+            <option value="7">7 - Julio</option>
+            <option value="8">8 - Agosto</option>
+            <option value="9">9 - Septiembre</option>
+            <option value="10">10 - Octubre</option>
+            <option value="11">11 - Noviembre</option>
+            <option value="12">12 - Diciembre</option>
+          </select>
+        </div>
+        <div id="hRegistradoPorWrap" style="display:none">
+          <label for="hRegistradoPor">Registrado por</label>
+          <select id="hRegistradoPor"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label for="hNumeroDocumento">N° de documento</label>
+          <input type="text" id="hNumeroDocumento" placeholder="Buscar..." />
+        </div>
+        <div>
+          <label for="hProveedor">Proveedor</label>
+          <input type="text" id="hProveedor" placeholder="Buscar..." />
+        </div>
+        <div>
+          <label for="hDescripcion">Descripción</label>
+          <input type="text" id="hDescripcion" placeholder="Buscar..." />
+        </div>
+        <div>
+          <label for="hAreaSolicitante">Área solicitante</label>
+          <input type="text" id="hAreaSolicitante" placeholder="Buscar..." />
+        </div>
+        <div>
+          <label for="hMontoTotalMin">Monto total mínimo</label>
+          <input type="number" id="hMontoTotalMin" step="0.01" min="0" />
+        </div>
+        <div>
+          <label for="hMontoTotalMax">Monto total máximo</label>
+          <input type="number" id="hMontoTotalMax" step="0.01" min="0" />
+        </div>
+        <div>
+          <label for="hMontoRetenidoMin">Monto retenido mínimo</label>
+          <input type="number" id="hMontoRetenidoMin" step="0.01" min="0" />
+        </div>
+        <div>
+          <label for="hMontoRetenidoMax">Monto retenido máximo</label>
+          <input type="number" id="hMontoRetenidoMax" step="0.01" min="0" />
+        </div>
+      </div>
+      <div class="btn-row" style="margin-bottom:10px">
+        <button type="button" id="btnAplicarFiltrosHistorial">Aplicar filtros</button>
+        <button type="button" id="btnLimpiarFiltrosHistorial" class="secondary">Limpiar filtros</button>
+      </div>
+
       <div id="historialLoading" class="loading">Cargando...</div>
       <div id="historialContent" style="display:none"></div>
     </div>
@@ -810,6 +880,7 @@
   // Historial
   // ==================================================================
   var verTodos = true;
+  var historialGastosRaw = [];
   document.getElementById('btnVerTodos').addEventListener('click', function () { verTodos = true; loadHistorial(); });
   document.getElementById('btnVerMios').addEventListener('click', function () { verTodos = false; loadHistorial(); });
 
@@ -818,17 +889,81 @@
     document.getElementById('historialLoading').style.display = 'block';
     document.getElementById('historialContent').style.display = 'none';
     var admFlag = isAdmin && verTodos ? '1' : '0';
+    document.getElementById('hRegistradoPorWrap').style.display = admFlag === '1' ? 'block' : 'none';
     apiCall('gastos?action=list&userId=' + encodeURIComponent(currentUser.ID) + '&admin=' + admFlag).then(function (r) {
       document.getElementById('historialLoading').style.display = 'none';
       document.getElementById('historialContent').style.display = 'block';
-      renderHistorial(r.gastos || []);
+      historialGastosRaw = r.gastos || [];
+      poblarRegistradoPorHistorial();
+      aplicarFiltrosHistorial();
     });
   }
+
+  function poblarRegistradoPorHistorial() {
+    var sel = document.getElementById('hRegistradoPor');
+    var actual = sel.value;
+    var ids = Array.from(new Set(historialGastosRaw.map(function (g) { return String(g.created_by_id); })));
+    ids.sort(function (a, b) { return nombreDe(a).localeCompare(nombreDe(b)); });
+    sel.innerHTML = '<option value="">Todos</option>' + ids.map(function (id) {
+      return '<option value="' + esc(id) + '">' + esc(nombreDe(id)) + '</option>';
+    }).join('');
+    sel.value = actual;
+  }
+
+  function aplicarFiltrosHistorial() {
+    var fDesde = document.getElementById('hFechaDesde').value;
+    var fHasta = document.getElementById('hFechaHasta').value;
+    var mes = document.getElementById('hMes').value;
+    var registradoPor = document.getElementById('hRegistradoPor').value;
+    var numDoc = document.getElementById('hNumeroDocumento').value.trim().toLowerCase();
+    var proveedor = document.getElementById('hProveedor').value.trim().toLowerCase();
+    var descripcion = document.getElementById('hDescripcion').value.trim().toLowerCase();
+    var area = document.getElementById('hAreaSolicitante').value.trim().toLowerCase();
+    var totalMin = numOrNullCliente(document.getElementById('hMontoTotalMin').value);
+    var totalMax = numOrNullCliente(document.getElementById('hMontoTotalMax').value);
+    var retMin = numOrNullCliente(document.getElementById('hMontoRetenidoMin').value);
+    var retMax = numOrNullCliente(document.getElementById('hMontoRetenidoMax').value);
+
+    var filtrados = historialGastosRaw.filter(function (g) {
+      if (fDesde && g.fecha < fDesde) return false;
+      if (fHasta && g.fecha > fHasta) return false;
+      if (mes && String(g.mes) !== mes) return false;
+      if (registradoPor && String(g.created_by_id) !== registradoPor) return false;
+      if (numDoc && (g.numero_documento || '').toLowerCase().indexOf(numDoc) === -1) return false;
+      if (proveedor && (g.proveedor || '').toLowerCase().indexOf(proveedor) === -1) return false;
+      if (descripcion && (g.descripcion || '').toLowerCase().indexOf(descripcion) === -1) return false;
+      if (area && (g.area_solicitante || '').toLowerCase().indexOf(area) === -1) return false;
+      if (totalMin != null && Number(g.monto_total) < totalMin) return false;
+      if (totalMax != null && Number(g.monto_total) > totalMax) return false;
+      if (retMin != null && Number(g.monto_retenido) < retMin) return false;
+      if (retMax != null && Number(g.monto_retenido) > retMax) return false;
+      return true;
+    });
+    renderHistorial(filtrados);
+  }
+
+  function numOrNullCliente(v) {
+    if (v === '' || v == null) return null;
+    var n = parseFloat(v);
+    return isNaN(n) ? null : n;
+  }
+
+  function limpiarFiltrosHistorial() {
+    ['hFechaDesde', 'hFechaHasta', 'hMes', 'hRegistradoPor', 'hNumeroDocumento', 'hProveedor',
+     'hDescripcion', 'hAreaSolicitante', 'hMontoTotalMin', 'hMontoTotalMax', 'hMontoRetenidoMin', 'hMontoRetenidoMax'
+    ].forEach(function (id) { document.getElementById(id).value = ''; });
+    aplicarFiltrosHistorial();
+  }
+
+  document.getElementById('btnAplicarFiltrosHistorial').addEventListener('click', aplicarFiltrosHistorial);
+  document.getElementById('btnLimpiarFiltrosHistorial').addEventListener('click', limpiarFiltrosHistorial);
 
   function renderHistorial(gastos) {
     var el = document.getElementById('historialContent');
     if (!gastos.length) {
-      el.innerHTML = '<div class="empty-state">No hay gastos registrados todavía.</div>';
+      el.innerHTML = '<div class="empty-state">' +
+        (historialGastosRaw.length ? 'Ningún gasto coincide con los filtros aplicados.' : 'No hay gastos registrados todavía.') +
+        '</div>';
       return;
     }
     el.innerHTML = gastos.map(function (g) {
