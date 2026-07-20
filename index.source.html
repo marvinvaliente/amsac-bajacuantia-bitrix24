@@ -968,8 +968,15 @@
   document.getElementById('btnVerMios').addEventListener('click', function () { vistaHistorial = 'mios'; loadHistorial(); });
   document.getElementById('btnVerEliminados').addEventListener('click', function () { vistaHistorial = 'eliminados'; loadHistorial(); });
 
+  function actualizarBotonesVista() {
+    document.getElementById('btnVerTodos').classList.toggle('secondary', vistaHistorial !== 'todos');
+    document.getElementById('btnVerMios').classList.toggle('secondary', vistaHistorial !== 'mios');
+    document.getElementById('btnVerEliminados').classList.toggle('secondary', vistaHistorial !== 'eliminados');
+  }
+
   function loadHistorial() {
     document.getElementById('historialFiltroAdmin').style.display = isAdmin ? 'flex' : 'none';
+    actualizarBotonesVista();
     document.getElementById('historialLoading').style.display = 'block';
     document.getElementById('historialContent').style.display = 'none';
     var esEliminados = isAdmin && vistaHistorial === 'eliminados';
