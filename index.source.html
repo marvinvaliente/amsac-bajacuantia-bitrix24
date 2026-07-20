@@ -1162,7 +1162,11 @@
     var ids = informeGastosMes.map(function (g) { return g.id; });
     if (!ids.length) return;
     var btn = this;
-    customConfirm('¿Informar ' + ids.length + ' gasto(s) de este mes? Cambiarán su estado de "registrado" a "informado".', { okText: 'Informar' }).then(function (ok) {
+    var mesSel = document.getElementById('infMes');
+    var mesTexto = mesSel.selectedOptions[0].textContent.split(' - ')[1] || mesSel.selectedOptions[0].textContent;
+    var fondosTexto = getFondosDe(currentUser.ID);
+    var fondoFrase = fondosTexto !== '—' ? (' de ' + fondosTexto) : '';
+    customConfirm('¿Informar ' + ids.length + ' gasto(s)' + fondoFrase + ' correspondiente(s) a ' + mesTexto + '? Cambiarán su estado de "registrado" a "informado".', { okText: 'Informar' }).then(function (ok) {
       if (!ok) return;
       btn.disabled = true;
       apiCall('gastos', { method: 'POST', body: { action: 'informar', ids: ids, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
