@@ -486,7 +486,7 @@
     <div id="asignarModal" class="map-modal">
       <div class="map-modal-content" style="max-width:480px">
         <div class="map-modal-header">
-          <b id="asignarModalTitle">Asignar usuarios</b>
+          <b id="asignarModalTitle">Asignar administrador</b>
         </div>
         <div class="search-box">
           <input type="text" id="asignarUserSearch" placeholder="Buscar usuario..." />
@@ -1192,7 +1192,7 @@
           (n ? ': ' + esc(f.usuario_ids.map(nombreDe).join(', ')) : '') +
         '</div>' +
         '<div class="gasto-actions">' +
-          '<button type="button" class="secondary" data-asignar="' + f.id + '">Asignar usuarios</button>' +
+          '<button type="button" class="secondary" data-asignar="' + f.id + '">Asignar administrador</button>' +
           '<button type="button" class="danger" data-eliminar-fondo="' + f.id + '">Eliminar</button>' +
         '</div>' +
       '</div>';
@@ -1249,7 +1249,7 @@
     if (!fondoAsignando) return;
     pendingAsignadosIds = (fondoAsignando.usuario_ids || []).slice();
     document.getElementById('asignarModalTitle').textContent =
-      'Asignar usuarios — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
+      'Asignar administrador — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
     document.getElementById('asignarUserSearch').value = '';
     hideMsg(document.getElementById('asignarModalMsg'));
     renderAsignarUserList();
