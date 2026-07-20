@@ -34,6 +34,16 @@ function numOrNull(v) {
   return isNaN(n) ? null : n;
 }
 
+function validarFondo(f) {
+  const tipo = String((f && f.tipo) || '');
+  const montoTotal = numOrNull(f && f.monto_total);
+  const anio = parseInt(f && f.anio, 10);
+  if (TIPOS.indexOf(tipo) === -1) return { error: 'Tipo de fondo inválido.' };
+  if (montoTotal == null || montoTotal < 0) return { error: 'Monto total inválido.' };
+  if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) return { error: 'Año inválido.' };
+  return { row: { tipo: tipo, monto_total: montoTotal, anio: anio } };
+}
+
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
 
@@ -66,21 +76,31 @@ module.exports = async (req, res) => {
       const action = body.action;
 
       if (action === 'create') {
-        const f = body.fondo || {};
-        const tipo = String(f.tipo || '');
-        const montoTotal = numOrNull(f.monto_total);
-        const anio = parseInt(f.anio, 10);
-        if (TIPOS.indexOf(tipo) === -1) { res.status(400).json({ ok: false, error: 'Tipo de fondo inválido.' }); return; }
-        if (montoTotal == null || montoTotal < 0) { res.status(400).json({ ok: false, error: 'Monto total inválido.' }); return; }
-        if (!Number.isInteger(anio) || anio < 2000 || anio > 2100) { res.status(400).json({ ok: false, error: 'Año inválido.' }); return; }
+        const built = validarFondo(body.fondo || {});
+        if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
 
         const r = await sb('gastos_fondos', {
           method: 'POST', headers: { Prefer: 'return=representation' },
-          body: JSON.stringify({ tipo: tipo, monto_total: montoTotal, anio: anio })
+          body: JSON.stringify(built.row)
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
         res.status(200).json({ ok: true, fondo: Object.assign({}, data[0], { usuario_ids: [] }) });
+        return;
+      }
+
+      if (action === 'update') {
+        if (!body.id) { res.status(400).json({ error: 'Falta id.' }); return; }
+        const built = validarFondo(body.fondo || {});
+        if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+
+        const r = await sb('gastos_fondos?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify(built.row)
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        res.status(200).json({ ok: true, fondo: data[0] });
         return;
       }
 
