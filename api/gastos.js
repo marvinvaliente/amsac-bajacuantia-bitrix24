@@ -73,9 +73,10 @@ async function insertHistorial(row) {
 
 async function puedeModificar(id, actorId, isAdmin) {
   if (isAdmin) return true;
-  const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(id) + '&select=created_by_id');
+  const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(id) + '&select=created_by_id,estado');
   const d = await r.json();
   if (!d || !d[0]) return false;
+  if (d[0].estado === 'informado') return false;
   return String(d[0].created_by_id) === String(actorId);
 }
 
