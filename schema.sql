@@ -12,7 +12,8 @@ create table if not exists gastos_registros (
   area_solicitante    text not null default '',
   monto_retenido      numeric(12,2) not null default 0,
   monto_total         numeric(12,2) not null default 0,
-  estado              text not null default 'registrado' check (estado in ('registrado','informado')),
+  estado              text not null default 'registrado' check (estado in ('registrado','informado','eliminado')),
+  estado_anterior     text,
   created_by_id       text not null,
   created_by_nombre   text not null default '',
   created_at          timestamptz not null default now(),
@@ -20,13 +21,14 @@ create table if not exists gastos_registros (
 );
 
 -- Migración: si la tabla gastos_registros ya existía (creada antes de esta
--- versión), agrega la columna estado sin afectar los registros existentes.
+-- versión), agrega las columnas estado / estado_anterior sin afectar los
+-- registros existentes, y amplía el check para incluir 'eliminado' (borrado
+-- lógico: el gasto no se borra de verdad, solo cambia de estado, y el estado
+-- previo queda guardado en estado_anterior para poder restablecerlo).
 alter table gastos_registros add column if not exists estado text not null default 'registrado';
-do $$ begin
-  if not exists (select 1 from pg_constraint where conname = 'gastos_registros_estado_check') then
-    alter table gastos_registros add constraint gastos_registros_estado_check check (estado in ('registrado','informado'));
-  end if;
-end $$;
+alter table gastos_registros add column if not exists estado_anterior text;
+alter table gastos_registros drop constraint if exists gastos_registros_estado_check;
+alter table gastos_registros add constraint gastos_registros_estado_check check (estado in ('registrado','informado','eliminado'));
 
 create index if not exists gastos_registros_fecha_idx      on gastos_registros (fecha);
 create index if not exists gastos_registros_created_by_idx on gastos_registros (created_by_id);

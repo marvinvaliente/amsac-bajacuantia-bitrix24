@@ -76,7 +76,7 @@ async function puedeModificar(id, actorId, isAdmin) {
   const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(id) + '&select=created_by_id,estado');
   const d = await r.json();
   if (!d || !d[0]) return false;
-  if (d[0].estado === 'informado') return false;
+  if (d[0].estado !== 'registrado') return false;
   return String(d[0].created_by_id) === String(actorId);
 }
 
@@ -89,8 +89,9 @@ module.exports = async (req, res) => {
       const action = q.action || 'list';
 
       if (action === 'list') {
-        const filtro = (q.admin === '1') ? '' : '&created_by_id=eq.' + encodeURIComponent(q.userId || '');
-        const r = await sb('gastos_registros?select=*&order=fecha.desc,created_at.desc' + filtro);
+        const filtroPropio = (q.admin === '1') ? '' : '&created_by_id=eq.' + encodeURIComponent(q.userId || '');
+        const filtroEstado = (q.eliminados === '1') ? '&estado=eq.eliminado' : '&estado=neq.eliminado';
+        const r = await sb('gastos_registros?select=*&order=fecha.desc,created_at.desc' + filtroPropio + filtroEstado);
         res.status(200).json({ ok: r.ok, gastos: await r.json() });
         return;
       }
@@ -173,7 +174,7 @@ module.exports = async (req, res) => {
         if (!ids.length) { res.status(400).json({ ok: false, error: 'No hay gastos para informar.' }); return; }
         const filtroPropio = body.actor_is_admin ? '' : '&created_by_id=eq.' + encodeURIComponent(body.actor_id || '');
         const lista = 'id=in.(' + ids.map((id) => encodeURIComponent(id)).join(',') + ')';
-        const r = await sb('gastos_registros?' + lista + filtroPropio, {
+        const r = await sb('gastos_registros?' + lista + filtroPropio + '&estado=eq.registrado', {
           method: 'PATCH', headers: { Prefer: 'return=representation' },
           body: JSON.stringify({ estado: 'informado', updated_at: new Date().toISOString() })
         });
@@ -190,11 +191,41 @@ module.exports = async (req, res) => {
           res.status(403).json({ ok: false, error: 'Solo quien registró el gasto o un administrador puede eliminarlo.' });
           return;
         }
+        // Borrado lógico: el registro no se borra de la base de datos, solo
+        // cambia de estado. Se guarda el estado previo para poder restaurarlo.
+        const actual = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actualData = await actual.json();
+        const estadoAnterior = (actualData && actualData[0] && actualData[0].estado) || 'registrado';
+
         const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id), {
-          method: 'DELETE', headers: { Prefer: 'return=minimal' }
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ estado: 'eliminado', estado_anterior: estadoAnterior, updated_at: new Date().toISOString() })
         });
-        if (r.ok) await insertHistorial({ gasto_id: body.id, accion: 'eliminado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: {} });
-        res.status(r.ok ? 200 : 500).json({ ok: r.ok });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        await insertHistorial({ gasto_id: body.id, accion: 'eliminado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado_anterior: estadoAnterior } });
+        res.status(200).json({ ok: true });
+        return;
+      }
+
+      if (action === 'restaurar') {
+        if (!body.id) { res.status(400).json({ error: 'Falta id.' }); return; }
+        if (!body.actor_is_admin) {
+          res.status(403).json({ ok: false, error: 'Solo un administrador puede restablecer un gasto eliminado.' });
+          return;
+        }
+        const actual = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id) + '&select=estado_anterior');
+        const actualData = await actual.json();
+        const destino = (actualData && actualData[0] && actualData[0].estado_anterior) || 'registrado';
+
+        const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ estado: destino, estado_anterior: null, updated_at: new Date().toISOString() })
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        await insertHistorial({ gasto_id: body.id, accion: 'restablecido', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado: destino } });
+        res.status(200).json({ ok: true, gasto: data[0] });
         return;
       }
 

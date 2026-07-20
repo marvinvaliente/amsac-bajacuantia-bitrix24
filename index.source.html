@@ -158,6 +158,7 @@
   .badge.ajeno { background: #f4f6fa; color: #6b7a86; }
   .badge.estado-registrado { background: #fff4e5; color: #a86500; }
   .badge.estado-informado { background: #e8f8ee; color: #1f7a41; }
+  .badge.estado-eliminado { background: #fdecec; color: #a92626; }
 
   .filters-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   @media (max-width: 560px) { .filters-grid { grid-template-columns: 1fr; } }
@@ -344,6 +345,7 @@
       <div id="historialFiltroAdmin" class="btn-row" style="display:none; margin-bottom:6px">
         <button type="button" id="btnVerTodos" class="secondary">Todos</button>
         <button type="button" id="btnVerMios" class="secondary">Solo los míos</button>
+        <button type="button" id="btnVerEliminados" class="secondary">Eliminados</button>
       </div>
 
       <div class="filters-grid" style="margin-bottom:10px">
@@ -960,18 +962,22 @@
   // ==================================================================
   // Historial
   // ==================================================================
-  var verTodos = true;
+  var vistaHistorial = 'todos'; // 'todos' | 'mios' | 'eliminados'
   var historialGastosRaw = [];
-  document.getElementById('btnVerTodos').addEventListener('click', function () { verTodos = true; loadHistorial(); });
-  document.getElementById('btnVerMios').addEventListener('click', function () { verTodos = false; loadHistorial(); });
+  document.getElementById('btnVerTodos').addEventListener('click', function () { vistaHistorial = 'todos'; loadHistorial(); });
+  document.getElementById('btnVerMios').addEventListener('click', function () { vistaHistorial = 'mios'; loadHistorial(); });
+  document.getElementById('btnVerEliminados').addEventListener('click', function () { vistaHistorial = 'eliminados'; loadHistorial(); });
 
   function loadHistorial() {
     document.getElementById('historialFiltroAdmin').style.display = isAdmin ? 'flex' : 'none';
     document.getElementById('historialLoading').style.display = 'block';
     document.getElementById('historialContent').style.display = 'none';
-    var admFlag = isAdmin && verTodos ? '1' : '0';
+    var esEliminados = isAdmin && vistaHistorial === 'eliminados';
+    var admFlag = isAdmin && vistaHistorial !== 'mios' ? '1' : '0';
     document.getElementById('hRegistradoPorWrap').style.display = admFlag === '1' ? 'block' : 'none';
-    apiCall('gastos?action=list&userId=' + encodeURIComponent(currentUser.ID) + '&admin=' + admFlag).then(function (r) {
+    var url = 'gastos?action=list&userId=' + encodeURIComponent(currentUser.ID) + '&admin=' + admFlag;
+    if (esEliminados) url += '&eliminados=1';
+    apiCall(url).then(function (r) {
       document.getElementById('historialLoading').style.display = 'none';
       document.getElementById('historialContent').style.display = 'block';
       historialGastosRaw = r.gastos || [];
@@ -1047,19 +1053,24 @@
         '</div>';
       return;
     }
+    var esVistaEliminados = isAdmin && vistaHistorial === 'eliminados';
+    var ESTADO_LABEL = { registrado: 'Registrado', informado: 'Informado', eliminado: 'Eliminado' };
     el.innerHTML = gastos.map(function (g) {
       var esPropio = String(g.created_by_id) === String(currentUser.ID);
-      var puede = isAdmin || (esPropio && g.estado !== 'informado');
+      var puede = !esVistaEliminados && (isAdmin || (esPropio && g.estado === 'registrado'));
       return '<div class="gasto-item">' +
         '<div class="gasto-top">' +
           '<span>' + esc(g.fecha) + ' · ' + esc(g.numero_documento) +
-            ' <span class="badge estado-' + esc(g.estado) + '">' + (g.estado === 'informado' ? 'Informado' : 'Registrado') + '</span></span>' +
+            ' <span class="badge estado-' + esc(g.estado) + '">' + (ESTADO_LABEL[g.estado] || g.estado) + '</span></span>' +
           '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
         '</div>' +
         '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
         '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
         '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + '</div>' +
         (isAdmin ? '<div class="gasto-line">Registrado por: ' + esc(nombreDe(g.created_by_id)) + ' <span class="badge ' + (esPropio ? 'propio' : 'ajeno') + '">' + (esPropio ? 'Yo' : 'Otro usuario') + '</span></div>' : '') +
+        (esVistaEliminados ? '<div class="gasto-actions">' +
+          '<button type="button" class="secondary" data-restaurar="' + g.id + '">Restablecer</button>' +
+        '</div>' : '') +
         (puede ? '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-editar="' + g.id + '">Editar</button>' +
           '<button type="button" class="danger" data-eliminar="' + g.id + '">Eliminar</button>' +
@@ -1076,11 +1087,23 @@
     el.querySelectorAll('[data-eliminar]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-eliminar');
-        customConfirm('¿Eliminar este gasto? Esta acción no se puede deshacer.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+        customConfirm('¿Eliminar este gasto? Pasará a estado "eliminado" (solo un administrador podrá verlo y restablecerlo).', { danger: true, okText: 'Eliminar' }).then(function (ok) {
           if (!ok) return;
           apiCall('gastos', { method: 'POST', body: { action: 'delete', id: id, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
             if (r.ok) loadHistorial();
             else customAlert(r.error || 'No se pudo eliminar el gasto.');
+          });
+        });
+      });
+    });
+    el.querySelectorAll('[data-restaurar]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-restaurar');
+        customConfirm('¿Restablecer este gasto a su estado anterior?', { okText: 'Restablecer' }).then(function (ok) {
+          if (!ok) return;
+          apiCall('gastos', { method: 'POST', body: { action: 'restaurar', id: id, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
+            if (r.ok) loadHistorial();
+            else customAlert(r.error || 'No se pudo restablecer el gasto.');
           });
         });
       });

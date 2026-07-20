@@ -12,14 +12,21 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   baja cuantía: fecha, número de documento, proveedor, descripción, área
   solicitante, monto retenido y monto total. El mes se calcula automáticamente
   desde la fecha. Todo gasto nuevo se guarda con **estado `registrado`**.
-- El mismo formulario permite editar o eliminar un gasto ya registrado (solo quien
-  lo creó o un administrador); editar no cambia el estado.
+- El mismo formulario permite editar un gasto (solo quien lo creó, mientras esté
+  en estado `registrado`, o un administrador en cualquier estado). **Eliminar es
+  un borrado lógico**: el gasto no se borra de la base de datos, pasa a estado
+  `eliminado` (guardando el estado anterior) y deja de ser visible para todos
+  salvo un administrador. Un gasto `informado` solo puede editarse/eliminarse
+  por un administrador.
 - **Carga por Excel**: sube un `.xlsx`/`.xls`/`.csv` con las columnas `fecha`,
   `mes`, `numero_documento`, `proveedor`, `descripcion`, `area_solicitante`,
   `monto_retenido`, `monto_total`. La app valida cada fila antes de importar y
   muestra cuáles quedaron bien y cuáles tienen error, sin bloquear el resto.
-- **Historial**: lista de gastos (los administradores ven todos o solo los
-  propios; el resto de usuarios autorizados solo ve los suyos).
+- **Historial**: lista de gastos (los administradores ven todos, solo los
+  propios, o los **eliminados**; el resto de usuarios autorizados solo ve los
+  suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
+  puede **restablecer** un gasto a su estado anterior (`registrado` o
+  `informado`).
 - **Informe de Gastos**: cada usuario filtra sus propios gastos con estado
   `registrado` por mes, puede editarlos/eliminarlos, y con el botón **"Informar
   gastos"** los marca todos como `informado` en un solo paso.
