@@ -125,6 +125,17 @@
   .user-row span { flex: 1; }
   .search-box { margin-bottom: 10px; }
 
+  .combo-wrap { position: relative; }
+  .combo-dropdown {
+    display: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 50;
+    background: #fff; border: 1px solid var(--border); border-radius: 6px; margin-top: 4px;
+    max-height: 220px; overflow-y: auto; box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+  }
+  .combo-dropdown.open { display: block; }
+  .combo-option { padding: 9px 12px; font-size: 14px; cursor: pointer; }
+  .combo-option:hover, .combo-option.active { background: var(--bg); }
+  .combo-empty { padding: 9px 12px; font-size: 13px; color: #6b7a86; }
+
   .section-title { font-size: 14px; font-weight: 700; margin: 6px 0 10px; color: var(--primary-dark); }
 
   .gasto-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
@@ -260,8 +271,10 @@
         <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
 
         <label for="gAreaSolicitante">Área solicitante *</label>
-        <input type="text" id="gAreaSolicitante" list="gAreasList" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" />
-        <datalist id="gAreasList"></datalist>
+        <div class="combo-wrap">
+          <input type="text" id="gAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+          <div id="gAreaDropdown" class="combo-dropdown"></div>
+        </div>
 
         <div class="row">
           <div>
@@ -615,18 +628,41 @@
     });
   });
 
+  var areasDisponibles = [];
   function poblarAreasDesdeDepartamentos() {
-    var dl = document.getElementById('gAreasList');
-    dl.innerHTML = '';
-    var nombres = Array.from(new Set(
+    areasDisponibles = Array.from(new Set(
       allDepartments.map(function (d) { return (d.NAME || '').replace(/[_\s]+$/, '').trim(); }).filter(Boolean)
     )).sort();
-    nombres.forEach(function (n) {
-      var opt = document.createElement('option');
-      opt.value = n;
-      dl.appendChild(opt);
-    });
   }
+
+  // ---- Combo con buscador para "Área solicitante" ----
+  var gAreaInput = document.getElementById('gAreaSolicitante');
+  var gAreaDropdown = document.getElementById('gAreaDropdown');
+
+  function renderAreaDropdown() {
+    var filtro = gAreaInput.value.trim().toLowerCase();
+    var opciones = filtro
+      ? areasDisponibles.filter(function (a) { return a.toLowerCase().indexOf(filtro) !== -1; })
+      : areasDisponibles;
+    gAreaDropdown.innerHTML = opciones.length
+      ? opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('')
+      : '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+  }
+  function abrirAreaDropdown() { renderAreaDropdown(); gAreaDropdown.classList.add('open'); }
+  function cerrarAreaDropdown() { gAreaDropdown.classList.remove('open'); }
+
+  gAreaInput.addEventListener('focus', abrirAreaDropdown);
+  gAreaInput.addEventListener('input', abrirAreaDropdown);
+  gAreaDropdown.addEventListener('mousedown', function (ev) {
+    var opt = ev.target.closest('[data-area]');
+    if (!opt) return;
+    ev.preventDefault();
+    gAreaInput.value = opt.getAttribute('data-area');
+    cerrarAreaDropdown();
+  });
+  document.addEventListener('click', function (ev) {
+    if (ev.target !== gAreaInput && !gAreaDropdown.contains(ev.target)) cerrarAreaDropdown();
+  });
 
   function cargarProveedores() {
     apiCall('gastos?action=proveedores').then(function (r) {
