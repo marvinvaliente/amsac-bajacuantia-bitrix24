@@ -253,7 +253,8 @@
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
 
         <label for="gProveedor">Proveedor *</label>
-        <input type="text" id="gProveedor" placeholder="Nombre del proveedor" required maxlength="150" />
+        <input type="text" id="gProveedor" list="gProveedorList" placeholder="Nombre del proveedor" required maxlength="150" />
+        <datalist id="gProveedorList"></datalist>
 
         <label for="gDescripcion">Descripción *</label>
         <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
@@ -596,6 +597,7 @@
         showMsg(msgEl, 'success', editingId ? 'Gasto actualizado correctamente.' : 'Gasto registrado correctamente.');
         limpiarFormGasto();
         cargarAreas();
+        cargarProveedores();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudo guardar el gasto.');
       }
@@ -613,6 +615,19 @@
       (r.areas || []).forEach(function (a) {
         var opt = document.createElement('option');
         opt.value = a;
+        dl.appendChild(opt);
+      });
+    }).catch(function () {});
+  }
+
+  function cargarProveedores() {
+    apiCall('gastos?action=proveedores').then(function (r) {
+      if (!r.ok) return;
+      var dl = document.getElementById('gProveedorList');
+      dl.innerHTML = '';
+      (r.proveedores || []).forEach(function (p) {
+        var opt = document.createElement('option');
+        opt.value = p;
         dl.appendChild(opt);
       });
     }).catch(function () {});
@@ -731,6 +746,7 @@
         document.getElementById('btnConfirmarExcel').style.display = 'none';
         document.getElementById('gExcelFile').value = '';
         cargarAreas();
+        cargarProveedores();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudo importar el archivo.');
       }
@@ -994,7 +1010,7 @@
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
-      if (canLoad) { activarTab('registrar'); cargarAreas(); }
+      if (canLoad) { activarTab('registrar'); cargarAreas(); cargarProveedores(); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
     }).catch(function (err) {

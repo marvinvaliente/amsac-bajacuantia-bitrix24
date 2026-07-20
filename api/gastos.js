@@ -102,6 +102,14 @@ module.exports = async (req, res) => {
         return;
       }
 
+      if (action === 'proveedores') {
+        const r = await sb('gastos_registros?select=proveedor&order=proveedor.asc');
+        const data = await r.json();
+        const proveedores = Array.from(new Set((data || []).map((x) => x.proveedor).filter(Boolean)));
+        res.status(200).json({ ok: r.ok, proveedores: proveedores });
+        return;
+      }
+
       res.status(400).json({ error: 'Acción GET no reconocida.' });
       return;
     }
