@@ -94,14 +94,6 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (action === 'areas') {
-        const r = await sb('gastos_registros?select=area_solicitante&order=area_solicitante.asc');
-        const data = await r.json();
-        const areas = Array.from(new Set((data || []).map((x) => x.area_solicitante).filter(Boolean)));
-        res.status(200).json({ ok: r.ok, areas: areas });
-        return;
-      }
-
       if (action === 'proveedores') {
         const r = await sb('gastos_registros?select=proveedor&order=proveedor.asc');
         const data = await r.json();

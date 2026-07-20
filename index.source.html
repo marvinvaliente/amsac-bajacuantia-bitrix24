@@ -260,7 +260,7 @@
         <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
 
         <label for="gAreaSolicitante">Área solicitante *</label>
-        <input type="text" id="gAreaSolicitante" list="gAreasList" placeholder="Igual al registrado en sistema" required maxlength="150" />
+        <input type="text" id="gAreaSolicitante" list="gAreasList" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" />
         <datalist id="gAreasList"></datalist>
 
         <div class="row">
@@ -554,6 +554,15 @@
     document.getElementById('registrarTitulo').textContent = 'Registrar gasto';
     document.getElementById('btnGuardarGasto').textContent = 'Registrar gasto';
     document.getElementById('btnCancelarEdicion').style.display = 'none';
+    prellenarAreaSolicitante();
+  }
+
+  // Por defecto sugiere la unidad/dependencia de Bitrix24 a la que pertenece
+  // quien está registrando el gasto; el campo sigue siendo editable por si
+  // necesita registrarlo a nombre de otra área.
+  function prellenarAreaSolicitante() {
+    var propia = getUnidad(currentUser.ID);
+    document.getElementById('gAreaSolicitante').value = (propia && propia !== '—') ? propia : '';
   }
 
   function cargarGastoEnFormulario(g) {
@@ -596,7 +605,6 @@
       if (r.ok) {
         showMsg(msgEl, 'success', editingId ? 'Gasto actualizado correctamente.' : 'Gasto registrado correctamente.');
         limpiarFormGasto();
-        cargarAreas();
         cargarProveedores();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudo guardar el gasto.');
@@ -607,17 +615,17 @@
     });
   });
 
-  function cargarAreas() {
-    apiCall('gastos?action=areas').then(function (r) {
-      if (!r.ok) return;
-      var dl = document.getElementById('gAreasList');
-      dl.innerHTML = '';
-      (r.areas || []).forEach(function (a) {
-        var opt = document.createElement('option');
-        opt.value = a;
-        dl.appendChild(opt);
-      });
-    }).catch(function () {});
+  function poblarAreasDesdeDepartamentos() {
+    var dl = document.getElementById('gAreasList');
+    dl.innerHTML = '';
+    var nombres = Array.from(new Set(
+      allDepartments.map(function (d) { return (d.NAME || '').replace(/[_\s]+$/, '').trim(); }).filter(Boolean)
+    )).sort();
+    nombres.forEach(function (n) {
+      var opt = document.createElement('option');
+      opt.value = n;
+      dl.appendChild(opt);
+    });
   }
 
   function cargarProveedores() {
@@ -745,7 +753,6 @@
         filasExcelValidas = [];
         document.getElementById('btnConfirmarExcel').style.display = 'none';
         document.getElementById('gExcelFile').value = '';
-        cargarAreas();
         cargarProveedores();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudo importar el archivo.');
@@ -1001,6 +1008,7 @@
       isAdmin = !!results[1];
       allUsers = results[2];
       allDepartments = results[3];
+      poblarAreasDesdeDepartamentos();
       return loadAutorizados();
     }).then(function (list) {
       autorizadosIds = list;
@@ -1010,7 +1018,7 @@
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
-      if (canLoad) { activarTab('registrar'); cargarAreas(); cargarProveedores(); }
+      if (canLoad) { activarTab('registrar'); prellenarAreaSolicitante(); cargarProveedores(); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
     }).catch(function (err) {
