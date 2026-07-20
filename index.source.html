@@ -1127,8 +1127,7 @@
       return {
         'Fecha': g.fecha, 'Mes': g.mes, 'N° Documento': g.numero_documento, 'Proveedor': g.proveedor,
         'Descripción': g.descripcion, 'Área solicitante': g.area_solicitante,
-        'Monto retenido': Number(g.monto_retenido) || 0, 'Monto total': Number(g.monto_total) || 0,
-        'Registrado por': nombreDe(g.created_by_id), 'Cargo': getCargo(g.created_by_id), 'Unidad': getUnidad(g.created_by_id)
+        'Monto retenido': Number(g.monto_retenido) || 0, 'Monto total': Number(g.monto_total) || 0
       };
     });
     var ws = XLSX.utils.json_to_sheet(data.length ? data : [{}]);
