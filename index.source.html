@@ -138,6 +138,14 @@
 
   .section-title { font-size: 14px; font-weight: 700; margin: 6px 0 10px; color: var(--primary-dark); }
 
+  .fondo-info-bar {
+    display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+    background: #eef1f9; border: 1px solid #d9e0f2; border-radius: 8px;
+    padding: 9px 14px; margin-bottom: 16px; font-size: 12.5px; color: var(--primary-dark);
+  }
+  .fondo-info-bar .fondo-tag { white-space: nowrap; }
+  .fondo-info-bar .fondo-tag b { color: var(--primary); }
+
   .gasto-item { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
   .gasto-item .gasto-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .gasto-item .gasto-total { font-size: 17px; font-weight: 700; color: var(--primary-dark); }
@@ -240,6 +248,8 @@
 
   <main class="app-main">
   <div class="wrap">
+
+    <div id="fondoInfoBar" class="fondo-info-bar" style="display:none"></div>
 
     <div id="viewSinAcceso" class="card" style="display:none">
       <div class="empty-state">
@@ -552,6 +562,11 @@
     if (!u || !u.UF_DEPARTMENT || !u.UF_DEPARTMENT.length) return '—';
     var d = allDepartments.find(function (x) { return String(x.ID) === String(u.UF_DEPARTMENT[0]); });
     return d ? (d.NAME || '').replace(/[_\s]+$/, '').trim() : '—';
+  }
+  function getFondosDe(id) {
+    var propios = fondos.filter(function (f) { return (f.usuario_ids || []).some(function (x) { return String(x) === String(id); }); });
+    if (!propios.length) return '—';
+    return propios.map(function (f) { return (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio; }).join(', ');
   }
 
   // ---- BX24 helpers ----
@@ -1129,10 +1144,10 @@
     doc.text('Reporte de Gastos de Baja Cuantía', 14, 12);
     doc.autoTable({
       startY: 18,
-      head: [['Fecha', 'N° Doc', 'Proveedor', 'Descripción', 'Área solicitante', 'Retenido', 'Total', 'Registrado por', 'Cargo', 'Unidad']],
+      head: [['Fecha', 'N° Doc', 'Proveedor', 'Descripción', 'Área solicitante', 'Retenido', 'Total', 'Registrado por', 'Cargo', 'Unidad', 'Fondo']],
       body: gastosFiltrados.map(function (g) {
         return [g.fecha, g.numero_documento, g.proveedor, g.descripcion, g.area_solicitante,
-          money(g.monto_retenido), money(g.monto_total), nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id)];
+          money(g.monto_retenido), money(g.monto_total), nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id), getFondosDe(g.created_by_id)];
       }),
       styles: { fontSize: 7 }
     });
@@ -1166,6 +1181,19 @@
     autorizadosIds = Object.keys(union);
     canLoad = isAdmin || autorizadosIds.indexOf(String(currentUser.ID)) !== -1;
     actualizarVisibilidadTabs();
+    actualizarBarraFondo();
+  }
+
+  function actualizarBarraFondo() {
+    var el = document.getElementById('fondoInfoBar');
+    var misFondos = fondos.filter(function (f) {
+      return (f.usuario_ids || []).some(function (id) { return String(id) === String(currentUser.ID); });
+    });
+    if (!misFondos.length) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    el.innerHTML = misFondos.map(function (f) {
+      return '<span class="fondo-tag"><b>' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + '</b> ' + esc(f.anio) + ' · $' + money(f.monto_total) + '</span>';
+    }).join('');
+    el.style.display = 'flex';
   }
 
   function cargarFondos() {
@@ -1349,7 +1377,7 @@
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
-    document.getElementById('tabReportesBtn').classList.toggle('hidden', !isAdmin);
+    document.getElementById('tabReportesBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }
 
