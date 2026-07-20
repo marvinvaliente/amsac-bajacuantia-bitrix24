@@ -235,6 +235,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
         <span>Historial</span>
       </li>
+      <li class="tab hidden" id="tabInformeBtn" data-tab="informe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+        <span>Informe de Gastos</span>
+      </li>
       <li class="tab hidden" id="tabReportesBtn" data-tab="reportes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
         <span>Reportes</span>
@@ -413,12 +417,49 @@
       <div id="historialContent" style="display:none"></div>
     </div>
 
+    <!-- ---- Informe de Gastos ---- -->
+    <div id="viewInforme" class="card" style="display:none">
+      <div class="section-title">Informe de Gastos</div>
+      <label for="infMes">Mes</label>
+      <select id="infMes">
+        <option value="">Selecciona un mes</option>
+        <option value="1">1 - Enero</option>
+        <option value="2">2 - Febrero</option>
+        <option value="3">3 - Marzo</option>
+        <option value="4">4 - Abril</option>
+        <option value="5">5 - Mayo</option>
+        <option value="6">6 - Junio</option>
+        <option value="7">7 - Julio</option>
+        <option value="8">8 - Agosto</option>
+        <option value="9">9 - Septiembre</option>
+        <option value="10">10 - Octubre</option>
+        <option value="11">11 - Noviembre</option>
+        <option value="12">12 - Diciembre</option>
+      </select>
+
+      <div id="informeLoading" class="loading" style="display:none">Cargando...</div>
+      <div id="informeContent" style="margin-top:14px"></div>
+
+      <div id="informeAcciones" class="btn-row" style="display:none">
+        <button type="button" id="btnInformarGastos">Informar gastos</button>
+      </div>
+      <div id="informeMsg" class="msg"></div>
+    </div>
+
     <!-- ---- Reportes ---- -->
     <div id="viewReportes" class="card" style="display:none">
       <div class="section-title">Reportes</div>
       <div id="reportesLoading" class="loading">Cargando...</div>
       <div id="reportesContent" style="display:none">
         <div class="filters-grid">
+          <div id="repEstadoWrap" style="display:none">
+            <label for="repEstado">Estado</label>
+            <select id="repEstado">
+              <option value="">Todos</option>
+              <option value="registrado">Registrado</option>
+              <option value="informado">Informado</option>
+            </select>
+          </div>
           <div>
             <label for="repUsuario">Nombre</label>
             <select id="repUsuario"><option value="">Todos</option></select>
@@ -640,12 +681,13 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['registrar', 'excel', 'historial', 'reportes', 'config'];
+  var VIEWS = ['registrar', 'excel', 'historial', 'informe', 'reportes', 'config'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
     if (window.innerWidth < 900) closeDrawer();
     if (name === 'historial') loadHistorial();
+    if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
     if (name === 'config') { initConfigTab(); }
   }
@@ -1043,10 +1085,107 @@
   }
 
   // ==================================================================
-  // Reportes (solo admin)
+  // Informe de Gastos
+  // ==================================================================
+  var informeGastosMes = [];
+
+  function initInforme() {
+    document.getElementById('infMes').value = '';
+    document.getElementById('informeContent').innerHTML = '';
+    document.getElementById('informeAcciones').style.display = 'none';
+    hideMsg(document.getElementById('informeMsg'));
+  }
+
+  document.getElementById('infMes').addEventListener('change', cargarInforme);
+
+  function cargarInforme() {
+    var mes = document.getElementById('infMes').value;
+    hideMsg(document.getElementById('informeMsg'));
+    document.getElementById('informeAcciones').style.display = 'none';
+    if (!mes) { document.getElementById('informeContent').innerHTML = ''; return; }
+    document.getElementById('informeLoading').style.display = 'block';
+    document.getElementById('informeContent').innerHTML = '';
+    apiCall('gastos?action=list&userId=' + encodeURIComponent(currentUser.ID) + '&admin=0').then(function (r) {
+      document.getElementById('informeLoading').style.display = 'none';
+      informeGastosMes = (r.gastos || []).filter(function (g) { return String(g.mes) === mes && g.estado === 'registrado'; });
+      renderInforme();
+    });
+  }
+
+  function renderInforme() {
+    var el = document.getElementById('informeContent');
+    if (!informeGastosMes.length) {
+      el.innerHTML = '<div class="empty-state">No hay gastos con estado "registrado" para el mes seleccionado.</div>';
+      document.getElementById('informeAcciones').style.display = 'none';
+      return;
+    }
+    el.innerHTML = informeGastosMes.map(function (g) {
+      return '<div class="gasto-item">' +
+        '<div class="gasto-top">' +
+          '<span>' + esc(g.fecha) + ' · ' + esc(g.numero_documento) + '</span>' +
+          '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
+        '</div>' +
+        '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
+        '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
+        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + '</div>' +
+        '<div class="gasto-actions">' +
+          '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
+          '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('informeAcciones').style.display = 'flex';
+
+    el.querySelectorAll('[data-editar-inf]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var g = informeGastosMes.find(function (x) { return String(x.id) === btn.getAttribute('data-editar-inf'); });
+        if (g) cargarGastoEnFormulario(g);
+      });
+    });
+    el.querySelectorAll('[data-eliminar-inf]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-eliminar-inf');
+        customConfirm('¿Eliminar este gasto? Esta acción no se puede deshacer.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+          if (!ok) return;
+          apiCall('gastos', { method: 'POST', body: { action: 'delete', id: id, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
+            if (r.ok) cargarInforme();
+            else customAlert(r.error || 'No se pudo eliminar el gasto.');
+          });
+        });
+      });
+    });
+  }
+
+  document.getElementById('btnInformarGastos').addEventListener('click', function () {
+    var msgEl = document.getElementById('informeMsg');
+    hideMsg(msgEl);
+    var ids = informeGastosMes.map(function (g) { return g.id; });
+    if (!ids.length) return;
+    var btn = this;
+    customConfirm('¿Informar ' + ids.length + ' gasto(s) de este mes? Cambiarán su estado de "registrado" a "informado".', { okText: 'Informar' }).then(function (ok) {
+      if (!ok) return;
+      btn.disabled = true;
+      apiCall('gastos', { method: 'POST', body: { action: 'informar', ids: ids, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
+        btn.disabled = false;
+        if (r.ok) {
+          showMsg(msgEl, 'success', (r.actualizados || ids.length) + ' gasto(s) informado(s) correctamente.');
+          cargarInforme();
+        } else {
+          showMsg(msgEl, 'error', r.error || 'No se pudo informar los gastos.');
+        }
+      }).catch(function () {
+        btn.disabled = false;
+        showMsg(msgEl, 'error', 'Error de conexión al informar los gastos.');
+      });
+    });
+  });
+
+  // ==================================================================
+  // Reportes
   // ==================================================================
   var reportesInicializado = false;
   function initReportes() {
+    document.getElementById('repEstadoWrap').style.display = isAdmin ? 'block' : 'none';
     document.getElementById('reportesLoading').style.display = 'block';
     document.getElementById('reportesContent').style.display = 'none';
     apiCall('gastos?action=list&admin=1').then(function (r) {
@@ -1090,6 +1229,7 @@
   document.getElementById('btnAplicarFiltros').addEventListener('click', aplicarFiltrosReporte);
 
   function aplicarFiltrosReporte() {
+    var estado = document.getElementById('repEstado').value;
     var usuario = document.getElementById('repUsuario').value;
     var cargo = document.getElementById('repCargo').value;
     var unidad = document.getElementById('repUnidad').value;
@@ -1097,6 +1237,7 @@
     var hasta = document.getElementById('repHasta').value;
 
     gastosFiltrados = todosLosGastos.filter(function (g) {
+      if (estado && g.estado !== estado) return false;
       if (usuario && String(g.created_by_id) !== usuario) return false;
       if (cargo && getCargo(g.created_by_id) !== cargo) return false;
       if (unidad && getUnidad(g.created_by_id) !== unidad) return false;
@@ -1376,6 +1517,7 @@
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
+    document.getElementById('tabInformeBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabReportesBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }

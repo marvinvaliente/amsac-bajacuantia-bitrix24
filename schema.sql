@@ -12,14 +12,25 @@ create table if not exists gastos_registros (
   area_solicitante    text not null default '',
   monto_retenido      numeric(12,2) not null default 0,
   monto_total         numeric(12,2) not null default 0,
+  estado              text not null default 'registrado' check (estado in ('registrado','informado')),
   created_by_id       text not null,
   created_by_nombre   text not null default '',
   created_at          timestamptz not null default now(),
   updated_at          timestamptz not null default now()
 );
 
+-- Migración: si la tabla gastos_registros ya existía (creada antes de esta
+-- versión), agrega la columna estado sin afectar los registros existentes.
+alter table gastos_registros add column if not exists estado text not null default 'registrado';
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'gastos_registros_estado_check') then
+    alter table gastos_registros add constraint gastos_registros_estado_check check (estado in ('registrado','informado'));
+  end if;
+end $$;
+
 create index if not exists gastos_registros_fecha_idx      on gastos_registros (fecha);
 create index if not exists gastos_registros_created_by_idx on gastos_registros (created_by_id);
+create index if not exists gastos_registros_estado_idx     on gastos_registros (estado);
 
 -- Historial de auditoría simple (igual patrón que transporte_historial).
 create table if not exists gastos_historial (

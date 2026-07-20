@@ -11,19 +11,24 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 - Cualquier usuario **autorizado** (o un administrador) puede registrar un gasto de
   baja cuantía: fecha, número de documento, proveedor, descripción, área
   solicitante, monto retenido y monto total. El mes se calcula automáticamente
-  desde la fecha.
+  desde la fecha. Todo gasto nuevo se guarda con **estado `registrado`**.
 - El mismo formulario permite editar o eliminar un gasto ya registrado (solo quien
-  lo creó o un administrador).
+  lo creó o un administrador); editar no cambia el estado.
 - **Carga por Excel**: sube un `.xlsx`/`.xls`/`.csv` con las columnas `fecha`,
   `mes`, `numero_documento`, `proveedor`, `descripcion`, `area_solicitante`,
   `monto_retenido`, `monto_total`. La app valida cada fila antes de importar y
   muestra cuáles quedaron bien y cuáles tienen error, sin bloquear el resto.
 - **Historial**: lista de gastos (los administradores ven todos o solo los
   propios; el resto de usuarios autorizados solo ve los suyos).
-- **Reportes** (solo administradores): filtra todos los gastos por Nombre, Cargo
-  y Unidad del usuario que los registró (tomados de Bitrix24: `user.get` /
-  `department.get`), más rango de fechas, y descarga el resultado en **Excel** o
-  **PDF** con todas las columnas de la tabla.
+- **Informe de Gastos**: cada usuario filtra sus propios gastos con estado
+  `registrado` por mes, puede editarlos/eliminarlos, y con el botón **"Informar
+  gastos"** los marca todos como `informado` en un solo paso.
+- **Reportes** (disponible para todo usuario habilitado, no solo administradores):
+  filtra todos los gastos por Nombre, Cargo y Unidad del usuario que los
+  registró (tomados de Bitrix24: `user.get` / `department.get`), más rango de
+  fechas, y descarga el resultado en **Excel** o **PDF** (el PDF incluye además
+  el fondo asociado a quien registró cada gasto). El filtro por **Estado**
+  (registrado/informado) solo lo ve un administrador.
 - **Configurar usuarios** (solo administradores): se crean **fondos** (Fondo de
   caja chica / Fondo circulante, con monto total y año) y se asocia a cada fondo
   los usuarios de Bitrix24 que pueden usarlo. Un usuario queda habilitado para
@@ -36,7 +41,9 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 1. Entra al proyecto Supabase que ya usa `amsac-transporte-bitrix24`.
 2. SQL Editor → New query → pega y ejecuta el contenido de [`schema.sql`](schema.sql).
    Crea `gastos_registros`, `gastos_historial`, `gastos_fondos` y
-   `gastos_fondo_usuarios`; no toca ninguna tabla `transporte_*`.
+   `gastos_fondo_usuarios`; no toca ninguna tabla `transporte_*`. El script es
+   seguro de volver a correr aunque las tablas ya existan (usa `if not exists` /
+   migraciones idempotentes), por ejemplo para agregar la columna `estado`.
 
 ## Variables de entorno (Vercel)
 

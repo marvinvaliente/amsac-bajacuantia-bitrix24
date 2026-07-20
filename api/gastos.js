@@ -131,6 +131,7 @@ module.exports = async (req, res) => {
           if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
           await insertHistorial({ gasto_id: data[0].id, accion: 'editado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: row });
         } else {
+          row.estado = 'registrado';
           r = await sb('gastos_registros', {
             method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
           });
@@ -149,7 +150,7 @@ module.exports = async (req, res) => {
         rows.forEach((g, i) => {
           const built = construirFila(g, body.actor_id, body.actor_nombre);
           if (built.error) errores.push({ fila: i + 1, error: built.error });
-          else buenas.push(built.row);
+          else { built.row.estado = 'registrado'; buenas.push(built.row); }
         });
 
         let insertados = 0;
@@ -163,6 +164,22 @@ module.exports = async (req, res) => {
           await insertHistorial({ accion: 'importacion_excel', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { insertados: insertados, con_error: errores.length } });
         }
         res.status(200).json({ ok: true, insertados: insertados, errores: errores });
+        return;
+      }
+
+      if (action === 'informar') {
+        const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : [];
+        if (!ids.length) { res.status(400).json({ ok: false, error: 'No hay gastos para informar.' }); return; }
+        const filtroPropio = body.actor_is_admin ? '' : '&created_by_id=eq.' + encodeURIComponent(body.actor_id || '');
+        const lista = 'id=in.(' + ids.map((id) => encodeURIComponent(id)).join(',') + ')';
+        const r = await sb('gastos_registros?' + lista + filtroPropio, {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ estado: 'informado', updated_at: new Date().toISOString() })
+        });
+        const data = await r.json();
+        if (!r.ok) { res.status(500).json({ ok: false, raw: data }); return; }
+        await insertHistorial({ accion: 'informado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { ids: ids, actualizados: (data || []).length } });
+        res.status(200).json({ ok: true, actualizados: (data || []).length });
         return;
       }
 
