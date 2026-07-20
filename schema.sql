@@ -31,3 +31,23 @@ create table if not exists gastos_historial (
   detalle      jsonb,
   created_at   timestamptz not null default now()
 );
+
+-- Fondos (caja chica / circulante). Quien esté asociado a un fondo mediante
+-- gastos_fondo_usuarios queda habilitado para registrar/cargar gastos.
+create table if not exists gastos_fondos (
+  id           bigserial primary key,
+  tipo         text not null check (tipo in ('caja_chica','circulante')),
+  monto_total  numeric(12,2) not null check (monto_total >= 0),
+  anio         smallint not null,
+  created_at   timestamptz not null default now()
+);
+
+create table if not exists gastos_fondo_usuarios (
+  id          bigserial primary key,
+  fondo_id    bigint not null references gastos_fondos(id) on delete cascade,
+  usuario_id  text not null,
+  created_at  timestamptz not null default now(),
+  unique (fondo_id, usuario_id)
+);
+
+create index if not exists gastos_fondo_usuarios_usuario_idx on gastos_fondo_usuarios (usuario_id);

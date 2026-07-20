@@ -454,17 +454,49 @@
       </div>
     </div>
 
-    <!-- ---- Configurar usuarios ---- -->
+    <!-- ---- Configurar usuarios / Fondos ---- -->
     <div id="viewConfig" class="card" style="display:none">
-      <div class="section-title">Usuarios autorizados para registrar gastos</div>
-      <div id="configLoading" class="loading">Cargando...</div>
-      <div id="configContent" style="display:none">
-        <div class="search-box">
-          <input type="text" id="userSearch" placeholder="Buscar usuario..." />
+      <div class="section-title">Crear fondo</div>
+      <div class="row">
+        <div>
+          <label for="fTipo">Tipo de fondo</label>
+          <select id="fTipo">
+            <option value="caja_chica">Fondo de caja chica</option>
+            <option value="circulante">Fondo circulante</option>
+          </select>
         </div>
-        <div id="userList" class="user-list"></div>
-        <button type="button" id="btnGuardarConfig">Guardar</button>
-        <div id="configMsg" class="msg"></div>
+        <div>
+          <label for="fMontoTotal">Monto total ($)</label>
+          <input type="number" id="fMontoTotal" step="0.01" min="0" placeholder="0.00" />
+        </div>
+        <div>
+          <label for="fAnio">Año</label>
+          <select id="fAnio"></select>
+        </div>
+      </div>
+      <button type="button" id="btnCrearFondo">Crear fondo</button>
+      <div id="fondoMsg" class="msg"></div>
+
+      <div class="section-title" style="margin-top:22px">Fondos creados</div>
+      <div id="fondosLoading" class="loading">Cargando...</div>
+      <div id="fondosContent" style="display:none"></div>
+    </div>
+
+    <!-- Modal: asignar usuarios a un fondo -->
+    <div id="asignarModal" class="map-modal">
+      <div class="map-modal-content" style="max-width:480px">
+        <div class="map-modal-header">
+          <b id="asignarModalTitle">Asignar usuarios</b>
+        </div>
+        <div class="search-box">
+          <input type="text" id="asignarUserSearch" placeholder="Buscar usuario..." />
+        </div>
+        <div id="asignarUserList" class="user-list"></div>
+        <div id="asignarModalMsg" class="msg"></div>
+        <div class="map-actions">
+          <button type="button" class="cancel" id="asignarModalCancel">Cancelar</button>
+          <button type="button" id="asignarModalGuardar">Guardar</button>
+        </div>
       </div>
     </div>
 
@@ -549,19 +581,6 @@
     }).then(function (r) { return r.json(); });
   }
 
-  // ---- app.option (lista de usuarios autorizados) ----
-  function loadAutorizados() {
-    return bx('app.option.get', {}).then(function (options) {
-      try {
-        var raw = options && options.gastos_autorizados_ids;
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) { return []; }
-    });
-  }
-  function saveAutorizados(list) {
-    return bx('app.option.set', { options: { gastos_autorizados_ids: JSON.stringify(list) } });
-  }
-
   function showMsg(el, type, html) { el.className = 'msg ' + type; el.innerHTML = html; el.style.display = 'block'; }
   function hideMsg(el) { el.style.display = 'none'; el.innerHTML = ''; }
 
@@ -610,7 +629,7 @@
     if (window.innerWidth < 900) closeDrawer();
     if (name === 'historial') loadHistorial();
     if (name === 'reportes') initReportes();
-    if (name === 'config') { renderConfigUsuarios(); }
+    if (name === 'config') { initConfigTab(); }
   }
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () { activarTab(tab.getAttribute('data-tab')); });
@@ -1118,51 +1137,176 @@
   });
 
   // ==================================================================
-  // Configurar usuarios autorizados (solo admin)
+  // Configurar usuarios / Fondos (solo admin)
   // ==================================================================
-  var pendingAutorizadosIds = [];
-  document.getElementById('userSearch').addEventListener('input', renderConfigUsuarios);
+  var fondos = [];
+  var fondoAsignando = null;
+  var pendingAsignadosIds = [];
+  var TIPO_FONDO_LABEL = { caja_chica: 'Fondo de caja chica', circulante: 'Fondo circulante' };
 
-  function renderConfigUsuarios() {
-    document.getElementById('configLoading').style.display = 'none';
-    document.getElementById('configContent').style.display = 'block';
-    var listEl = document.getElementById('userList');
-    var filter = (document.getElementById('userSearch').value || '').toLowerCase();
+  function poblarAnios() {
+    var sel = document.getElementById('fAnio');
+    if (sel.options.length) return;
+    var actual = new Date().getFullYear();
+    for (var y = actual - 1; y <= actual + 5; y++) {
+      var opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === actual) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+
+  function recalcularAutorizacion() {
+    var union = {};
+    fondos.forEach(function (f) { (f.usuario_ids || []).forEach(function (id) { union[String(id)] = true; }); });
+    autorizadosIds = Object.keys(union);
+    canLoad = isAdmin || autorizadosIds.indexOf(String(currentUser.ID)) !== -1;
+    actualizarVisibilidadTabs();
+  }
+
+  function cargarFondos() {
+    document.getElementById('fondosLoading').style.display = 'block';
+    document.getElementById('fondosContent').style.display = 'none';
+    return apiCall('fondos?action=list').then(function (r) {
+      fondos = r.fondos || [];
+      document.getElementById('fondosLoading').style.display = 'none';
+      document.getElementById('fondosContent').style.display = 'block';
+      renderFondos();
+    });
+  }
+
+  function renderFondos() {
+    var el = document.getElementById('fondosContent');
+    if (!fondos.length) {
+      el.innerHTML = '<div class="empty-state">No hay fondos creados todavía.</div>';
+      return;
+    }
+    el.innerHTML = fondos.map(function (f) {
+      var n = (f.usuario_ids || []).length;
+      return '<div class="gasto-item">' +
+        '<div class="gasto-top">' +
+          '<span><b>' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + '</b> · ' + esc(f.anio) + '</span>' +
+          '<span class="gasto-total">$' + money(f.monto_total) + '</span>' +
+        '</div>' +
+        '<div class="gasto-line">' + n + ' usuario' + (n === 1 ? '' : 's') + ' asignado' + (n === 1 ? '' : 's') +
+          (n ? ': ' + esc(f.usuario_ids.map(nombreDe).join(', ')) : '') +
+        '</div>' +
+        '<div class="gasto-actions">' +
+          '<button type="button" class="secondary" data-asignar="' + f.id + '">Asignar usuarios</button>' +
+          '<button type="button" class="danger" data-eliminar-fondo="' + f.id + '">Eliminar</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+
+    el.querySelectorAll('[data-asignar]').forEach(function (btn) {
+      btn.addEventListener('click', function () { abrirModalAsignar(btn.getAttribute('data-asignar')); });
+    });
+    el.querySelectorAll('[data-eliminar-fondo]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-eliminar-fondo');
+        customConfirm('¿Eliminar este fondo? Los usuarios que solo estaban asociados a él perderán acceso al sistema. Esta acción no se puede deshacer.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+          if (!ok) return;
+          apiCall('fondos', { method: 'POST', body: { action: 'delete', id: id } }).then(function (r) {
+            if (r.ok) { cargarFondos().then(recalcularAutorizacion); } else { customAlert(r.error || 'No se pudo eliminar el fondo.'); }
+          });
+        });
+      });
+    });
+  }
+
+  document.getElementById('btnCrearFondo').addEventListener('click', function () {
+    var msgEl = document.getElementById('fondoMsg');
+    hideMsg(msgEl);
+    var fondo = {
+      tipo: document.getElementById('fTipo').value,
+      monto_total: document.getElementById('fMontoTotal').value,
+      anio: document.getElementById('fAnio').value
+    };
+    if (fondo.monto_total === '' || Number(fondo.monto_total) < 0) {
+      showMsg(msgEl, 'error', 'Ingresa un monto total válido.');
+      return;
+    }
+    var btn = this;
+    btn.disabled = true;
+    apiCall('fondos', { method: 'POST', body: { action: 'create', fondo: fondo } }).then(function (r) {
+      btn.disabled = false;
+      if (r.ok) {
+        showMsg(msgEl, 'success', 'Fondo creado correctamente.');
+        document.getElementById('fMontoTotal').value = '';
+        cargarFondos();
+      } else {
+        showMsg(msgEl, 'error', r.error || 'No se pudo crear el fondo.');
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg(msgEl, 'error', 'Error de conexión al crear el fondo.');
+    });
+  });
+
+  // ---- Modal: asignar usuarios a un fondo ----
+  function abrirModalAsignar(fondoId) {
+    fondoAsignando = fondos.find(function (f) { return String(f.id) === String(fondoId); });
+    if (!fondoAsignando) return;
+    pendingAsignadosIds = (fondoAsignando.usuario_ids || []).slice();
+    document.getElementById('asignarModalTitle').textContent =
+      'Asignar usuarios — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
+    document.getElementById('asignarUserSearch').value = '';
+    hideMsg(document.getElementById('asignarModalMsg'));
+    renderAsignarUserList();
+    document.getElementById('asignarModal').classList.add('open');
+  }
+  function cerrarModalAsignar() {
+    document.getElementById('asignarModal').classList.remove('open');
+    fondoAsignando = null;
+  }
+  document.getElementById('asignarModalCancel').addEventListener('click', cerrarModalAsignar);
+
+  function renderAsignarUserList() {
+    var listEl = document.getElementById('asignarUserList');
+    var filter = (document.getElementById('asignarUserSearch').value || '').toLowerCase();
     listEl.innerHTML = '';
     allUsers
       .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
       .forEach(function (u) {
         var row = document.createElement('label');
         row.className = 'user-row';
-        var checked = pendingAutorizadosIds.some(function (id) { return String(id) === String(u.ID); });
+        var checked = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
         row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
         listEl.appendChild(row);
       });
   }
-
-  document.getElementById('userList').addEventListener('change', function (ev) {
+  document.getElementById('asignarUserSearch').addEventListener('input', renderAsignarUserList);
+  document.getElementById('asignarUserList').addEventListener('change', function (ev) {
     var cb = ev.target;
     if (cb.tagName !== 'INPUT') return;
     var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingAutorizadosIds.indexOf(id) === -1) pendingAutorizadosIds.push(id); }
-    else { pendingAutorizadosIds = pendingAutorizadosIds.filter(function (x) { return x !== id; }); }
+    if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
+    else { pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; }); }
   });
 
-  document.getElementById('btnGuardarConfig').addEventListener('click', function () {
-    var msgEl = document.getElementById('configMsg');
+  document.getElementById('asignarModalGuardar').addEventListener('click', function () {
+    if (!fondoAsignando) return;
+    var msgEl = document.getElementById('asignarModalMsg');
     var btn = this;
     btn.disabled = true;
-    saveAutorizados(pendingAutorizadosIds).then(function () {
+    apiCall('fondos', { method: 'POST', body: { action: 'asignar', fondo_id: fondoAsignando.id, usuario_ids: pendingAsignadosIds } }).then(function (r) {
       btn.disabled = false;
-      autorizadosIds = pendingAutorizadosIds.slice();
-      canLoad = isAdmin || autorizadosIds.some(function (id) { return String(id) === String(currentUser.ID); });
-      actualizarVisibilidadTabs();
-      showMsg(msgEl, 'success', 'Lista de usuarios autorizados guardada.');
+      if (r.ok) {
+        cerrarModalAsignar();
+        cargarFondos().then(recalcularAutorizacion);
+      } else {
+        showMsg(msgEl, 'error', r.error || 'No se pudo guardar la asignación.');
+      }
     }).catch(function () {
       btn.disabled = false;
-      showMsg(msgEl, 'error', 'No se pudo guardar la configuración.');
+      showMsg(msgEl, 'error', 'Error de conexión al guardar.');
     });
   });
+
+  function initConfigTab() {
+    poblarAnios();
+    cargarFondos();
+  }
 
   // ==================================================================
   // Init
@@ -1188,12 +1332,11 @@
       allDepartments = results[3];
       if (departamentosError) console.error('department.get falló:', departamentosError);
       poblarAreasDesdeDepartamentos();
-      return loadAutorizados();
-    }).then(function (list) {
-      autorizadosIds = list;
-      pendingAutorizadosIds = list.slice();
-      canLoad = isAdmin || autorizadosIds.some(function (id) { return String(id) === String(currentUser.ID); });
-      actualizarVisibilidadTabs();
+      poblarAnios();
+      return apiCall('fondos?action=list');
+    }).then(function (r) {
+      fondos = r.fondos || [];
+      recalcularAutorizacion();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 

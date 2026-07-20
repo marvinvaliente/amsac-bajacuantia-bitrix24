@@ -24,16 +24,19 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   y Unidad del usuario que los registró (tomados de Bitrix24: `user.get` /
   `department.get`), más rango de fechas, y descarga el resultado en **Excel** o
   **PDF** con todas las columnas de la tabla.
-- **Configurar usuarios** (solo administradores): checklist de todos los usuarios
-  activos del portal para marcar quiénes pueden registrar/cargar gastos. Se
-  guarda con `app.option.set`, ligado a la instalación de la app — igual patrón
-  que "Configurar motoristas" en la app de transporte.
+- **Configurar usuarios** (solo administradores): se crean **fondos** (Fondo de
+  caja chica / Fondo circulante, con monto total y año) y se asocia a cada fondo
+  los usuarios de Bitrix24 que pueden usarlo. Un usuario queda habilitado para
+  registrar/cargar gastos únicamente si está asociado a al menos un fondo (o si
+  es administrador del portal). Ya no se usa `app.option` para esto — la lista de
+  autorizados se deriva de las asociaciones fondo↔usuario guardadas en Supabase.
 
 ## Base de datos (Supabase)
 
 1. Entra al proyecto Supabase que ya usa `amsac-transporte-bitrix24`.
 2. SQL Editor → New query → pega y ejecuta el contenido de [`schema.sql`](schema.sql).
-   Crea `gastos_registros` y `gastos_historial`; no toca ninguna tabla `transporte_*`.
+   Crea `gastos_registros`, `gastos_historial`, `gastos_fondos` y
+   `gastos_fondo_usuarios`; no toca ninguna tabla `transporte_*`.
 
 ## Variables de entorno (Vercel)
 
@@ -70,8 +73,9 @@ entorno anteriores.
 4. **Permisos (scopes)**: marca `user` (para `user.current`, `user.admin`,
    `user.get`, `department.get`) — no necesita `calendar` como transporte.
 5. Guarda e instala la app en el portal.
-6. Ábrela una vez como administrador y ve a **"Configurar usuarios"** para marcar
-   quiénes pueden registrar gastos. Guarda.
+6. Ábrela una vez como administrador y ve a **"Configurar usuarios"**: crea al
+   menos un fondo (tipo, monto total, año) y asígnale los usuarios que podrán
+   registrar gastos.
 7. Comparte el acceso desde el menú de aplicaciones del portal con el resto de
    usuarios autorizados.
 
