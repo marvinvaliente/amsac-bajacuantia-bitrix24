@@ -36,6 +36,15 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   fechas, y descarga el resultado en **Excel** o **PDF** (el PDF incluye además
   el fondo asociado a quien registró cada gasto). El filtro por **Estado**
   (registrado/informado) solo lo ve un administrador.
+- **Dashboard** (disponible para todo usuario habilitado, no solo administradores):
+  por cada fondo, muestra a cada usuario asignado con su foto de perfil de
+  Bitrix24 (o iniciales si no tiene foto o la foto falla al cargar), su monto
+  **Registrado** (naranja) y su monto **Informado** (verde) del período
+  filtrado. Filtros por Tipo de fondo, Año, Mes y Usuario. Si hay algún monto
+  informado en el resultado filtrado, aparece el botón **"Descargar informe
+  (PDF)"**. Los datos se recalculan cada vez que se abre la pestaña o se le da
+  "Actualizar" (no hay un socket de tiempo real; refleja el estado más reciente
+  guardado en Supabase al momento de cargar/actualizar).
 - **Configurar usuarios** (solo administradores): se crean **fondos** (Fondo de
   caja chica / Fondo circulante, con monto total y año) y se asocia a cada fondo
   los usuarios de Bitrix24 que pueden usarlo. Un usuario queda habilitado para
@@ -102,3 +111,11 @@ entorno anteriores.
   `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
 - Excel (carga e importación) usa SheetJS (`xlsx.full.min.js` por CDN) en el
   navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en transporte.
+- **Límite conocido del Dashboard**: `gastos_registros` no guarda a qué fondo
+  específico pertenece cada gasto (los fondos solo definen qué usuarios pueden
+  cargar gastos, vía `gastos_fondo_usuarios`). Si un usuario está asociado a
+  **más de un fondo**, el Dashboard muestra el mismo monto registrado/informado
+  de ese usuario repetido bajo cada uno de sus fondos, en vez de repartirlo
+  entre ellos — no hay forma de saber contra cuál fondo se cargó cada gasto sin
+  agregar una columna `fondo_id` a `gastos_registros` y un selector de fondo en
+  "Registrar gasto" (cambio no incluido en este alcance).

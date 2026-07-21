@@ -160,6 +160,21 @@
   .badge.estado-informado { background: #e8f8ee; color: #1f7a41; }
   .badge.estado-eliminado { background: #fdecec; color: #a92626; }
 
+  .dash-user-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+  .dash-user-row:first-of-type { border-top: none; }
+  .dash-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; background: var(--bg); border: 1px solid var(--border); }
+  .dash-avatar-fallback {
+    width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: var(--primary); color: #fff; font-weight: 700; font-size: 13px; flex: none;
+  }
+  .dash-user-info { flex: 1; min-width: 0; }
+  .dash-user-name { font-weight: 600; font-size: 13.5px; }
+  .dash-user-cargo { font-weight: 400; color: #6b7a86; font-size: 11.5px; margin-left: 6px; }
+  .dash-user-amounts { display: flex; gap: 16px; margin-top: 4px; flex-wrap: wrap; }
+  .dash-amount { font-size: 12.5px; font-weight: 700; }
+  .dash-amount.registrado { color: #a86500; }
+  .dash-amount.informado { color: #1f7a41; }
+
   .filters-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
   @media (max-width: 560px) { .filters-grid { grid-template-columns: 1fr; } }
 
@@ -245,6 +260,10 @@
       <li class="tab hidden" id="tabReportesBtn" data-tab="reportes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
         <span>Reportes</span>
+      </li>
+      <li class="tab hidden" id="tabDashboardBtn" data-tab="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+        <span>Dashboard</span>
       </li>
       <li class="tab hidden" id="tabConfigBtn" data-tab="config">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -513,6 +532,53 @@
       </div>
     </div>
 
+    <!-- ---- Dashboard ---- -->
+    <div id="viewDashboard" class="card" style="display:none">
+      <div class="section-title">Dashboard de fondos</div>
+      <div class="filters-grid">
+        <div>
+          <label for="dashTipo">Tipo de fondo</label>
+          <select id="dashTipo">
+            <option value="">Todos</option>
+            <option value="caja_chica">Fondo de caja chica</option>
+            <option value="circulante">Fondo circulante</option>
+          </select>
+        </div>
+        <div>
+          <label for="dashAnio">Año</label>
+          <select id="dashAnio"><option value="">Todos</option></select>
+        </div>
+        <div>
+          <label for="dashMes">Mes</label>
+          <select id="dashMes">
+            <option value="">Todos</option>
+            <option value="1">1 - Enero</option>
+            <option value="2">2 - Febrero</option>
+            <option value="3">3 - Marzo</option>
+            <option value="4">4 - Abril</option>
+            <option value="5">5 - Mayo</option>
+            <option value="6">6 - Junio</option>
+            <option value="7">7 - Julio</option>
+            <option value="8">8 - Agosto</option>
+            <option value="9">9 - Septiembre</option>
+            <option value="10">10 - Octubre</option>
+            <option value="11">11 - Noviembre</option>
+            <option value="12">12 - Diciembre</option>
+          </select>
+        </div>
+        <div>
+          <label for="dashUsuario">Usuario</label>
+          <select id="dashUsuario"><option value="">Todos</option></select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="btnActualizarDashboard" class="secondary">Actualizar</button>
+        <button type="button" id="btnDescargarDashboardPDF" class="secondary" style="display:none">Descargar informe (PDF)</button>
+      </div>
+      <div id="dashboardLoading" class="loading">Cargando...</div>
+      <div id="dashboardContent" style="display:none; margin-top:14px"></div>
+    </div>
+
     <!-- ---- Configurar usuarios / Fondos ---- -->
     <div id="viewConfig" class="card" style="display:none">
       <div class="section-title" id="fondoFormTitulo">Crear fondo</div>
@@ -689,7 +755,7 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['registrar', 'excel', 'historial', 'informe', 'reportes', 'config'];
+  var VIEWS = ['registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
@@ -697,6 +763,7 @@
     if (name === 'historial') loadHistorial();
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
+    if (name === 'dashboard') initDashboard();
     if (name === 'config') { initConfigTab(); }
   }
   document.querySelectorAll('.tab').forEach(function (tab) {
@@ -1368,6 +1435,142 @@
   });
 
   // ==================================================================
+  // Dashboard de fondos
+  // ==================================================================
+  var dashboardGastos = [];
+  var dashboardFilasPDF = [];
+  var dashboardInicializado = false;
+
+  function iniciales(u) {
+    if (!u) return '?';
+    return [u.NAME, u.LAST_NAME].filter(Boolean).map(function (s) { return s.charAt(0).toUpperCase(); }).join('') || '?';
+  }
+
+  function poblarFiltrosDashboard() {
+    var selAnio = document.getElementById('dashAnio');
+    var anios = Array.from(new Set(fondos.map(function (f) { return String(f.anio); }))).sort();
+    anios.forEach(function (a) {
+      var opt = document.createElement('option');
+      opt.value = a; opt.textContent = a;
+      selAnio.appendChild(opt);
+    });
+
+    var selUsuario = document.getElementById('dashUsuario');
+    var idsFondo = Array.from(new Set(autorizadosIds));
+    idsFondo.sort(function (a, b) { return nombreDe(a).localeCompare(nombreDe(b)); });
+    idsFondo.forEach(function (id) {
+      var opt = document.createElement('option');
+      opt.value = id; opt.textContent = nombreDe(id);
+      selUsuario.appendChild(opt);
+    });
+  }
+
+  function initDashboard() {
+    if (!dashboardInicializado) { poblarFiltrosDashboard(); dashboardInicializado = true; }
+    document.getElementById('dashboardLoading').style.display = 'block';
+    document.getElementById('dashboardContent').style.display = 'none';
+    apiCall('gastos?action=list&admin=1').then(function (r) {
+      dashboardGastos = r.gastos || [];
+      document.getElementById('dashboardLoading').style.display = 'none';
+      document.getElementById('dashboardContent').style.display = 'block';
+      renderDashboard();
+    });
+  }
+  document.getElementById('btnActualizarDashboard').addEventListener('click', initDashboard);
+  ['dashTipo', 'dashAnio', 'dashMes', 'dashUsuario'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderDashboard);
+  });
+
+  function renderDashboard() {
+    var tipo = document.getElementById('dashTipo').value;
+    var anio = document.getElementById('dashAnio').value;
+    var mes = document.getElementById('dashMes').value;
+    var usuarioSel = document.getElementById('dashUsuario').value;
+
+    var fondosFiltrados = fondos.filter(function (f) {
+      if (tipo && f.tipo !== tipo) return false;
+      if (anio && String(f.anio) !== anio) return false;
+      return true;
+    });
+
+    var el = document.getElementById('dashboardContent');
+    var hayInformado = false;
+    dashboardFilasPDF = [];
+
+    var html = fondosFiltrados.map(function (f) {
+      var usuariosFondo = (f.usuario_ids || []).filter(function (uid) { return !usuarioSel || String(uid) === usuarioSel; });
+      if (!usuariosFondo.length) return '';
+
+      var filas = usuariosFondo.map(function (uid) {
+        var u = findUser(uid);
+        var gastosUsuario = dashboardGastos.filter(function (g) {
+          return String(g.created_by_id) === String(uid) && (!mes || String(g.mes) === mes);
+        });
+        var montoRegistrado = gastosUsuario.filter(function (g) { return g.estado === 'registrado'; })
+          .reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
+        var montoInformado = gastosUsuario.filter(function (g) { return g.estado === 'informado'; })
+          .reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
+        if (montoInformado > 0) hayInformado = true;
+
+        dashboardFilasPDF.push({
+          fondo: (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio,
+          usuario: nombreDe(uid), cargo: getCargo(uid), unidad: getUnidad(uid),
+          registrado: montoRegistrado, informado: montoInformado
+        });
+
+        var tieneFoto = u && u.PERSONAL_PHOTO;
+        return '<div class="dash-user-row">' +
+          (tieneFoto
+            ? '<img class="dash-avatar" data-fallback="' + esc(iniciales(u)) + '" src="' + esc(u.PERSONAL_PHOTO) + '" />'
+            : '<div class="dash-avatar-fallback">' + esc(iniciales(u)) + '</div>') +
+          '<div class="dash-user-info">' +
+            '<div class="dash-user-name">' + esc(nombreDe(uid)) + ' <span class="dash-user-cargo">' + esc(getCargo(uid)) + '</span></div>' +
+            '<div class="dash-user-amounts">' +
+              '<span class="dash-amount registrado">Registrado: $' + money(montoRegistrado) + '</span>' +
+              '<span class="dash-amount informado">Informado: $' + money(montoInformado) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      return '<div class="gasto-item">' +
+        '<div class="gasto-top"><span><b>' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + '</b> · ' + esc(f.anio) + '</span>' +
+        '<span class="gasto-total">$' + money(f.monto_total) + '</span></div>' +
+        filas +
+      '</div>';
+    }).filter(Boolean).join('');
+
+    el.innerHTML = html || '<div class="empty-state">No hay fondos o usuarios que coincidan con los filtros.</div>';
+
+    el.querySelectorAll('.dash-avatar').forEach(function (img) {
+      img.addEventListener('error', function () {
+        var div = document.createElement('div');
+        div.className = 'dash-avatar-fallback';
+        div.textContent = img.getAttribute('data-fallback') || '?';
+        img.replaceWith(div);
+      });
+    });
+
+    document.getElementById('btnDescargarDashboardPDF').style.display = hayInformado ? 'block' : 'none';
+  }
+
+  document.getElementById('btnDescargarDashboardPDF').addEventListener('click', function () {
+    var jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+    var doc = new jsPDFCtor({ unit: 'mm', format: 'letter', orientation: 'landscape' });
+    doc.setFontSize(12);
+    doc.text('Informe de Dashboard — Fondos de Baja Cuantía', 14, 12);
+    doc.autoTable({
+      startY: 18,
+      head: [['Fondo', 'Usuario', 'Cargo', 'Unidad', 'Registrado', 'Informado']],
+      body: dashboardFilasPDF.map(function (f) {
+        return [f.fondo, f.usuario, f.cargo, f.unidad, '$' + money(f.registrado), '$' + money(f.informado)];
+      }),
+      styles: { fontSize: 8 }
+    });
+    doc.save('Dashboard_Fondos_' + todayStr() + '.pdf');
+  });
+
+  // ==================================================================
   // Configurar usuarios / Fondos (solo admin)
   // ==================================================================
   var fondos = [];
@@ -1592,6 +1795,7 @@
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabInformeBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabReportesBtn').classList.toggle('hidden', !(canLoad || isAdmin));
+    document.getElementById('tabDashboardBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }
 
