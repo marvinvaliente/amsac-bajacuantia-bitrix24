@@ -9,19 +9,23 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 ## Qué hace
 
 - Cualquier usuario **autorizado** (o un administrador) puede registrar un gasto de
-  baja cuantía: fecha, número de documento, proveedor, descripción, área
-  solicitante, monto retenido y monto total. El mes se calcula automáticamente
-  desde la fecha. Todo gasto nuevo se guarda con **estado `registrado`**.
+  baja cuantía: fecha, **fondo** (solo lista los fondos a los que pertenece quien
+  registra; se autoselecciona si solo tiene uno), número de documento, proveedor,
+  descripción, área solicitante, monto retenido y monto total. El mes se calcula
+  automáticamente desde la fecha. Todo gasto nuevo se guarda con **estado
+  `registrado`**.
 - El mismo formulario permite editar un gasto (solo quien lo creó, mientras esté
   en estado `registrado`, o un administrador en cualquier estado). **Eliminar es
   un borrado lógico**: el gasto no se borra de la base de datos, pasa a estado
   `eliminado` (guardando el estado anterior) y deja de ser visible para todos
   salvo un administrador. Un gasto `informado` solo puede editarse/eliminarse
   por un administrador.
-- **Carga por Excel**: sube un `.xlsx`/`.xls`/`.csv` con las columnas `fecha`,
-  `mes`, `numero_documento`, `proveedor`, `descripcion`, `area_solicitante`,
-  `monto_retenido`, `monto_total`. La app valida cada fila antes de importar y
-  muestra cuáles quedaron bien y cuáles tienen error, sin bloquear el resto.
+- **Carga por Excel**: se elige primero el **fondo** al que pertenece todo el lote
+  (mismo criterio que Registrar gasto), y luego se sube un `.xlsx`/`.xls`/`.csv`
+  con las columnas `fecha`, `mes`, `numero_documento`, `proveedor`,
+  `descripcion`, `area_solicitante`, `monto_retenido`, `monto_total`. La app
+  valida cada fila antes de importar y muestra cuáles quedaron bien y cuáles
+  tienen error, sin bloquear el resto.
 - **Historial**: lista de gastos (los administradores ven todos, solo los
   propios, o los **eliminados**; el resto de usuarios autorizados solo ve los
   suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
@@ -40,11 +44,14 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   por cada fondo, muestra a cada usuario asignado con su foto de perfil de
   Bitrix24 (o iniciales si no tiene foto o la foto falla al cargar), su monto
   **Registrado** (naranja) y su monto **Informado** (verde) del período
-  filtrado. Filtros por Tipo de fondo, Año, Mes y Usuario. Si hay algún monto
-  informado en el resultado filtrado, aparece el botón **"Descargar informe
-  (PDF)"**. Los datos se recalculan cada vez que se abre la pestaña o se le da
-  "Actualizar" (no hay un socket de tiempo real; refleja el estado más reciente
-  guardado en Supabase al momento de cargar/actualizar).
+  filtrado, calculado a partir del fondo real (`fondo_id`) de cada gasto —no de
+  una estimación por usuario—, así que un usuario con varios fondos ve su gasto
+  repartido correctamente entre ellos. Filtros por Tipo de fondo, Año, Mes y
+  Usuario. Si hay algún monto informado en el resultado filtrado, aparece el
+  botón **"Descargar informe (PDF)"**. Los datos se recalculan cada vez que se
+  abre la pestaña o se le da "Actualizar" (no hay un socket de tiempo real;
+  refleja el estado más reciente guardado en Supabase al momento de
+  cargar/actualizar).
 - **Configurar usuarios** (solo administradores): se crean **fondos** (Fondo de
   caja chica / Fondo circulante, con monto total y año) y se asocia a cada fondo
   los usuarios de Bitrix24 que pueden usarlo. Un usuario queda habilitado para
@@ -111,11 +118,10 @@ entorno anteriores.
   `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
 - Excel (carga e importación) usa SheetJS (`xlsx.full.min.js` por CDN) en el
   navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en transporte.
-- **Límite conocido del Dashboard**: `gastos_registros` no guarda a qué fondo
-  específico pertenece cada gasto (los fondos solo definen qué usuarios pueden
-  cargar gastos, vía `gastos_fondo_usuarios`). Si un usuario está asociado a
-  **más de un fondo**, el Dashboard muestra el mismo monto registrado/informado
-  de ese usuario repetido bajo cada uno de sus fondos, en vez de repartirlo
-  entre ellos — no hay forma de saber contra cuál fondo se cargó cada gasto sin
-  agregar una columna `fondo_id` a `gastos_registros` y un selector de fondo en
-  "Registrar gasto" (cambio no incluido en este alcance).
+- **`fondo_id`**: cada gasto guarda a qué fondo específico pertenece (columna
+  `fondo_id` en `gastos_registros`, poblada desde el selector "Fondo" en
+  Registrar gasto/Cargar Excel). Los gastos creados **antes** de que existiera
+  esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y el
+  "Fondo" mostrado en Historial/Informe/Reportes recurren como respaldo a los
+  fondos del usuario que lo registró, y solo lo resuelven sin ambigüedad si ese
+  usuario pertenece a un único fondo.

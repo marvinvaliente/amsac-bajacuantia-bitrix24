@@ -296,6 +296,9 @@
         <label for="gMes">Mes</label>
         <input type="text" id="gMes" readonly />
 
+        <label for="gFondo">Fondo *</label>
+        <select id="gFondo" required></select>
+
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
 
@@ -347,6 +350,8 @@
           <li><b>monto_total</b> — total de la compra según documento</li>
         </ul>
       </div>
+      <label for="excFondo">Fondo *</label>
+      <select id="excFondo" required></select>
       <input type="file" id="gExcelFile" accept=".xlsx,.xls,.csv" />
       <button type="button" id="btnProcesarExcel">Procesar archivo</button>
       <div id="excelResumen" class="stat-row" style="display:none"></div>
@@ -683,6 +688,16 @@
     if (!propios.length) return '—';
     return propios.map(function (f) { return (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio; }).join(', ');
   }
+  // Fondo real de un gasto puntual (columna fondo_id). Los gastos creados antes
+  // de que existiera esa columna no la tienen: en ese caso se usa como
+  // aproximación el/los fondo(s) del usuario que lo registró.
+  function getFondoDeGasto(g) {
+    if (g.fondo_id != null) {
+      var f = fondos.find(function (x) { return String(x.id) === String(g.fondo_id); });
+      return f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : '—';
+    }
+    return getFondosDe(g.created_by_id);
+  }
 
   // ---- BX24 helpers ----
   function bx(method, params) {
@@ -793,6 +808,7 @@
     document.getElementById('btnGuardarGasto').textContent = 'Registrar gasto';
     document.getElementById('btnCancelarEdicion').style.display = 'none';
     prellenarAreaSolicitante();
+    poblarFondosUsuario();
   }
 
   // Por defecto sugiere la unidad/dependencia de Bitrix24 a la que pertenece
@@ -803,10 +819,30 @@
     document.getElementById('gAreaSolicitante').value = (propia && propia !== '—') ? propia : '';
   }
 
+  // Lista solo los fondos a los que pertenece quien está registrando el gasto;
+  // si solo tiene uno, se autoselecciona.
+  function poblarFondosUsuario() {
+    var misFondos = fondos.filter(function (f) {
+      return (f.usuario_ids || []).some(function (id) { return String(id) === String(currentUser.ID); });
+    });
+    ['gFondo', 'excFondo'].forEach(function (selId) {
+      var sel = document.getElementById(selId);
+      var actual = sel.value;
+      sel.innerHTML = misFondos.length
+        ? misFondos.map(function (f) {
+            return '<option value="' + f.id + '">' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + esc(f.anio) + '</option>';
+          }).join('')
+        : '<option value="">No tienes ningún fondo asignado</option>';
+      if (actual && misFondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
+    });
+  }
+
   function cargarGastoEnFormulario(g) {
     editingId = g.id;
     gFecha.value = g.fecha;
     gFecha.dispatchEvent(new Event('change'));
+    poblarFondosUsuario();
+    document.getElementById('gFondo').value = g.fondo_id != null ? String(g.fondo_id) : '';
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
     document.getElementById('gDescripcion').value = g.descripcion || '';
@@ -824,8 +860,14 @@
     ev.preventDefault();
     var msgEl = document.getElementById('gastoMsg');
     hideMsg(msgEl);
+    var fondoId = document.getElementById('gFondo').value;
+    if (!fondoId) {
+      showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece este gasto.');
+      return;
+    }
     var gasto = {
       fecha: gFecha.value,
+      fondo_id: fondoId,
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
       descripcion: document.getElementById('gDescripcion').value.trim(),
@@ -962,6 +1004,7 @@
   document.getElementById('btnProcesarExcel').addEventListener('click', function () {
     var msgEl = document.getElementById('excelMsg');
     hideMsg(msgEl);
+    if (!document.getElementById('excFondo').value) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenecen estos gastos.'); return; }
     var file = document.getElementById('gExcelFile').files[0];
     if (!file) { showMsg(msgEl, 'error', 'Selecciona un archivo primero.'); return; }
     var reader = new FileReader();
@@ -1012,7 +1055,7 @@
     btn.disabled = true;
     apiCall('gastos', {
       method: 'POST',
-      body: { action: 'bulk_save', rows: filasExcelValidas, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
+      body: { action: 'bulk_save', rows: filasExcelValidas, fondo_id: document.getElementById('excFondo').value, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
@@ -1144,7 +1187,7 @@
         '</div>' +
         '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
         '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
-        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + '</div>' +
+        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
         (isAdmin ? '<div class="gasto-line">Registrado por: ' + esc(nombreDe(g.created_by_id)) + ' <span class="badge ' + (esPropio ? 'propio' : 'ajeno') + '">' + (esPropio ? 'Yo' : 'Otro usuario') + '</span></div>' : '') +
         (esVistaEliminados ? '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-restaurar="' + g.id + '">Restablecer</button>' +
@@ -1260,7 +1303,7 @@
         '</div>' +
         '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
         '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
-        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + '</div>' +
+        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
         '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
           '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
@@ -1427,7 +1470,7 @@
       head: [['Fecha', 'N° Doc', 'Proveedor', 'Descripción', 'Área solicitante', 'Retenido', 'Total', 'Registrado por', 'Cargo', 'Unidad', 'Fondo']],
       body: gastosFiltrados.map(function (g) {
         return [g.fecha, g.numero_documento, g.proveedor, g.descripcion, g.area_solicitante,
-          money(g.monto_retenido), money(g.monto_total), nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id), getFondosDe(g.created_by_id)];
+          money(g.monto_retenido), money(g.monto_total), nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id), getFondoDeGasto(g)];
       }),
       styles: { fontSize: 7 }
     });
@@ -1481,6 +1524,18 @@
     document.getElementById(id).addEventListener('change', renderDashboard);
   });
 
+  // Determina si un gasto cuenta para un fondo dado. Los gastos nuevos ya
+  // guardan su fondo_id exacto; los creados antes de esa columna (fondo_id
+  // vacío) se le atribuyen a un fondo solo si el usuario pertenece a un único
+  // fondo (caso sin ambigüedad posible).
+  function gastoPerteneceAFondo(g, fondoId, uid) {
+    if (g.fondo_id != null) return String(g.fondo_id) === String(fondoId);
+    var fondosDelUsuario = fondos.filter(function (f) {
+      return (f.usuario_ids || []).some(function (x) { return String(x) === String(uid); });
+    });
+    return fondosDelUsuario.length === 1 && String(fondosDelUsuario[0].id) === String(fondoId);
+  }
+
   function renderDashboard() {
     var tipo = document.getElementById('dashTipo').value;
     var anio = document.getElementById('dashAnio').value;
@@ -1504,7 +1559,7 @@
       var filas = usuariosFondo.map(function (uid) {
         var u = findUser(uid);
         var gastosUsuario = dashboardGastos.filter(function (g) {
-          return String(g.created_by_id) === String(uid) && (!mes || String(g.mes) === mes);
+          return String(g.created_by_id) === String(uid) && (!mes || String(g.mes) === mes) && gastoPerteneceAFondo(g, f.id, uid);
         });
         var montoRegistrado = gastosUsuario.filter(function (g) { return g.estado === 'registrado'; })
           .reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
@@ -1820,7 +1875,7 @@
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
-      if (canLoad) { activarTab('registrar'); prellenarAreaSolicitante(); cargarProveedores(); }
+      if (canLoad) { activarTab('registrar'); prellenarAreaSolicitante(); poblarFondosUsuario(); cargarProveedores(); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
     }).catch(function (err) {

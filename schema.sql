@@ -14,6 +14,7 @@ create table if not exists gastos_registros (
   monto_total         numeric(12,2) not null default 0,
   estado              text not null default 'registrado' check (estado in ('registrado','informado','eliminado')),
   estado_anterior     text,
+  fondo_id            bigint,
   created_by_id       text not null,
   created_by_nombre   text not null default '',
   created_at          timestamptz not null default now(),
@@ -64,3 +65,15 @@ create table if not exists gastos_fondo_usuarios (
 );
 
 create index if not exists gastos_fondo_usuarios_usuario_idx on gastos_fondo_usuarios (usuario_id);
+
+-- fondo_id: a qué fondo específico se carga cada gasto (para que el Dashboard
+-- calcule montos exactos por fondo, en vez de estimarlos por usuario). Va
+-- después de gastos_fondos porque depende de esa tabla para la llave foránea.
+alter table gastos_registros add column if not exists fondo_id bigint;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'gastos_registros_fondo_id_fkey') then
+    alter table gastos_registros add constraint gastos_registros_fondo_id_fkey
+      foreign key (fondo_id) references gastos_fondos(id) on delete set null;
+  end if;
+end $$;
+create index if not exists gastos_registros_fondo_idx on gastos_registros (fondo_id);

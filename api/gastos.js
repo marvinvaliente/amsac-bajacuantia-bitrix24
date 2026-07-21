@@ -46,6 +46,8 @@ function construirFila(g, actorId, actorNombre) {
   if (!numeroDocumento) return { error: 'Falta número de documento.' };
   if (!proveedor) return { error: 'Falta proveedor.' };
   if (!areaSolicitante) return { error: 'Falta área solicitante.' };
+  const fondoId = parseInt(g.fondo_id, 10);
+  if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece este gasto.' };
 
   return {
     row: {
@@ -57,6 +59,7 @@ function construirFila(g, actorId, actorNombre) {
       area_solicitante: areaSolicitante,
       monto_retenido: montoRetenido,
       monto_total: montoTotal,
+      fondo_id: fondoId,
       created_by_id: String(actorId || ''),
       created_by_nombre: actorNombre || ''
     }
@@ -150,7 +153,7 @@ module.exports = async (req, res) => {
         const buenas = [];
         const errores = [];
         rows.forEach((g, i) => {
-          const built = construirFila(g, body.actor_id, body.actor_nombre);
+          const built = construirFila(Object.assign({}, g, { fondo_id: body.fondo_id }), body.actor_id, body.actor_nombre);
           if (built.error) errores.push({ fila: i + 1, error: built.error });
           else { built.row.estado = 'registrado'; buenas.push(built.row); }
         });
