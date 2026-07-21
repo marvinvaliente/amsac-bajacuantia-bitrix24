@@ -9,11 +9,14 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 ## Qué hace
 
 - Cualquier usuario **autorizado** (o un administrador) puede registrar un gasto de
-  baja cuantía: fecha, **fondo** (solo lista los fondos a los que pertenece quien
-  registra; se autoselecciona si solo tiene uno), número de documento, proveedor,
-  descripción, área solicitante, monto retenido y monto total. El mes se calcula
-  automáticamente desde la fecha. Todo gasto nuevo se guarda con **estado
-  `registrado`**.
+  baja cuantía: **fondo** (solo lista los fondos a los que pertenece quien
+  registra; se autoselecciona si solo tiene uno), fecha, número de documento,
+  proveedor, descripción, **nombre del proceso**, **justificación**, área
+  solicitante, monto retenido y monto total. El mes se calcula automáticamente
+  desde la fecha. Todo gasto nuevo se guarda con **estado `registrado`**.
+  "Nombre del proceso" y "Justificación" son obligatorios solo en este
+  formulario individual; la carga por Excel no los pide (quedan vacíos en los
+  gastos importados por ese medio).
 - El mismo formulario permite editar un gasto (solo quien lo creó, mientras esté
   en estado `registrado`, o un administrador en cualquier estado). **Eliminar es
   un borrado lógico**: el gasto no se borra de la base de datos, pasa a estado

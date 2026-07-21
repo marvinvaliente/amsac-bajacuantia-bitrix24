@@ -56,6 +56,8 @@ function construirFila(g, actorId, actorNombre) {
       numero_documento: numeroDocumento,
       proveedor: proveedor,
       descripcion: String(g.descripcion || '').trim(),
+      nombre_proceso: String(g.nombre_proceso || '').trim(),
+      justificacion: String(g.justificacion || '').trim(),
       area_solicitante: areaSolicitante,
       monto_retenido: montoRetenido,
       monto_total: montoTotal,

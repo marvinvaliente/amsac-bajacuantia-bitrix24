@@ -9,6 +9,8 @@ create table if not exists gastos_registros (
   numero_documento    text not null default '',
   proveedor           text not null default '',
   descripcion         text not null default '',
+  nombre_proceso      text not null default '',
+  justificacion       text not null default '',
   area_solicitante    text not null default '',
   monto_retenido      numeric(12,2) not null default 0,
   monto_total         numeric(12,2) not null default 0,
@@ -77,3 +79,7 @@ do $$ begin
   end if;
 end $$;
 create index if not exists gastos_registros_fondo_idx on gastos_registros (fondo_id);
+
+-- Nombre del proceso / Justificación: campos adicionales de Registrar gasto.
+alter table gastos_registros add column if not exists nombre_proceso text not null default '';
+alter table gastos_registros add column if not exists justificacion text not null default '';

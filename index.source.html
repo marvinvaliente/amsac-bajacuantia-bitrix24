@@ -290,14 +290,14 @@
     <div id="viewRegistrar" class="card" style="display:none">
       <div class="section-title" id="registrarTitulo">Registrar gasto</div>
       <form id="formGasto">
+        <label for="gFondo">Fondo *</label>
+        <select id="gFondo" required></select>
+
         <label for="gFecha">Fecha *</label>
         <input type="date" id="gFecha" required />
 
         <label for="gMes">Mes</label>
         <input type="text" id="gMes" readonly />
-
-        <label for="gFondo">Fondo *</label>
-        <select id="gFondo" required></select>
 
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
@@ -308,6 +308,12 @@
 
         <label for="gDescripcion">Descripción *</label>
         <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
+
+        <label for="gNombreProceso">Nombre del proceso *</label>
+        <input type="text" id="gNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+
+        <label for="gJustificacion">Justificación *</label>
+        <textarea id="gJustificacion" placeholder="Justificación de la compra" required></textarea>
 
         <label for="gAreaSolicitante">Área solicitante *</label>
         <div class="combo-wrap">
@@ -846,6 +852,8 @@
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
     document.getElementById('gDescripcion').value = g.descripcion || '';
+    document.getElementById('gNombreProceso').value = g.nombre_proceso || '';
+    document.getElementById('gJustificacion').value = g.justificacion || '';
     document.getElementById('gAreaSolicitante').value = g.area_solicitante || '';
     document.getElementById('gMontoRetenido').value = g.monto_retenido != null ? g.monto_retenido : 0;
     document.getElementById('gMontoTotal').value = g.monto_total != null ? g.monto_total : '';
@@ -871,6 +879,8 @@
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
       descripcion: document.getElementById('gDescripcion').value.trim(),
+      nombre_proceso: document.getElementById('gNombreProceso').value.trim(),
+      justificacion: document.getElementById('gJustificacion').value.trim(),
       area_solicitante: document.getElementById('gAreaSolicitante').value.trim(),
       monto_retenido: document.getElementById('gMontoRetenido').value || 0,
       monto_total: document.getElementById('gMontoTotal').value
