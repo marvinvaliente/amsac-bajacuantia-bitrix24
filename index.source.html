@@ -1134,13 +1134,18 @@
     var wrap = document.getElementById('infUsuarioWrap');
     var sel = document.getElementById('infUsuario');
     if (isAdmin) {
-      var actual = sel.value || String(currentUser.ID);
-      var ordenados = allUsers.slice().sort(function (a, b) { return fullName(a).localeCompare(fullName(b)); });
+      var actual = sel.value;
+      var ordenados = allUsers
+        .filter(function (u) { return autorizadosIds.indexOf(String(u.ID)) !== -1; })
+        .sort(function (a, b) { return fullName(a).localeCompare(fullName(b)); });
       sel.innerHTML = ordenados.map(function (u) {
         return '<option value="' + esc(u.ID) + '">' + esc(fullName(u)) + (String(u.ID) === String(currentUser.ID) ? ' (yo)' : '') + '</option>';
       }).join('');
-      sel.value = actual;
-      if (sel.value !== actual) sel.value = String(currentUser.ID);
+      if (actual && ordenados.some(function (u) { return String(u.ID) === actual; })) {
+        sel.value = actual;
+      } else if (ordenados.some(function (u) { return String(u.ID) === String(currentUser.ID); })) {
+        sel.value = String(currentUser.ID);
+      }
       wrap.style.display = 'block';
     } else {
       wrap.style.display = 'none';
