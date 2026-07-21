@@ -424,6 +424,10 @@
     <!-- ---- Informe de Gastos ---- -->
     <div id="viewInforme" class="card" style="display:none">
       <div class="section-title">Informe de Gastos</div>
+      <div id="infUsuarioWrap" style="display:none">
+        <label for="infUsuario">Usuario</label>
+        <select id="infUsuario"></select>
+      </div>
       <label for="infMes">Mes</label>
       <select id="infMes">
         <option value="">Selecciona un mes</option>
@@ -1122,13 +1126,37 @@
   // ==================================================================
   var informeGastosMes = [];
 
+  function infUsuarioObjetivo() {
+    return isAdmin ? (document.getElementById('infUsuario').value || String(currentUser.ID)) : String(currentUser.ID);
+  }
+
   function initInforme() {
+    var wrap = document.getElementById('infUsuarioWrap');
+    var sel = document.getElementById('infUsuario');
+    if (isAdmin) {
+      var actual = sel.value || String(currentUser.ID);
+      var ordenados = allUsers.slice().sort(function (a, b) { return fullName(a).localeCompare(fullName(b)); });
+      sel.innerHTML = ordenados.map(function (u) {
+        return '<option value="' + esc(u.ID) + '">' + esc(fullName(u)) + (String(u.ID) === String(currentUser.ID) ? ' (yo)' : '') + '</option>';
+      }).join('');
+      sel.value = actual;
+      if (sel.value !== actual) sel.value = String(currentUser.ID);
+      wrap.style.display = 'block';
+    } else {
+      wrap.style.display = 'none';
+    }
     document.getElementById('infMes').value = '';
     document.getElementById('informeContent').innerHTML = '';
     document.getElementById('informeAcciones').style.display = 'none';
     hideMsg(document.getElementById('informeMsg'));
   }
 
+  document.getElementById('infUsuario').addEventListener('change', function () {
+    document.getElementById('infMes').value = '';
+    document.getElementById('informeContent').innerHTML = '';
+    document.getElementById('informeAcciones').style.display = 'none';
+    hideMsg(document.getElementById('informeMsg'));
+  });
   document.getElementById('infMes').addEventListener('change', cargarInforme);
 
   function cargarInforme() {
@@ -1138,7 +1166,7 @@
     if (!mes) { document.getElementById('informeContent').innerHTML = ''; return; }
     document.getElementById('informeLoading').style.display = 'block';
     document.getElementById('informeContent').innerHTML = '';
-    apiCall('gastos?action=list&userId=' + encodeURIComponent(currentUser.ID) + '&admin=0').then(function (r) {
+    apiCall('gastos?action=list&userId=' + encodeURIComponent(infUsuarioObjetivo()) + '&admin=0').then(function (r) {
       document.getElementById('informeLoading').style.display = 'none';
       informeGastosMes = (r.gastos || []).filter(function (g) { return String(g.mes) === mes && g.estado === 'registrado'; });
       renderInforme();
@@ -1178,7 +1206,7 @@
     el.querySelectorAll('[data-eliminar-inf]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-eliminar-inf');
-        customConfirm('¿Eliminar este gasto? Esta acción no se puede deshacer.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+        customConfirm('¿Eliminar este gasto? Pasará a estado "eliminado" (solo un administrador podrá verlo y restablecerlo).', { danger: true, okText: 'Eliminar' }).then(function (ok) {
           if (!ok) return;
           apiCall('gastos', { method: 'POST', body: { action: 'delete', id: id, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
             if (r.ok) cargarInforme();
@@ -1197,9 +1225,12 @@
     var btn = this;
     var mesSel = document.getElementById('infMes');
     var mesTexto = mesSel.selectedOptions[0].textContent.split(' - ')[1] || mesSel.selectedOptions[0].textContent;
-    var fondosTexto = getFondosDe(currentUser.ID);
+    var objetivoId = infUsuarioObjetivo();
+    var esOtro = String(objetivoId) !== String(currentUser.ID);
+    var fondosTexto = getFondosDe(objetivoId);
     var fondoFrase = fondosTexto !== '—' ? (' de ' + fondosTexto) : '';
-    customConfirm('¿Informar ' + ids.length + ' gasto(s)' + fondoFrase + ' correspondiente(s) a ' + mesTexto + '? Cambiarán su estado de "registrado" a "informado".', { okText: 'Informar' }).then(function (ok) {
+    var deQuienFrase = esOtro ? (' de ' + nombreDe(objetivoId)) : '';
+    customConfirm('¿Informar ' + ids.length + ' gasto(s)' + deQuienFrase + fondoFrase + ' correspondiente(s) a ' + mesTexto + '? Cambiarán su estado de "registrado" a "informado".', { okText: 'Informar' }).then(function (ok) {
       if (!ok) return;
       btn.disabled = true;
       apiCall('gastos', { method: 'POST', body: { action: 'informar', ids: ids, actor_id: currentUser.ID, actor_is_admin: isAdmin } }).then(function (r) {
