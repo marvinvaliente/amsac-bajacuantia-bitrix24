@@ -299,27 +299,27 @@
         <label for="gMes">Mes</label>
         <input type="text" id="gMes" readonly />
 
+        <label for="gAreaSolicitante">Área solicitante *</label>
+        <div class="combo-wrap">
+          <input type="text" id="gAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+          <div id="gAreaDropdown" class="combo-dropdown"></div>
+        </div>
+
+        <label for="gNombreProceso">Nombre del proceso *</label>
+        <input type="text" id="gNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+
+        <label for="gDescripcion">Descripción *</label>
+        <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
+
+        <label for="gJustificacion">Justificación *</label>
+        <textarea id="gJustificacion" placeholder="Justificación de la compra" required></textarea>
+
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
 
         <label for="gProveedor">Proveedor *</label>
         <input type="text" id="gProveedor" list="gProveedorList" placeholder="Nombre del proveedor" required maxlength="150" />
         <datalist id="gProveedorList"></datalist>
-
-        <label for="gDescripcion">Descripción *</label>
-        <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
-
-        <label for="gNombreProceso">Nombre del proceso *</label>
-        <input type="text" id="gNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
-
-        <label for="gJustificacion">Justificación *</label>
-        <textarea id="gJustificacion" placeholder="Justificación de la compra" required></textarea>
-
-        <label for="gAreaSolicitante">Área solicitante *</label>
-        <div class="combo-wrap">
-          <input type="text" id="gAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
-          <div id="gAreaDropdown" class="combo-dropdown"></div>
-        </div>
 
         <div class="row">
           <div>
