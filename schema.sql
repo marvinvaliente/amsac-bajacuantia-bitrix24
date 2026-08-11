@@ -115,11 +115,19 @@ alter table gastos_solicitudes add column if not exists nombre_proceso text not 
 -- Estado de la solicitud: 'pendiente' al crearla; pasa a 'certificado' al
 -- guardar cambios desde Certificación presupuestaria (esa acción ya exige
 -- Específico Presupuestario/CEP en todos los ítems, así que guardar ahí ES
--- certificarla); 'eliminada' es borrado lógico (no se pueden editar).
+-- certificarla); pasa a 'desembolsado' desde "Desembolso de fondos" (solo
+-- entonces puede usarse en Registrar factura); 'eliminada' es borrado
+-- lógico. Una solicitud desembolsada o eliminada ya no se puede editar.
 alter table gastos_solicitudes add column if not exists estado text not null default 'pendiente';
 alter table gastos_solicitudes drop constraint if exists gastos_solicitudes_estado_check;
-alter table gastos_solicitudes add constraint gastos_solicitudes_estado_check check (estado in ('pendiente','certificado','eliminada'));
+alter table gastos_solicitudes add constraint gastos_solicitudes_estado_check check (estado in ('pendiente','certificado','desembolsado','eliminada'));
 create index if not exists gastos_solicitudes_estado_idx on gastos_solicitudes (estado);
+
+-- Auditoría del desembolso: quién lo hizo y cuándo (se usa también en el
+-- comprobante en PDF que se descarga al desembolsar).
+alter table gastos_solicitudes add column if not exists desembolsado_at timestamptz;
+alter table gastos_solicitudes add column if not exists desembolsado_por_id text;
+alter table gastos_solicitudes add column if not exists desembolsado_por_nombre text;
 
 -- solicitud_id: de qué solicitud proviene cada gasto. Los gastos creados
 -- antes de que existiera esta columna quedan con solicitud_id vacío (se

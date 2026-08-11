@@ -8,7 +8,7 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
 ## Qué hace
 
-- El menú **"Solicitud"** agrupa tres pantallas (se puede colapsar/expandir
+- El menú **"Solicitud"** agrupa cuatro pantallas (se puede colapsar/expandir
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), área solicitante,
@@ -23,22 +23,34 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      se quita una fila, las demás se renumeran para no dejar huecos.
   2. **Certificación presupuestaria**: muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
-     colores: naranja = Pendiente, verde = Certificado, rojo = Eliminada) con
-     botones **Editar** y **Eliminar** por fila. "Editar" abre el formulario
-     (de cualquier fondo, no solo los propios) con todos los campos
-     **bloqueados** (solo lectura) — **doble clic** en cualquiera lo habilita
-     para corregirlo puntualmente. La tabla de ítems suma dos columnas que sí
-     quedan activas de entrada: **Específico Presupuestario** (5 dígitos) y
-     **CEP** (2 dígitos), **obligatorios en cada ítem** para poder guardar —
-     guardar cambios aquí es lo que **certifica** la solicitud (pasa de
-     Pendiente a Certificado). "Eliminar" es un borrado lógico: la solicitud
-     queda en estado Eliminada, ya no se puede editar ni volver a elegir
-     desde Registrar factura, pero sigue visible en la tabla para
-     trazabilidad. Como Registrar factura lee los datos de la solicitud al
-     momento de guardar cada gasto, cualquier edición hecha aquí se refleja
-     de inmediato en las facturas nuevas que se le registren.
-  3. **Registrar factura o documento equivalente**: muestra en una tabla
-     (estilo Certificación) solo las solicitudes en estado **Certificado**,
+     colores: naranja = Pendiente, verde = Certificado, azul = Desembolsado,
+     rojo = Eliminada) con botones **Editar** y **Eliminar** por fila (una
+     solicitud ya desembolsada no muestra estos botones — queda fija, igual
+     que una eliminada). "Editar" abre el formulario (de cualquier fondo, no
+     solo los propios) con todos los campos **bloqueados** (solo lectura) —
+     **doble clic** en cualquiera lo habilita para corregirlo puntualmente.
+     La tabla de ítems suma dos columnas que sí quedan activas de entrada:
+     **Específico Presupuestario** (5 dígitos) y **CEP** (2 dígitos),
+     **obligatorios en cada ítem** para poder guardar — guardar cambios aquí
+     es lo que **certifica** la solicitud (pasa de Pendiente a Certificado).
+     "Eliminar" es un borrado lógico: la solicitud queda en estado
+     Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
+     la tabla para trazabilidad.
+  3. **Desembolso de fondos**: tabla con las solicitudes **Certificado** y
+     **Desembolsado** (fecha, fondo, área, descripción, monto solicitado,
+     estado). "Ver detalle" muestra **toda la información de la solicitud**
+     (fondo, área, gerencia responsable, nombre del proceso, descripción,
+     justificación, clasificación, forma de pago, la tabla completa de
+     ítems con Específico Presupuestario/CEP) con el **monto solicitado**
+     destacado en grande. El botón **"Desembolsar"** (solo visible si la
+     solicitud está Certificado) cambia su estado a **Desembolsado**,
+     guarda quién y cuándo la desembolsó, y **genera y descarga
+     automáticamente un PDF** con toda esa información más la fecha y hora
+     de desembolso y de impresión. Una solicitud desembolsada ya no se
+     puede editar ni eliminar desde Certificación, y es la que habilita
+     "Registrar factura".
+  4. **Registrar factura o documento equivalente**: muestra en una tabla
+     (estilo Certificación) solo las solicitudes en estado **Desembolsado**,
      con una columna **Facturación** ("N/M ítems") que indica cuántos de sus
      ítems ya tienen factura registrada. El botón **"Ver ítems"** abre la
      tabla de ítems de esa solicitud: los datos base (Tipo, Descripción,
@@ -173,7 +185,16 @@ entorno anteriores.
   factura por **ítem** de la solicitud (no una por toda la solicitud), así
   que cada gasto creado desde ahí queda enlazado al `numero` del ítem dentro
   de `gastos_solicitudes.items` (jsonb). El servidor exige que ese ítem
-  exista en la solicitud y que la solicitud esté en estado `certificado`
+  exista en la solicitud y que la solicitud esté en estado `desembolsado`
   antes de aceptar la factura. Los gastos creados antes de este cambio (o
   antes de que existiera "Registrar factura") quedan con `item_numero`
   vacío.
+- **Flujo de estados de una solicitud**: `pendiente` (recién creada) →
+  `certificado` (al guardar cambios en Certificación presupuestaria, con
+  Específico Presupuestario/CEP completos) → `desembolsado` (al presionar
+  "Desembolsar" en Desembolso de fondos, lo único que habilita "Registrar
+  factura" para esa solicitud). `eliminada` es un borrado lógico posible
+  desde `pendiente` o `certificado`; una solicitud `desembolsada` ya no se
+  puede editar ni eliminar. `desembolsado_at`, `desembolsado_por_id` y
+  `desembolsado_por_nombre` quedan guardados para trazabilidad y se usan en
+  el PDF del comprobante.

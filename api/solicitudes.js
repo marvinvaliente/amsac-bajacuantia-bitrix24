@@ -169,7 +169,10 @@ module.exports = async (req, res) => {
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
-        if (actualData[0].estado === 'eliminada') { res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada.' }); return; }
+        if (actualData[0].estado === 'eliminada' || actualData[0].estado === 'desembolsado') {
+          res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada o ya desembolsada.' });
+          return;
+        }
 
         const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
@@ -190,8 +193,40 @@ module.exports = async (req, res) => {
 
       if (action === 'delete') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const actualD = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actualDData = await actualD.json();
+        if (!actualD.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualDData), raw: actualDData }); return; }
+        if (actualDData && actualDData[0] && actualDData[0].estado === 'desembolsado') {
+          res.status(403).json({ ok: false, error: 'No se puede eliminar una solicitud ya desembolsada.' });
+          return;
+        }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ estado: 'eliminada' })
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
+        res.status(200).json({ ok: true, solicitud: data[0] });
+        return;
+      }
+
+      if (action === 'desembolsar') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const actualE = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actualEData = await actualE.json();
+        if (!actualE.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualEData), raw: actualEData }); return; }
+        if (!actualEData || !actualEData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
+        if (actualEData[0].estado !== 'certificado') {
+          res.status(400).json({ ok: false, error: 'Solo se pueden desembolsar solicitudes certificadas.' });
+          return;
+        }
+        const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            estado: 'desembolsado',
+            desembolsado_at: new Date().toISOString(),
+            desembolsado_por_id: String(body.actor_id || ''),
+            desembolsado_por_nombre: body.actor_nombre || ''
+          })
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }

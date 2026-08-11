@@ -62,9 +62,9 @@ async function buscarSolicitud(solicitudIdRaw) {
 }
 
 // "Registrar factura o documento equivalente" registra una factura por
-// ÍTEM de una solicitud ya certificada (no una sola para toda la
+// ÍTEM de una solicitud ya desembolsada (no una sola para toda la
 // solicitud); por eso, cuando el gasto trae item_numero, se valida que
-// ese ítem exista en la solicitud y que ésta ya esté certificada.
+// ese ítem exista en la solicitud y que ésta ya esté desembolsada.
 function construirFila(g, solicitud, actorId, actorNombre) {
   const fecha = g.fecha || '';
   if (!FECHA_RE.test(fecha)) return { error: 'Fecha inválida (se espera AAAA-MM-DD): ' + fecha };
@@ -82,7 +82,7 @@ function construirFila(g, solicitud, actorId, actorNombre) {
     if (!Number.isInteger(itemNumero)) return { error: 'Ítem inválido.' };
     const items = Array.isArray(solicitud.items) ? solicitud.items : [];
     if (!items.some((it) => it.numero === itemNumero)) return { error: 'El ítem indicado no existe en la solicitud.' };
-    if (solicitud.estado !== 'certificado') return { error: 'Solo se pueden registrar facturas de ítems de solicitudes certificadas.' };
+    if (solicitud.estado !== 'desembolsado') return { error: 'Solo se pueden registrar facturas de ítems de solicitudes desembolsadas.' };
   }
 
   return {
