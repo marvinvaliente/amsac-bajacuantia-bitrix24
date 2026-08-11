@@ -49,12 +49,8 @@ function construirItems(items) {
     if (cantidad == null || cantidad <= 0) return { error: 'Ítem #' + (i + 1) + ': cantidad inválida.' };
     const precioUnitario = numOrNull(it.precio_unitario);
     if (precioUnitario == null || precioUnitario < 0) return { error: 'Ítem #' + (i + 1) + ': precio unitario inválido.' };
-    // El número de ítem lo asigna el navegador de forma correlativa (sin
-    // reutilizar los que el usuario haya quitado antes de guardar); si no
-    // llega uno válido, se usa la posición como respaldo.
-    const numeroCliente = parseInt(it.numero, 10);
     limpios.push({
-      numero: Number.isInteger(numeroCliente) && numeroCliente > 0 ? numeroCliente : (i + 1),
+      numero: i + 1,
       tipo: tipo,
       cantidad: cantidad,
       descripcion: descripcion,

@@ -1101,12 +1101,10 @@
   });
 
   // ---- Tabla de ítems (Crear Solicitud) ----
-  var itemsCounter = 0;
   function crearFilaItem() {
-    itemsCounter++;
     var tr = document.createElement('tr');
     tr.innerHTML =
-      '<td class="item-n">' + itemsCounter + '</td>' +
+      '<td class="item-n"></td>' +
       '<td><select class="it-tipo"><option value="bien">Bien</option><option value="servicio">Servicio</option></select></td>' +
       '<td><input type="number" class="it-cantidad" min="0" step="0.01" value="1" /></td>' +
       '<td><input type="text" class="it-desc" maxlength="200" placeholder="Descripción" /></td>' +
@@ -1114,7 +1112,11 @@
       '<td class="it-total">$0.00</td>' +
       '<td><button type="button" class="secondary it-remove">✕</button></td>';
     document.getElementById('sItemsBody').appendChild(tr);
+    renumerarItems();
     return tr;
+  }
+  function renumerarItems() {
+    document.querySelectorAll('#sItemsBody tr').forEach(function (tr, i) { tr.querySelector('.item-n').textContent = i + 1; });
   }
   function recalcularItemsTotal() {
     var total = 0;
@@ -1140,6 +1142,7 @@
     if (!btn) return;
     if (document.querySelectorAll('#sItemsBody tr').length <= 1) return;
     btn.closest('tr').remove();
+    renumerarItems();
     recalcularItemsTotal();
   });
 
@@ -1147,7 +1150,6 @@
     formSolicitud.reset();
     sGerenciaIdInput.value = '';
     document.getElementById('sItemsBody').innerHTML = '';
-    itemsCounter = 0;
     crearFilaItem();
     recalcularItemsTotal();
     poblarFondosUsuario();
@@ -1177,8 +1179,7 @@
       var descripcion = tr.querySelector('.it-desc').value.trim();
       var precioUnitario = parseFloat(tr.querySelector('.it-precio').value);
       if (!descripcion || !(cantidad > 0) || !(precioUnitario >= 0)) return;
-      var numero = parseInt(tr.querySelector('.item-n').textContent, 10);
-      items.push({ numero: numero, tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario });
+      items.push({ tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario });
     });
     if (!items.length) { showMsg(msgEl, 'error', 'Agrega al menos un ítem válido (con descripción, cantidad y precio unitario).'); return; }
 
