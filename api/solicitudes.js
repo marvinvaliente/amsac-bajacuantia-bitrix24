@@ -167,6 +167,7 @@ module.exports = async (req, res) => {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
         const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
         const actualData = await actual.json();
+        if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
         if (actualData[0].estado === 'eliminada') { res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada.' }); return; }
 

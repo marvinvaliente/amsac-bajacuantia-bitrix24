@@ -13,6 +13,17 @@ function sb(path, options) {
   return fetch(URL + '/rest/v1/' + path, Object.assign({}, options, { headers }));
 }
 
+// Convierte la respuesta de error de Supabase/PostgREST en un texto legible
+// para mostrar en el formulario, en vez de un mensaje genérico sin pistas.
+function dbErrorMsg(data) {
+  if (!data) return 'Error desconocido de la base de datos.';
+  if (Array.isArray(data)) {
+    const msg = data.map((d) => d && d.message).filter(Boolean).join('; ');
+    return msg || 'Error desconocido de la base de datos.';
+  }
+  return data.message || data.error || data.hint || JSON.stringify(data);
+}
+
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string' && req.body) {
@@ -43,7 +54,8 @@ async function buscarSolicitud(solicitudIdRaw) {
   if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
   const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado,items');
   const data = await r.json();
-  if (!r.ok || !data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
+  if (!r.ok) return { error: dbErrorMsg(data) };
+  if (!data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
   if (data[0].estado === 'eliminada') return { error: 'La solicitud seleccionada fue eliminada.' };
   if (data[0].fondo_id == null) return { error: 'La solicitud seleccionada no tiene un fondo asociado.' };
   return { solicitud: data[0] };
