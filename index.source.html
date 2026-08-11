@@ -104,6 +104,7 @@
     font-size: 16px; font-family: inherit; background: #fff; color: var(--text);
   }
   input[readonly], textarea[readonly], select.select-locked { background: var(--bg); color: #6b7a86; cursor: pointer; }
+  .items-table input:disabled { background: #f4f6f8; color: #9aa5bd; cursor: not-allowed; }
   textarea { min-height: 70px; resize: vertical; }
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; min-width: 0; }
@@ -289,7 +290,7 @@
           </li>
           <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            <span>Registrar gasto</span>
+            <span>Registrar factura o documento equivalente</span>
           </li>
           <li class="tab hidden" id="tabExcelBtn" data-tab="excel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
@@ -475,19 +476,15 @@
       <div id="certListVacio" class="empty-state" style="display:none">No hay solicitudes creadas todavía.</div>
     </div>
 
-    <!-- ---- Registrar gasto ---- -->
+    <!-- ---- Registrar factura o documento equivalente ---- -->
     <div id="viewRegistrar" class="card" style="display:none">
-      <div class="section-title" id="registrarTitulo">Registrar gasto</div>
-      <form id="formGasto">
-        <label for="gSolicitud">Solicitud *</label>
-        <select id="gSolicitud" required></select>
+      <div class="section-title" id="registrarTitulo">Registrar factura o documento equivalente</div>
 
-        <div id="gSolicitudInfo" class="solicitud-info" style="display:none">
-          <div><b>Fondo:</b> <span id="gFondoDisplay">—</span></div>
-          <div><b>Área solicitante:</b> <span id="gAreaDisplay">—</span></div>
-          <div><b>Nombre del proceso:</b> <span id="gNombreProcesoDisplay">—</span></div>
-          <div><b>Descripción:</b> <span id="gDescripcionDisplay">—</span></div>
-          <div><b>Justificación:</b> <span id="gJustificacionDisplay">—</span></div>
+      <!-- Edición de un gasto ya registrado (se abre desde Historial/Informe). -->
+      <form id="formGasto" style="display:none">
+        <div class="solicitud-info">
+          <div><b>Solicitud:</b> <span id="gSolicitudDisplay">—</span></div>
+          <div><b>Ítem:</b> <span id="gItemDisplay">—</span></div>
         </div>
 
         <label for="gFecha">Fecha *</label>
@@ -515,11 +512,45 @@
         </div>
 
         <div class="btn-row">
-          <button type="submit" id="btnGuardarGasto">Registrar gasto</button>
-          <button type="button" id="btnCancelarEdicion" class="secondary" style="display:none">Cancelar edición</button>
+          <button type="submit" id="btnGuardarGasto">Guardar cambios</button>
+          <button type="button" id="btnCancelarEdicion" class="secondary">Cancelar edición</button>
         </div>
         <div id="gastoMsg" class="msg"></div>
       </form>
+
+      <!-- Tabla de solicitudes certificadas: punto de entrada para registrar facturas nuevas. -->
+      <div class="section-title" style="margin-top:18px">Solicitudes certificadas</div>
+      <div id="facturaListLoading" class="loading">Cargando...</div>
+      <div class="table-wrap" style="max-height:480px; overflow-y:auto">
+        <table class="data-table" id="facturaTable">
+          <thead>
+            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Total</th><th>Facturación</th><th>Acciones</th></tr>
+          </thead>
+          <tbody id="facturaTableBody"></tbody>
+        </table>
+      </div>
+      <div id="facturaListVacio" class="empty-state" style="display:none">No hay solicitudes certificadas todavía.</div>
+
+      <!-- Ítems de la solicitud elegida: cada fila con Fecha/N° documento/Proveedor/Monto se registra como su propia factura. -->
+      <div class="section-title" id="facturaItemsTitulo" style="display:none; margin-top:18px"></div>
+      <div id="facturaItemsWrap" style="display:none">
+        <div class="table-wrap">
+          <table class="data-table items-table" id="facturaItemsTable">
+            <thead>
+              <tr>
+                <th>N°</th><th>Tipo</th><th>Descripción</th><th>Precio unitario</th><th>Específico</th><th>CEP</th>
+                <th>Fecha</th><th>N° Documento</th><th>Proveedor</th><th>Monto retenido</th><th>Monto total</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="facturaItemsBody"></tbody>
+          </table>
+        </div>
+        <div class="btn-row">
+          <button type="button" id="btnGuardarFacturas">Registrar facturas</button>
+          <button type="button" id="btnCerrarFacturaItems" class="secondary">Cerrar</button>
+        </div>
+        <div id="facturaItemsMsg" class="msg"></div>
+      </div>
     </div>
 
     <!-- ---- Cargar desde Excel ---- -->
@@ -847,6 +878,8 @@
   var autorizadosIds = [];  // string[] Bitrix user IDs que pueden cargar gastos
   var canLoad = false;
   var editingId = null;
+  var editingSolicitudId = null;
+  var editingItemNumero = null;
 
   var todosLosGastos = [];      // cache para Reportes (solo admin)
   var gastosFiltrados = [];
@@ -964,6 +997,7 @@
     if (window.innerWidth < 900) closeDrawer();
     if (name === 'crearSolicitud') initCrearSolicitud();
     if (name === 'certificacion') initCertificacion();
+    if (name === 'registrar') initRegistrarFactura();
     if (name === 'historial') loadHistorial();
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
@@ -978,7 +1012,7 @@
   });
 
   // ==================================================================
-  // Registrar gasto
+  // Registrar factura o documento equivalente
   // ==================================================================
   var formGasto = document.getElementById('formGasto');
   var gFecha = document.getElementById('gFecha');
@@ -993,14 +1027,13 @@
 
   function limpiarFormGasto() {
     formGasto.reset();
+    formGasto.style.display = 'none';
     gMes.value = '';
     document.getElementById('gMontoRetenido').value = '0';
-    document.getElementById('gSolicitudInfo').style.display = 'none';
     editingId = null;
-    document.getElementById('registrarTitulo').textContent = 'Registrar gasto';
-    document.getElementById('btnGuardarGasto').textContent = 'Registrar gasto';
-    document.getElementById('btnCancelarEdicion').style.display = 'none';
-    poblarSolicitudesSelectores();
+    editingSolicitudId = null;
+    editingItemNumero = null;
+    hideMsg(document.getElementById('gastoMsg'));
   }
 
   // Por defecto sugiere la unidad/dependencia de Bitrix24 a la que pertenece
@@ -1041,9 +1074,9 @@
     if (actual && fondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
   }
 
-  // Solicitudes disponibles para elegir en "Registrar gasto" y "Cargar desde
-  // Excel"; se listan todas (no solo las propias) porque una solicitud puede
-  // haber sido creada por otra persona a nombre del área/fondo.
+  // Solicitudes disponibles para elegir en "Cargar desde Excel" (y para
+  // mostrar en Certificación/Historial); se listan todas (no solo las
+  // propias) porque una solicitud puede haber sido creada por otra persona.
   function labelSolicitud(s) {
     var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
     var fondoTxt = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : 'Fondo #' + s.fondo_id;
@@ -1051,12 +1084,12 @@
     return '#' + s.id + ' · ' + esc(fondoTxt) + ' · ' + esc(s.area_solicitante || '') + (desc ? ' · ' + esc(desc) : '');
   }
   function poblarSolicitudesSelectores() {
-    // Registrar gasto / Cargar Excel solo pueden usar solicitudes vivas
-    // (pendientes o certificadas); una eliminada no debe poder elegirse.
+    // Cargar Excel solo puede usar solicitudes vivas (pendientes o
+    // certificadas); una eliminada no debe poder elegirse.
     var ordenadas = solicitudes
       .filter(function (s) { return s.estado !== 'eliminada'; })
       .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
-    ['gSolicitud', 'excSolicitud'].forEach(function (selId) {
+    ['excSolicitud'].forEach(function (selId) {
       var sel = document.getElementById(selId);
       var actual = sel.value;
       sel.innerHTML = ordenadas.length
@@ -1066,38 +1099,30 @@
         : '<option value="">No hay solicitudes creadas todavía</option>';
       if (actual && ordenadas.some(function (s) { return String(s.id) === actual; })) sel.value = actual;
     });
-    mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
     renderCertTabla();
+    renderFacturaTabla();
   }
-  function mostrarSolicitudSeleccionada(id) {
-    var box = document.getElementById('gSolicitudInfo');
-    var s = solicitudes.find(function (x) { return String(x.id) === String(id); });
-    if (!s) { box.style.display = 'none'; return; }
-    var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
-    document.getElementById('gFondoDisplay').textContent = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : '—';
-    document.getElementById('gAreaDisplay').textContent = s.area_solicitante || '—';
-    document.getElementById('gNombreProcesoDisplay').textContent = s.nombre_proceso || '—';
-    document.getElementById('gDescripcionDisplay').textContent = s.descripcion || '—';
-    document.getElementById('gJustificacionDisplay').textContent = s.justificacion || '—';
-    box.style.display = 'block';
-  }
-  document.getElementById('gSolicitud').addEventListener('change', function () { mostrarSolicitudSeleccionada(this.value); });
 
+  // Edición de un gasto ya registrado (viene de Historial/Informe). No se
+  // puede cambiar de solicitud/ítem aquí, solo se muestran de referencia.
   function cargarGastoEnFormulario(g) {
     editingId = g.id;
+    editingSolicitudId = g.solicitud_id;
+    editingItemNumero = g.item_numero;
+    var s = solicitudes.find(function (x) { return String(x.id) === String(g.solicitud_id); });
+    var item = s && Array.isArray(s.items) ? s.items.find(function (it) { return it.numero === g.item_numero; }) : null;
+    document.getElementById('gSolicitudDisplay').textContent = s ? labelSolicitud(s) : ('#' + g.solicitud_id);
+    document.getElementById('gItemDisplay').textContent = item ? ('N° ' + item.numero + ' — ' + (item.descripcion || '')) : '—';
     gFecha.value = g.fecha;
     gFecha.dispatchEvent(new Event('change'));
-    poblarSolicitudesSelectores();
-    document.getElementById('gSolicitud').value = g.solicitud_id != null ? String(g.solicitud_id) : '';
-    mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
     document.getElementById('gMontoRetenido').value = g.monto_retenido != null ? g.monto_retenido : 0;
     document.getElementById('gMontoTotal').value = g.monto_total != null ? g.monto_total : '';
-    document.getElementById('registrarTitulo').textContent = 'Editar gasto';
     document.getElementById('btnGuardarGasto').textContent = 'Guardar cambios';
-    document.getElementById('btnCancelarEdicion').style.display = 'block';
+    formGasto.style.display = 'block';
     activarTab('registrar');
+    formGasto.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   document.getElementById('btnCancelarEdicion').addEventListener('click', limpiarFormGasto);
 
@@ -1105,14 +1130,11 @@
     ev.preventDefault();
     var msgEl = document.getElementById('gastoMsg');
     hideMsg(msgEl);
-    var solicitudId = document.getElementById('gSolicitud').value;
-    if (!solicitudId) {
-      showMsg(msgEl, 'error', 'Selecciona la solicitud a la que pertenece este gasto.');
-      return;
-    }
+    if (!editingId) { showMsg(msgEl, 'error', 'No hay ningún gasto en edición.'); return; }
     var gasto = {
       fecha: gFecha.value,
-      solicitud_id: solicitudId,
+      solicitud_id: editingSolicitudId,
+      item_numero: editingItemNumero,
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
       monto_retenido: document.getElementById('gMontoRetenido').value || 0,
@@ -1126,9 +1148,10 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', editingId ? 'Gasto actualizado correctamente.' : 'Gasto registrado correctamente.');
+        showMsg(msgEl, 'success', 'Gasto actualizado correctamente.');
         limpiarFormGasto();
         cargarProveedores();
+        cargarSolicitudes();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudo guardar el gasto.');
       }
@@ -1137,6 +1160,168 @@
       showMsg(msgEl, 'error', 'Error de conexión al guardar el gasto.');
     });
   });
+
+  // ==================================================================
+  // Tabla de solicitudes certificadas + registro de facturas por ítem
+  // ==================================================================
+  var facturaGastosCache = [];
+  var facturaSolicitudAbierta = null;
+
+  function cargarGastosParaFactura() {
+    return apiCall('gastos?action=list&admin=1').then(function (r) {
+      facturaGastosCache = (r.gastos || []).filter(function (g) { return g.estado !== 'eliminado'; });
+      renderFacturaTabla();
+      if (facturaSolicitudAbierta) {
+        var abierta = solicitudes.find(function (x) { return String(x.id) === String(facturaSolicitudAbierta); });
+        if (abierta) renderFacturaItems(abierta); else cerrarFacturaItems();
+      }
+    });
+  }
+
+  function gastoDeItem(solicitudId, itemNumero) {
+    return facturaGastosCache.find(function (g) {
+      return String(g.solicitud_id) === String(solicitudId) && g.item_numero === itemNumero;
+    });
+  }
+
+  function renderFacturaTabla() {
+    var certificadas = solicitudes.filter(function (s) { return s.estado === 'certificado'; })
+      .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+    document.getElementById('facturaListLoading').style.display = 'none';
+    document.getElementById('facturaListVacio').style.display = certificadas.length ? 'none' : 'block';
+    document.getElementById('facturaTableBody').innerHTML = certificadas.map(function (s) {
+      var items = Array.isArray(s.items) ? s.items : [];
+      var facturados = items.filter(function (it) { return gastoDeItem(s.id, it.numero); }).length;
+      var completa = items.length > 0 && facturados === items.length;
+      return '<tr>' +
+        '<td>' + esc((s.created_at || '').slice(0, 10)) + '</td>' +
+        '<td>' + esc(fondoLabelPorId(s.fondo_id)) + '</td>' +
+        '<td>' + esc(s.area_solicitante || '') + '</td>' +
+        '<td>' + esc((s.descripcion || '').slice(0, 60)) + '</td>' +
+        '<td>$' + money(s.monto_total) + '</td>' +
+        '<td><span class="badge ' + (completa ? 'estado-certificado' : 'estado-pendiente') + '">' + facturados + '/' + items.length + ' ítems</span></td>' +
+        '<td><div class="row-actions"><button type="button" class="secondary" data-ver-items="' + s.id + '">Ver ítems</button></div></td>' +
+        '</tr>';
+    }).join('');
+    document.querySelectorAll('[data-ver-items]').forEach(function (btn) {
+      btn.addEventListener('click', function () { abrirFacturaItems(btn.getAttribute('data-ver-items')); });
+    });
+  }
+
+  function renderFacturaItems(s) {
+    var items = Array.isArray(s.items) ? s.items : [];
+    var tbody = document.getElementById('facturaItemsBody');
+    tbody.innerHTML = '';
+    items.forEach(function (it) {
+      var gastoExistente = gastoDeItem(s.id, it.numero);
+      var tr = document.createElement('tr');
+      tr.setAttribute('data-item-numero', it.numero);
+      tr.innerHTML =
+        '<td>' + it.numero + '</td>' +
+        '<td>' + esc(it.tipo === 'servicio' ? 'Servicio' : 'Bien') + '</td>' +
+        '<td>' + esc(it.descripcion || '') + '</td>' +
+        '<td>$' + money(it.precio_unitario) + '</td>' +
+        '<td>' + esc(it.especifico_presupuestario || '—') + '</td>' +
+        '<td>' + esc(it.cep || '—') + '</td>' +
+        '<td><input type="date" class="fi-fecha" /></td>' +
+        '<td><input type="text" class="fi-documento" maxlength="60" placeholder="N° de factura" /></td>' +
+        '<td><input type="text" class="fi-proveedor" maxlength="150" placeholder="Proveedor" /></td>' +
+        '<td><input type="number" class="fi-retenido" step="0.01" min="0" placeholder="0" /></td>' +
+        '<td><input type="number" class="fi-total" step="0.01" min="0" placeholder="0" /></td>' +
+        '<td class="fi-estado"></td>';
+      tbody.appendChild(tr);
+      var fEstado = tr.querySelector('.fi-estado');
+      if (gastoExistente) {
+        tr.querySelector('.fi-fecha').value = gastoExistente.fecha || '';
+        tr.querySelector('.fi-documento').value = gastoExistente.numero_documento || '';
+        tr.querySelector('.fi-proveedor').value = gastoExistente.proveedor || '';
+        tr.querySelector('.fi-retenido').value = gastoExistente.monto_retenido != null ? gastoExistente.monto_retenido : 0;
+        tr.querySelector('.fi-total').value = gastoExistente.monto_total != null ? gastoExistente.monto_total : '';
+        ['fi-fecha', 'fi-documento', 'fi-proveedor', 'fi-retenido', 'fi-total'].forEach(function (cls) {
+          tr.querySelector('.' + cls).disabled = true;
+        });
+        fEstado.innerHTML = '<span class="badge estado-certificado">Facturado</span>';
+      } else {
+        fEstado.innerHTML = '<span class="badge estado-pendiente">Pendiente</span>';
+      }
+    });
+  }
+
+  function abrirFacturaItems(id) {
+    var s = solicitudes.find(function (x) { return String(x.id) === String(id); });
+    if (!s) return;
+    facturaSolicitudAbierta = s.id;
+    document.getElementById('facturaItemsTitulo').textContent = 'Ítems de la solicitud #' + s.id + (s.descripcion ? ' — ' + s.descripcion : '');
+    document.getElementById('facturaItemsTitulo').style.display = 'block';
+    document.getElementById('facturaItemsWrap').style.display = 'block';
+    hideMsg(document.getElementById('facturaItemsMsg'));
+    renderFacturaItems(s);
+    document.getElementById('facturaItemsWrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function cerrarFacturaItems() {
+    facturaSolicitudAbierta = null;
+    document.getElementById('facturaItemsTitulo').style.display = 'none';
+    document.getElementById('facturaItemsWrap').style.display = 'none';
+  }
+  document.getElementById('btnCerrarFacturaItems').addEventListener('click', cerrarFacturaItems);
+
+  document.getElementById('btnGuardarFacturas').addEventListener('click', function () {
+    var msgEl = document.getElementById('facturaItemsMsg');
+    hideMsg(msgEl);
+    if (!facturaSolicitudAbierta) return;
+    var filas = document.querySelectorAll('#facturaItemsBody tr');
+    var candidatas = [];
+    var incompletas = [];
+    filas.forEach(function (tr) {
+      if (tr.querySelector('.fi-documento').disabled) return; // ya facturado
+      var fecha = tr.querySelector('.fi-fecha').value;
+      var documento = tr.querySelector('.fi-documento').value.trim();
+      var proveedor = tr.querySelector('.fi-proveedor').value.trim();
+      var total = tr.querySelector('.fi-total').value;
+      if (!fecha && !documento && !proveedor && !total) return; // fila vacía: se ignora sin error
+      if (!fecha || !documento || !proveedor || !(parseFloat(total) >= 0)) {
+        incompletas.push(tr.getAttribute('data-item-numero'));
+        return;
+      }
+      candidatas.push({
+        fecha: fecha, solicitud_id: facturaSolicitudAbierta, item_numero: parseInt(tr.getAttribute('data-item-numero'), 10),
+        numero_documento: documento, proveedor: proveedor,
+        monto_retenido: tr.querySelector('.fi-retenido').value || 0,
+        monto_total: total
+      });
+    });
+    if (incompletas.length) {
+      showMsg(msgEl, 'error', 'Completa Fecha, N° Documento, Proveedor y Monto total en el/los ítem(s) #' + incompletas.join(', #') + ', o déjalos totalmente vacíos si todavía no los vas a facturar.');
+      return;
+    }
+    if (!candidatas.length) {
+      showMsg(msgEl, 'error', 'No hay ítems nuevos con datos completos para registrar.');
+      return;
+    }
+    var btn = document.getElementById('btnGuardarFacturas');
+    btn.disabled = true;
+    Promise.all(candidatas.map(function (gasto) {
+      return apiCall('gastos', { method: 'POST', body: { action: 'save', gasto: gasto, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin } });
+    })).then(function (resultados) {
+      btn.disabled = false;
+      var ok = resultados.filter(function (r) { return r.ok; }).length;
+      var errores = resultados.filter(function (r) { return !r.ok; });
+      if (errores.length) {
+        showMsg(msgEl, 'error', ok + ' factura(s) registrada(s). ' + errores.length + ' con error: ' + errores.map(function (r) { return r.error; }).join('; '));
+      } else {
+        showMsg(msgEl, 'success', ok + ' factura(s) registrada(s) correctamente.');
+      }
+      cargarProveedores();
+      cargarGastosParaFactura();
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg(msgEl, 'error', 'Error de conexión al registrar las facturas.');
+    });
+  });
+
+  function initRegistrarFactura() {
+    cargarGastosParaFactura();
+  }
 
   var areasDisponibles = [];
   function poblarAreasDesdeDepartamentos() {
@@ -1312,7 +1497,7 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Ya está disponible en "Registrar gasto" y "Cargar desde Excel".');
+        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Ya está disponible en "Cargar desde Excel"; certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
         limpiarFormSolicitud();
         cargarSolicitudes();
       } else {
@@ -1514,7 +1699,7 @@
     document.querySelectorAll('[data-eliminar-sol]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-eliminar-sol');
-        customConfirm('¿Eliminar esta solicitud? Pasará a estado "Eliminada" y ya no podrá usarse en Registrar gasto ni Cargar Excel.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+        customConfirm('¿Eliminar esta solicitud? Pasará a estado "Eliminada" y ya no podrá usarse en Registrar factura ni Cargar Excel.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
           if (!ok) return;
           apiCall('solicitudes', { method: 'POST', body: { action: 'delete', id: id, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
             if (r.ok) {

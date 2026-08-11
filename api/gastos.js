@@ -41,7 +41,7 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 async function buscarSolicitud(solicitudIdRaw) {
   const solicitudId = parseInt(solicitudIdRaw, 10);
   if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
-  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado');
+  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado,items');
   const data = await r.json();
   if (!r.ok || !data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
   if (data[0].estado === 'eliminada') return { error: 'La solicitud seleccionada fue eliminada.' };
@@ -49,6 +49,10 @@ async function buscarSolicitud(solicitudIdRaw) {
   return { solicitud: data[0] };
 }
 
+// "Registrar factura o documento equivalente" registra una factura por
+// ÍTEM de una solicitud ya certificada (no una sola para toda la
+// solicitud); por eso, cuando el gasto trae item_numero, se valida que
+// ese ítem exista en la solicitud y que ésta ya esté certificada.
 function construirFila(g, solicitud, actorId, actorNombre) {
   const fecha = g.fecha || '';
   if (!FECHA_RE.test(fecha)) return { error: 'Fecha inválida (se espera AAAA-MM-DD): ' + fecha };
@@ -59,6 +63,15 @@ function construirFila(g, solicitud, actorId, actorNombre) {
   const proveedor = String(g.proveedor || '').trim();
   if (!numeroDocumento) return { error: 'Falta número de documento.' };
   if (!proveedor) return { error: 'Falta proveedor.' };
+
+  let itemNumero = null;
+  if (g.item_numero != null && g.item_numero !== '') {
+    itemNumero = parseInt(g.item_numero, 10);
+    if (!Number.isInteger(itemNumero)) return { error: 'Ítem inválido.' };
+    const items = Array.isArray(solicitud.items) ? solicitud.items : [];
+    if (!items.some((it) => it.numero === itemNumero)) return { error: 'El ítem indicado no existe en la solicitud.' };
+    if (solicitud.estado !== 'certificado') return { error: 'Solo se pueden registrar facturas de ítems de solicitudes certificadas.' };
+  }
 
   return {
     row: {
@@ -74,6 +87,7 @@ function construirFila(g, solicitud, actorId, actorNombre) {
       monto_total: montoTotal,
       fondo_id: solicitud.fondo_id,
       solicitud_id: solicitud.id,
+      item_numero: itemNumero,
       created_by_id: String(actorId || ''),
       created_by_nombre: actorNombre || ''
     }

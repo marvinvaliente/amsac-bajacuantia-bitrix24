@@ -37,26 +37,39 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      trazabilidad. Como Registrar gasto/Cargar Excel leen los datos de la
      solicitud al momento de guardar cada gasto, cualquier edición hecha aquí
      se refleja de inmediato en los gastos nuevos que se le asocien.
-  3. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
-     descripción/justificación, se **elige una Solicitud ya creada** y el
-     sistema completa esos campos automáticamente (de solo lectura, tomados
-     siempre del servidor). Lo que sí se pide en este formulario: fecha,
-     número de documento, proveedor, monto retenido y monto total. El mes se
-     calcula automáticamente desde la fecha. Todo gasto nuevo se guarda con
+  3. **Registrar factura o documento equivalente**: muestra en una tabla
+     (estilo Certificación) solo las solicitudes en estado **Certificado**,
+     con una columna **Facturación** ("N/M ítems") que indica cuántos de sus
+     ítems ya tienen factura registrada. El botón **"Ver ítems"** abre la
+     tabla de ítems de esa solicitud: los datos base (Tipo, Descripción,
+     Precio unitario, Específico Presupuestario, CEP) se muestran de solo
+     lectura como referencia, y cada ítem tiene sus propios campos
+     **Fecha, N° de documento, Proveedor, Monto retenido y Monto total** —
+     **la factura se registra por ítem, no una sola para toda la
+     solicitud**, así que ítems de una misma solicitud pueden facturarse por
+     separado (documentos parciales). Un ítem ya facturado queda bloqueado
+     con la etiqueta "Facturado"; "Registrar facturas" guarda de una vez
+     todas las filas que se hayan llenado por completo. El mes se calcula
+     automáticamente desde la fecha; cada factura se guarda como un gasto con
      **estado `registrado`**.
-  4. **Cargar desde Excel**: igual que Registrar gasto, primero se elige la
-     **Solicitud** a la que pertenece todo el lote, y luego se sube un
-     `.xlsx`/`.xls`/`.csv` con las columnas `fecha`, `mes`, `numero_documento`,
-     `proveedor`, `monto_retenido`, `monto_total` (fondo, área, descripción y
+  4. **Cargar desde Excel**: a diferencia de "Registrar factura", puede usar
+     **cualquier solicitud viva** (pendiente o certificada, no eliminada) y
+     registra **un solo gasto para todo el lote** (no por ítem). Se elige
+     primero la **Solicitud**, y luego se sube un `.xlsx`/`.xls`/`.csv` con
+     las columnas `fecha`, `mes`, `numero_documento`, `proveedor`,
+     `monto_retenido`, `monto_total` (fondo, área, descripción y
      justificación se toman de la solicitud elegida, igual para todas las
      filas). La app valida cada fila antes de importar y muestra cuáles
      quedaron bien y cuáles tienen error, sin bloquear el resto.
-- El formulario de "Registrar gasto" también permite editar un gasto (solo
-  quien lo creó, mientras esté en estado `registrado`, o un administrador en
-  cualquier estado). **Eliminar es un borrado lógico**: el gasto no se borra de
-  la base de datos, pasa a estado `eliminado` (guardando el estado anterior) y
-  deja de ser visible para todos salvo un administrador. Un gasto `informado`
-  solo puede editarse/eliminarse por un administrador.
+- Un gasto ya registrado se edita desde **Historial** o **Informe de
+  Gastos** (solo quien lo creó, mientras esté en estado `registrado`, o un
+  administrador en cualquier estado); el formulario de edición muestra de
+  solo lectura a qué solicitud e ítem pertenece (eso no cambia, solo se
+  corrige fecha/documento/proveedor/montos). **Eliminar es un borrado
+  lógico**: el gasto no se borra de la base de datos, pasa a estado
+  `eliminado` (guardando el estado anterior) y deja de ser visible para
+  todos salvo un administrador. Un gasto `informado` solo puede
+  editarse/eliminarse por un administrador.
 - **Historial**: lista de gastos (los administradores ven todos, solo los
   propios, o los **eliminados**; el resto de usuarios autorizados solo ve los
   suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
@@ -164,3 +177,12 @@ entorno anteriores.
   siguen leyendo esos campos directo del gasto. Editar un gasto (incluidos los
   creados antes de que existiera este flujo) exige elegir una solicitud, igual
   como ya exigía elegir un fondo antes de este cambio.
+- **`item_numero`**: "Registrar factura o documento equivalente" guarda una
+  factura por **ítem** de la solicitud (no una por toda la solicitud), así
+  que cada gasto creado desde ahí queda enlazado al `numero` del ítem dentro
+  de `gastos_solicitudes.items` (jsonb). El servidor exige que ese ítem
+  exista en la solicitud y que la solicitud esté en estado `certificado`
+  antes de aceptar la factura. `Cargar desde Excel` sigue sin usar
+  `item_numero` (un solo gasto para todo el lote, cualquier solicitud viva,
+  no solo las certificadas) y los gastos creados antes de este cambio
+  quedan con `item_numero` vacío.

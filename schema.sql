@@ -132,3 +132,11 @@ do $$ begin
   end if;
 end $$;
 create index if not exists gastos_registros_solicitud_idx on gastos_registros (solicitud_id);
+
+-- item_numero: a qué ítem específico de la solicitud corresponde el gasto
+-- ("Registrar factura o documento equivalente" registra una factura por
+-- ítem, no una sola por toda la solicitud). Los gastos creados antes de
+-- este cambio quedan con item_numero vacío (se registraron a nivel de toda
+-- la solicitud, sin desglose por ítem).
+alter table gastos_registros add column if not exists item_numero smallint;
+create index if not exists gastos_registros_solicitud_item_idx on gastos_registros (solicitud_id, item_numero);
