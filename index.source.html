@@ -1106,9 +1106,9 @@
     tr.innerHTML =
       '<td class="item-n"></td>' +
       '<td><select class="it-tipo"><option value="bien">Bien</option><option value="servicio">Servicio</option></select></td>' +
-      '<td><input type="number" class="it-cantidad" min="0" step="0.01" value="1" /></td>' +
+      '<td><input type="number" class="it-cantidad" min="0" step="0.01" placeholder="0" /></td>' +
       '<td><input type="text" class="it-desc" maxlength="200" placeholder="Descripción" /></td>' +
-      '<td><input type="number" class="it-precio" min="0" step="0.01" value="0" /></td>' +
+      '<td><input type="number" class="it-precio" min="0" step="0.01" placeholder="0" /></td>' +
       '<td class="it-total">$0.00</td>' +
       '<td><button type="button" class="secondary it-remove">✕</button></td>';
     document.getElementById('sItemsBody').appendChild(tr);
