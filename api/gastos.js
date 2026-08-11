@@ -190,32 +190,6 @@ module.exports = async (req, res) => {
         return;
       }
 
-      if (action === 'bulk_save') {
-        const solRes = await buscarSolicitud(body.solicitud_id);
-        if (solRes.error) { res.status(400).json({ ok: false, error: solRes.error }); return; }
-        const rows = Array.isArray(body.rows) ? body.rows : [];
-        const buenas = [];
-        const errores = [];
-        rows.forEach((g, i) => {
-          const built = construirFila(g, solRes.solicitud, body.actor_id, body.actor_nombre);
-          if (built.error) errores.push({ fila: i + 1, error: built.error });
-          else { built.row.estado = 'registrado'; buenas.push(built.row); }
-        });
-
-        let insertados = 0;
-        if (buenas.length) {
-          const r = await sb('gastos_registros', {
-            method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(buenas)
-          });
-          const data = await r.json();
-          if (!r.ok) { res.status(500).json({ ok: false, error: 'Error al insertar en Supabase.', raw: data, errores: errores }); return; }
-          insertados = Array.isArray(data) ? data.length : 0;
-          await insertHistorial({ accion: 'importacion_excel', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { insertados: insertados, con_error: errores.length } });
-        }
-        res.status(200).json({ ok: true, insertados: insertados, errores: errores });
-        return;
-      }
-
       if (action === 'informar') {
         const ids = Array.isArray(body.ids) ? body.ids.filter(Boolean) : [];
         if (!ids.length) { res.status(400).json({ ok: false, error: 'No hay gastos para informar.' }); return; }

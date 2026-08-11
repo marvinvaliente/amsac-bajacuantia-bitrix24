@@ -8,7 +8,7 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
 ## Qué hace
 
-- El menú **"Solicitud"** agrupa cuatro pantallas (se puede colapsar/expandir
+- El menú **"Solicitud"** agrupa tres pantallas (se puede colapsar/expandir
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), área solicitante,
@@ -33,10 +33,10 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      guardar cambios aquí es lo que **certifica** la solicitud (pasa de
      Pendiente a Certificado). "Eliminar" es un borrado lógico: la solicitud
      queda en estado Eliminada, ya no se puede editar ni volver a elegir
-     desde Registrar gasto/Cargar Excel, pero sigue visible en la tabla para
-     trazabilidad. Como Registrar gasto/Cargar Excel leen los datos de la
-     solicitud al momento de guardar cada gasto, cualquier edición hecha aquí
-     se refleja de inmediato en los gastos nuevos que se le asocien.
+     desde Registrar factura, pero sigue visible en la tabla para
+     trazabilidad. Como Registrar factura lee los datos de la solicitud al
+     momento de guardar cada gasto, cualquier edición hecha aquí se refleja
+     de inmediato en las facturas nuevas que se le registren.
   3. **Registrar factura o documento equivalente**: muestra en una tabla
      (estilo Certificación) solo las solicitudes en estado **Certificado**,
      con una columna **Facturación** ("N/M ítems") que indica cuántos de sus
@@ -52,15 +52,6 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      todas las filas que se hayan llenado por completo. El mes se calcula
      automáticamente desde la fecha; cada factura se guarda como un gasto con
      **estado `registrado`**.
-  4. **Cargar desde Excel**: a diferencia de "Registrar factura", puede usar
-     **cualquier solicitud viva** (pendiente o certificada, no eliminada) y
-     registra **un solo gasto para todo el lote** (no por ítem). Se elige
-     primero la **Solicitud**, y luego se sube un `.xlsx`/`.xls`/`.csv` con
-     las columnas `fecha`, `mes`, `numero_documento`, `proveedor`,
-     `monto_retenido`, `monto_total` (fondo, área, descripción y
-     justificación se toman de la solicitud elegida, igual para todas las
-     filas). La app valida cada fila antes de importar y muestra cuáles
-     quedaron bien y cuáles tienen error, sin bloquear el resto.
 - Un gasto ya registrado se edita desde **Historial** o **Informe de
   Gastos** (solo quien lo creó, mientras esté en estado `registrado`, o un
   administrador en cualquier estado); el formulario de edición muestra de
@@ -161,8 +152,9 @@ entorno anteriores.
   confianza que `transporte_*` (herramienta interna, no expuesta al público).
 - "Cargo" y "Unidad" en Reportes salen de `WORK_POSITION` y `UF_DEPARTMENT` de
   `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
-- Excel (carga e importación) usa SheetJS (`xlsx.full.min.js` por CDN) en el
-  navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en transporte.
+- La exportación a Excel (Reportes) usa SheetJS (`xlsx.full.min.js` por CDN)
+  en el navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en
+  transporte.
 - **`fondo_id`**: cada gasto guarda a qué fondo específico pertenece (columna
   `fondo_id` en `gastos_registros`). Los gastos creados **antes** de que
   existiera esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y
@@ -182,7 +174,6 @@ entorno anteriores.
   que cada gasto creado desde ahí queda enlazado al `numero` del ítem dentro
   de `gastos_solicitudes.items` (jsonb). El servidor exige que ese ítem
   exista en la solicitud y que la solicitud esté en estado `certificado`
-  antes de aceptar la factura. `Cargar desde Excel` sigue sin usar
-  `item_numero` (un solo gasto para todo el lote, cualquier solicitud viva,
-  no solo las certificadas) y los gastos creados antes de este cambio
-  quedan con `item_numero` vacío.
+  antes de aceptar la factura. Los gastos creados antes de este cambio (o
+  antes de que existiera "Registrar factura") quedan con `item_numero`
+  vacío.

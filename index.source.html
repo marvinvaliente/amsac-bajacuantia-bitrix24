@@ -224,14 +224,6 @@
   .info-box { display: flex; gap: 10px; background: #eaf6fd; border: 1px solid #bfe1ef; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #1a6f8f; line-height: 1.55; margin-bottom: 14px; }
   .info-box ul { margin: 6px 0 0; padding-left: 18px; }
 
-  .excel-row { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 12.5px; }
-  .excel-row:last-child { border-bottom: none; }
-  .excel-row .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-  .excel-row .dot.ok { background: var(--success); }
-  .excel-row .dot.error { background: var(--danger); }
-  .excel-row .txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-  .excel-row .motivo { color: var(--danger); }
-
   .map-modal {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
     z-index: 9999; align-items: center; justify-content: center; padding: 12px;
@@ -291,10 +283,6 @@
           <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span>Registrar factura o documento equivalente</span>
-          </li>
-          <li class="tab hidden" id="tabExcelBtn" data-tab="excel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-            <span>Cargar desde Excel</span>
           </li>
         </ul>
       </li>
@@ -551,34 +539,6 @@
         </div>
         <div id="facturaItemsMsg" class="msg"></div>
       </div>
-    </div>
-
-    <!-- ---- Cargar desde Excel ---- -->
-    <div id="viewExcel" class="card" style="display:none">
-      <div class="section-title">Carga masiva desde Excel</div>
-      <div class="info-box">
-        El archivo debe tener estas columnas en la primera fila (en cualquier orden):
-        <ul>
-          <li><b>fecha</b> — formato día/mes/año, ej. 01/01/2023 (celda en formato TEXTO)</li>
-          <li><b>mes</b> — número 1 a 12 (opcional, se recalcula desde la fecha)</li>
-          <li><b>numero_documento</b> — número de factura, CF o ticket</li>
-          <li><b>proveedor</b> — nombre del proveedor</li>
-          <li><b>monto_retenido</b> — si no aplica, ingrese 0</li>
-          <li><b>monto_total</b> — total de la compra según documento</li>
-        </ul>
-        El fondo, área solicitante, descripción y justificación se toman de la solicitud elegida abajo y se aplican a todas las filas del archivo.
-      </div>
-      <label for="excSolicitud">Solicitud *</label>
-      <select id="excSolicitud" required></select>
-      <input type="file" id="gExcelFile" accept=".xlsx,.xls,.csv" />
-      <button type="button" id="btnProcesarExcel">Procesar archivo</button>
-      <div id="excelResumen" class="stat-row" style="display:none"></div>
-      <div id="excelPreviewWrap" style="display:none">
-        <div class="section-title" style="margin-top:16px">Detalle por fila</div>
-        <div id="excelPreview" class="table-wrap" style="max-height:320px; overflow-y:auto"></div>
-        <button type="button" id="btnConfirmarExcel" style="display:none">Confirmar e importar</button>
-      </div>
-      <div id="excelMsg" class="msg"></div>
     </div>
 
     <!-- ---- Historial ---- -->
@@ -883,7 +843,6 @@
 
   var todosLosGastos = [];      // cache para Reportes (solo admin)
   var gastosFiltrados = [];
-  var filasExcelValidas = [];   // filas listas para importar tras procesar el archivo
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -990,7 +949,7 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['crearSolicitud', 'certificacion', 'registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
+  var VIEWS = ['crearSolicitud', 'certificacion', 'registrar', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
@@ -1074,9 +1033,8 @@
     if (actual && fondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
   }
 
-  // Solicitudes disponibles para elegir en "Cargar desde Excel" (y para
-  // mostrar en Certificación/Historial); se listan todas (no solo las
-  // propias) porque una solicitud puede haber sido creada por otra persona.
+  // Etiqueta corta de una solicitud (usada en Certificación y al mostrar el
+  // contexto de un gasto en edición).
   function labelSolicitud(s) {
     var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
     var fondoTxt = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : 'Fondo #' + s.fondo_id;
@@ -1084,21 +1042,6 @@
     return '#' + s.id + ' · ' + esc(fondoTxt) + ' · ' + esc(s.area_solicitante || '') + (desc ? ' · ' + esc(desc) : '');
   }
   function poblarSolicitudesSelectores() {
-    // Cargar Excel solo puede usar solicitudes vivas (pendientes o
-    // certificadas); una eliminada no debe poder elegirse.
-    var ordenadas = solicitudes
-      .filter(function (s) { return s.estado !== 'eliminada'; })
-      .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
-    ['excSolicitud'].forEach(function (selId) {
-      var sel = document.getElementById(selId);
-      var actual = sel.value;
-      sel.innerHTML = ordenadas.length
-        ? '<option value="">Selecciona una solicitud</option>' + ordenadas.map(function (s) {
-            return '<option value="' + s.id + '">' + labelSolicitud(s) + '</option>';
-          }).join('')
-        : '<option value="">No hay solicitudes creadas todavía</option>';
-      if (actual && ordenadas.some(function (s) { return String(s.id) === actual; })) sel.value = actual;
-    });
     renderCertTabla();
     renderFacturaTabla();
   }
@@ -1497,7 +1440,7 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Ya está disponible en "Cargar desde Excel"; certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
+        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
         limpiarFormSolicitud();
         cargarSolicitudes();
       } else {
@@ -1699,7 +1642,7 @@
     document.querySelectorAll('[data-eliminar-sol]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var id = btn.getAttribute('data-eliminar-sol');
-        customConfirm('¿Eliminar esta solicitud? Pasará a estado "Eliminada" y ya no podrá usarse en Registrar factura ni Cargar Excel.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
+        customConfirm('¿Eliminar esta solicitud? Pasará a estado "Eliminada" y ya no podrá usarse en Registrar factura.', { danger: true, okText: 'Eliminar' }).then(function (ok) {
           if (!ok) return;
           apiCall('solicitudes', { method: 'POST', body: { action: 'delete', id: id, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
             if (r.ok) {
@@ -1829,126 +1772,6 @@
       });
     }).catch(function () {});
   }
-
-  // ==================================================================
-  // Cargar desde Excel
-  // ==================================================================
-  function normalizeHeader(h) {
-    return String(h || '').trim().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '_');
-  }
-  function parseFechaExcel(v) {
-    if (v == null || v === '') return null;
-    if (typeof v === 'number') {
-      var utcDays = Math.floor(v - 25569);
-      var d = new Date(utcDays * 86400 * 1000);
-      return d.toISOString().slice(0, 10);
-    }
-    var s = String(v).trim();
-    var m = /^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/.exec(s);
-    if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-    return null;
-  }
-  function numExcel(v) {
-    if (v === '' || v == null) return null;
-    var n = parseFloat(String(v).replace(',', '.'));
-    return isNaN(n) ? null : n;
-  }
-  function validarFilaExcel(raw) {
-    var out = {};
-    Object.keys(raw).forEach(function (k) { out[normalizeHeader(k)] = raw[k]; });
-    var fecha = parseFechaExcel(out.fecha);
-    if (!fecha) return { ok: false, motivo: 'Fecha inválida o vacía: "' + (out.fecha || '') + '"' };
-    var numeroDocumento = String(out.numero_documento || '').trim();
-    if (!numeroDocumento) return { ok: false, motivo: 'Falta número de documento.' };
-    var proveedor = String(out.proveedor || '').trim();
-    if (!proveedor) return { ok: false, motivo: 'Falta proveedor.' };
-    var montoTotal = numExcel(out.monto_total);
-    if (montoTotal == null) return { ok: false, motivo: 'Monto total inválido: "' + (out.monto_total || '') + '"' };
-    var montoRetenido = numExcel(out.monto_retenido);
-    if (montoRetenido == null) montoRetenido = 0;
-    return {
-      ok: true,
-      row: {
-        fecha: fecha, numero_documento: numeroDocumento, proveedor: proveedor,
-        monto_retenido: montoRetenido, monto_total: montoTotal
-      }
-    };
-  }
-
-  document.getElementById('btnProcesarExcel').addEventListener('click', function () {
-    var msgEl = document.getElementById('excelMsg');
-    hideMsg(msgEl);
-    if (!document.getElementById('excSolicitud').value) { showMsg(msgEl, 'error', 'Selecciona la solicitud a la que pertenecen estos gastos.'); return; }
-    var file = document.getElementById('gExcelFile').files[0];
-    if (!file) { showMsg(msgEl, 'error', 'Selecciona un archivo primero.'); return; }
-    var reader = new FileReader();
-    reader.onload = function (e) {
-      try {
-        var data = new Uint8Array(e.target.result);
-        var wb = XLSX.read(data, { type: 'array' });
-        var ws = wb.Sheets[wb.SheetNames[0]];
-        var filas = XLSX.utils.sheet_to_json(ws, { raw: true, defval: '' });
-        if (!filas.length) { showMsg(msgEl, 'error', 'El archivo no tiene filas de datos.'); return; }
-
-        filasExcelValidas = [];
-        var previewHtml = '';
-        var ok = 0, err = 0;
-        filas.forEach(function (raw, i) {
-          var v = validarFilaExcel(raw);
-          if (v.ok) { ok++; filasExcelValidas.push(v.row); } else { err++; }
-          previewHtml += '<div class="excel-row">' +
-            '<div class="dot ' + (v.ok ? 'ok' : 'error') + '"></div>' +
-            '<div class="txt">Fila ' + (i + 2) + (v.ok ? ': ' + esc(v.row.proveedor) + ' — $' + money(v.row.monto_total) : '') + '</div>' +
-            (v.ok ? '' : '<div class="motivo">' + esc(v.motivo) + '</div>') +
-            '</div>';
-        });
-
-        document.getElementById('excelPreview').innerHTML = previewHtml;
-        document.getElementById('excelPreviewWrap').style.display = 'block';
-        document.getElementById('excelResumen').style.display = 'flex';
-        document.getElementById('excelResumen').innerHTML =
-          '<div class="stat-box"><div class="n">' + filas.length + '</div><div class="l">Filas leídas</div></div>' +
-          '<div class="stat-box"><div class="n" style="color:var(--success)">' + ok + '</div><div class="l">Válidas</div></div>' +
-          '<div class="stat-box"><div class="n" style="color:var(--danger)">' + err + '</div><div class="l">Con error</div></div>';
-
-        var btnConfirmar = document.getElementById('btnConfirmarExcel');
-        btnConfirmar.style.display = ok ? 'block' : 'none';
-        btnConfirmar.textContent = 'Confirmar e importar ' + ok + ' gasto' + (ok === 1 ? '' : 's') + ' válido' + (ok === 1 ? '' : 's');
-      } catch (err) {
-        showMsg(msgEl, 'error', 'No se pudo leer el archivo: ' + err.message);
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-
-  document.getElementById('btnConfirmarExcel').addEventListener('click', function () {
-    var msgEl = document.getElementById('excelMsg');
-    hideMsg(msgEl);
-    if (!filasExcelValidas.length) return;
-    var btn = this;
-    btn.disabled = true;
-    apiCall('gastos', {
-      method: 'POST',
-      body: { action: 'bulk_save', rows: filasExcelValidas, solicitud_id: document.getElementById('excSolicitud').value, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
-    }).then(function (r) {
-      btn.disabled = false;
-      if (r.ok) {
-        showMsg(msgEl, 'success', r.insertados + ' gasto(s) importado(s) correctamente.' + (r.errores && r.errores.length ? ' ' + r.errores.length + ' fila(s) fueron rechazadas por el servidor.' : ''));
-        filasExcelValidas = [];
-        document.getElementById('btnConfirmarExcel').style.display = 'none';
-        document.getElementById('gExcelFile').value = '';
-        cargarProveedores();
-      } else {
-        showMsg(msgEl, 'error', r.error || 'No se pudo importar el archivo.');
-      }
-    }).catch(function () {
-      btn.disabled = false;
-      showMsg(msgEl, 'error', 'Error de conexión al importar.');
-    });
-  });
 
   // ==================================================================
   // Historial
@@ -2734,7 +2557,6 @@
     document.getElementById('tabCrearSolicitudBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabCertificacionBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
-    document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabInformeBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabReportesBtn').classList.toggle('hidden', !(canLoad || isAdmin));
