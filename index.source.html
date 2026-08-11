@@ -275,6 +275,10 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             <span>Crear Solicitud</span>
           </li>
+          <li class="tab hidden" id="tabCertificacionBtn" data-tab="certificacion">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>Certificación presupuestaria</span>
+          </li>
           <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span>Registrar gasto</span>
@@ -383,6 +387,74 @@
           <button type="submit" id="btnGuardarSolicitud">Crear solicitud</button>
         </div>
         <div id="solicitudMsg" class="msg"></div>
+      </form>
+    </div>
+
+    <!-- ---- Certificación presupuestaria ---- -->
+    <div id="viewCertificacion" class="card" style="display:none">
+      <div class="section-title">Certificación presupuestaria</div>
+      <label for="certSolicitud">Solicitud *</label>
+      <select id="certSolicitud"></select>
+      <div id="certVacio" class="empty-state">Selecciona una solicitud para ver y editar sus datos.</div>
+
+      <form id="formCertificacion" style="display:none">
+        <label for="cFondo">Fondo *</label>
+        <select id="cFondo" required></select>
+
+        <label for="cAreaSolicitante">Área solicitante *</label>
+        <div class="combo-wrap">
+          <input type="text" id="cAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+          <div id="cAreaDropdown" class="combo-dropdown"></div>
+        </div>
+
+        <label for="cGerencia">Gerencia responsable *</label>
+        <div class="combo-wrap">
+          <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+          <div id="cGerenciaDropdown" class="combo-dropdown"></div>
+          <input type="hidden" id="cGerenciaId" />
+        </div>
+
+        <label for="cNombreProceso">Nombre del proceso *</label>
+        <input type="text" id="cNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+
+        <label for="cDescripcion">Descripción *</label>
+        <textarea id="cDescripcion" placeholder="Descripción de la compra" required></textarea>
+
+        <label for="cJustificacion">Justificación *</label>
+        <textarea id="cJustificacion" placeholder="Justificación de la compra" required></textarea>
+
+        <label for="cClasificacion">Clasificación del gasto *</label>
+        <select id="cClasificacion" required>
+          <option value="">Selecciona una opción</option>
+          <option value="emergente">Gasto Emergente</option>
+          <option value="imprevisto">Gasto Imprevisto</option>
+          <option value="recurrente">Gasto Recurrente</option>
+        </select>
+
+        <label for="cFormaPago">Forma de Pago *</label>
+        <select id="cFormaPago" required>
+          <option value="">Selecciona una opción</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia Bancaria</option>
+          <option value="cheque">Cheque</option>
+        </select>
+
+        <div class="section-title" style="margin-top:22px">Ítems</div>
+        <div class="table-wrap">
+          <table class="data-table items-table" id="cItemsTable">
+            <thead>
+              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario</th><th>Específico Presupuestario</th><th>CEP</th><th>Total</th><th></th></tr>
+            </thead>
+            <tbody id="cItemsBody"></tbody>
+          </table>
+        </div>
+        <button type="button" id="btnAgregarItemCert" class="secondary">+ Agregar ítem</button>
+        <div class="items-total-row">Total de la solicitud: <b id="cItemsTotal">$0.00</b></div>
+
+        <div class="btn-row">
+          <button type="submit" id="btnGuardarCertificacion">Guardar cambios</button>
+        </div>
+        <div id="certificacionMsg" class="msg"></div>
       </form>
     </div>
 
@@ -868,12 +940,13 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['crearSolicitud', 'registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
+  var VIEWS = ['crearSolicitud', 'certificacion', 'registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
     if (window.innerWidth < 900) closeDrawer();
     if (name === 'crearSolicitud') initCrearSolicitud();
+    if (name === 'certificacion') initCertificacion();
     if (name === 'historial') loadHistorial();
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
@@ -937,6 +1010,20 @@
     if (actual && misFondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
   }
 
+  // El Fondo de la Certificación presupuestaria lista TODOS los fondos (no
+  // solo los propios), porque quien certifica puede no pertenecer al fondo
+  // de la solicitud que está editando.
+  function poblarFondosTodos(selId) {
+    var sel = document.getElementById(selId);
+    var actual = sel.value;
+    sel.innerHTML = fondos.length
+      ? fondos.map(function (f) {
+          return '<option value="' + f.id + '">' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + esc(f.anio) + '</option>';
+        }).join('')
+      : '<option value="">No hay fondos creados</option>';
+    if (actual && fondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
+  }
+
   // Solicitudes disponibles para elegir en "Registrar gasto" y "Cargar desde
   // Excel"; se listan todas (no solo las propias) porque una solicitud puede
   // haber sido creada por otra persona a nombre del área/fondo.
@@ -948,7 +1035,7 @@
   }
   function poblarSolicitudesSelectores() {
     var ordenadas = solicitudes.slice().sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
-    ['gSolicitud', 'excSolicitud'].forEach(function (selId) {
+    ['gSolicitud', 'excSolicitud', 'certSolicitud'].forEach(function (selId) {
       var sel = document.getElementById(selId);
       var actual = sel.value;
       sel.innerHTML = ordenadas.length
@@ -959,6 +1046,7 @@
       if (actual && ordenadas.some(function (s) { return String(s.id) === actual; })) sel.value = actual;
     });
     mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
+    cargarSolicitudEnCertificacion(document.getElementById('certSolicitud').value);
   }
   function mostrarSolicitudSeleccionada(id) {
     var box = document.getElementById('gSolicitudInfo');
@@ -1212,6 +1300,213 @@
     }).catch(function () {
       btn.disabled = false;
       showMsg(msgEl, 'error', 'Error de conexión al crear la solicitud.');
+    });
+  });
+
+  // ==================================================================
+  // Certificación presupuestaria (editar una solicitud existente)
+  // ==================================================================
+  var formCertificacion = document.getElementById('formCertificacion');
+
+  // ---- Combo con buscador para "Área solicitante" (Certificación) ----
+  var cAreaInput = document.getElementById('cAreaSolicitante');
+  var cAreaDropdown = document.getElementById('cAreaDropdown');
+  function renderCAreaDropdown() {
+    var filtro = cAreaInput.value.trim().toLowerCase();
+    var opciones = filtro ? areasDisponibles.filter(function (a) { return a.toLowerCase().indexOf(filtro) !== -1; }) : areasDisponibles;
+    if (opciones.length) {
+      cAreaDropdown.innerHTML = opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('');
+    } else if (!areasDisponibles.length) {
+      cAreaDropdown.innerHTML = '<div class="combo-empty">No se pudieron cargar las unidades de Bitrix24' +
+        (departamentosError ? ' (falta el permiso "department" en la app)' : '') + '. Puedes escribir el área manualmente.</div>';
+    } else {
+      cAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+    }
+  }
+  function abrirCAreaDropdown() { renderCAreaDropdown(); cAreaDropdown.classList.add('open'); }
+  function cerrarCAreaDropdown() { cAreaDropdown.classList.remove('open'); }
+  cAreaInput.addEventListener('focus', abrirCAreaDropdown);
+  cAreaInput.addEventListener('input', abrirCAreaDropdown);
+  cAreaDropdown.addEventListener('mousedown', function (ev) {
+    var opt = ev.target.closest('[data-area]');
+    if (!opt) return;
+    ev.preventDefault();
+    cAreaInput.value = opt.getAttribute('data-area');
+    cerrarCAreaDropdown();
+  });
+
+  // ---- Combo con buscador para "Gerencia responsable" (Certificación) ----
+  var cGerenciaInput = document.getElementById('cGerencia');
+  var cGerenciaDropdown = document.getElementById('cGerenciaDropdown');
+  var cGerenciaIdInput = document.getElementById('cGerenciaId');
+  function renderCGerenciaDropdown() {
+    var filtro = cGerenciaInput.value.trim().toLowerCase();
+    var opciones = (filtro ? allUsers.filter(function (u) { return fullName(u).toLowerCase().indexOf(filtro) !== -1; }) : allUsers).slice(0, 40);
+    cGerenciaDropdown.innerHTML = opciones.length
+      ? opciones.map(function (u) { return '<div class="combo-option" data-uid="' + u.ID + '" data-uname="' + esc(fullName(u)) + '">' + esc(fullName(u)) + '</div>'; }).join('')
+      : '<div class="combo-empty">Sin coincidencias.</div>';
+  }
+  function abrirCGerenciaDropdown() { renderCGerenciaDropdown(); cGerenciaDropdown.classList.add('open'); }
+  function cerrarCGerenciaDropdown() { cGerenciaDropdown.classList.remove('open'); }
+  cGerenciaInput.addEventListener('focus', abrirCGerenciaDropdown);
+  cGerenciaInput.addEventListener('input', function () { cGerenciaIdInput.value = ''; abrirCGerenciaDropdown(); });
+  cGerenciaDropdown.addEventListener('mousedown', function (ev) {
+    var opt = ev.target.closest('[data-uid]');
+    if (!opt) return;
+    ev.preventDefault();
+    cGerenciaInput.value = opt.getAttribute('data-uname');
+    cGerenciaIdInput.value = opt.getAttribute('data-uid');
+    cerrarCGerenciaDropdown();
+  });
+
+  document.addEventListener('click', function (ev) {
+    if (ev.target !== cAreaInput && !cAreaDropdown.contains(ev.target)) cerrarCAreaDropdown();
+    if (ev.target !== cGerenciaInput && !cGerenciaDropdown.contains(ev.target)) cerrarCGerenciaDropdown();
+  });
+
+  // ---- Tabla de ítems (Certificación) ----
+  function crearFilaItemCert(item) {
+    item = item || {};
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="item-n"></td>' +
+      '<td><select class="it-tipo"><option value="bien">Bien</option><option value="servicio">Servicio</option></select></td>' +
+      '<td><input type="number" class="it-cantidad" min="0" step="0.01" placeholder="0" /></td>' +
+      '<td><input type="text" class="it-desc" maxlength="200" placeholder="Descripción" /></td>' +
+      '<td><input type="number" class="it-precio" min="0" step="0.01" placeholder="0" /></td>' +
+      '<td><input type="text" class="it-especifico" inputmode="numeric" maxlength="5" placeholder="00000" /></td>' +
+      '<td><input type="text" class="it-cep" inputmode="numeric" maxlength="2" placeholder="00" /></td>' +
+      '<td class="it-total">$0.00</td>' +
+      '<td><button type="button" class="secondary it-remove">✕</button></td>';
+    tr.querySelector('.it-tipo').value = item.tipo === 'servicio' ? 'servicio' : 'bien';
+    tr.querySelector('.it-cantidad').value = item.cantidad != null ? item.cantidad : '';
+    tr.querySelector('.it-desc').value = item.descripcion || '';
+    tr.querySelector('.it-precio').value = item.precio_unitario != null ? item.precio_unitario : '';
+    tr.querySelector('.it-especifico').value = item.especifico_presupuestario || '';
+    tr.querySelector('.it-cep').value = item.cep || '';
+    document.getElementById('cItemsBody').appendChild(tr);
+    renumerarItemsCert();
+    return tr;
+  }
+  function renumerarItemsCert() {
+    document.querySelectorAll('#cItemsBody tr').forEach(function (tr, i) { tr.querySelector('.item-n').textContent = i + 1; });
+  }
+  function recalcularItemsTotalCert() {
+    var total = 0;
+    document.querySelectorAll('#cItemsBody tr').forEach(function (tr) {
+      var cant = parseFloat(tr.querySelector('.it-cantidad').value) || 0;
+      var precio = parseFloat(tr.querySelector('.it-precio').value) || 0;
+      var t = cant * precio;
+      tr.querySelector('.it-total').textContent = '$' + money(t);
+      total += t;
+    });
+    document.getElementById('cItemsTotal').textContent = '$' + money(total);
+    return total;
+  }
+  document.getElementById('btnAgregarItemCert').addEventListener('click', function () {
+    crearFilaItemCert();
+    recalcularItemsTotalCert();
+  });
+  document.getElementById('cItemsBody').addEventListener('input', function (ev) {
+    if (ev.target.classList.contains('it-especifico')) ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 5);
+    if (ev.target.classList.contains('it-cep')) ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 2);
+    if (ev.target.classList.contains('it-cantidad') || ev.target.classList.contains('it-precio')) recalcularItemsTotalCert();
+  });
+  document.getElementById('cItemsBody').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.it-remove');
+    if (!btn) return;
+    if (document.querySelectorAll('#cItemsBody tr').length <= 1) return;
+    btn.closest('tr').remove();
+    renumerarItemsCert();
+    recalcularItemsTotalCert();
+  });
+
+  function cargarSolicitudEnCertificacion(id) {
+    var s = solicitudes.find(function (x) { return String(x.id) === String(id); });
+    if (!s) {
+      formCertificacion.style.display = 'none';
+      document.getElementById('certVacio').style.display = 'block';
+      return;
+    }
+    document.getElementById('certVacio').style.display = 'none';
+    formCertificacion.style.display = 'block';
+    poblarFondosTodos('cFondo');
+    document.getElementById('cFondo').value = s.fondo_id != null ? String(s.fondo_id) : '';
+    cAreaInput.value = s.area_solicitante || '';
+    cGerenciaInput.value = s.gerencia_responsable_nombre || '';
+    cGerenciaIdInput.value = s.gerencia_responsable_id || '';
+    document.getElementById('cNombreProceso').value = s.nombre_proceso || '';
+    document.getElementById('cDescripcion').value = s.descripcion || '';
+    document.getElementById('cJustificacion').value = s.justificacion || '';
+    document.getElementById('cClasificacion').value = s.clasificacion || '';
+    document.getElementById('cFormaPago').value = s.forma_pago || '';
+    document.getElementById('cItemsBody').innerHTML = '';
+    (Array.isArray(s.items) && s.items.length ? s.items : [{}]).forEach(function (it) { crearFilaItemCert(it); });
+    recalcularItemsTotalCert();
+  }
+  document.getElementById('certSolicitud').addEventListener('change', function () {
+    hideMsg(document.getElementById('certificacionMsg'));
+    cargarSolicitudEnCertificacion(this.value);
+  });
+
+  function initCertificacion() {
+    cargarSolicitudEnCertificacion(document.getElementById('certSolicitud').value);
+  }
+
+  formCertificacion.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var msgEl = document.getElementById('certificacionMsg');
+    hideMsg(msgEl);
+    var certId = document.getElementById('certSolicitud').value;
+    if (!certId) { showMsg(msgEl, 'error', 'Selecciona una solicitud.'); return; }
+    var fondoId = document.getElementById('cFondo').value;
+    if (!fondoId) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece esta solicitud.'); return; }
+    var gerenciaId = cGerenciaIdInput.value;
+    if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
+
+    var items = [];
+    document.querySelectorAll('#cItemsBody tr').forEach(function (tr) {
+      var tipo = tr.querySelector('.it-tipo').value;
+      var cantidad = parseFloat(tr.querySelector('.it-cantidad').value);
+      var descripcion = tr.querySelector('.it-desc').value.trim();
+      var precioUnitario = parseFloat(tr.querySelector('.it-precio').value);
+      if (!descripcion || !(cantidad > 0) || !(precioUnitario >= 0)) return;
+      items.push({
+        tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario,
+        especifico_presupuestario: tr.querySelector('.it-especifico').value.trim(),
+        cep: tr.querySelector('.it-cep').value.trim()
+      });
+    });
+    if (!items.length) { showMsg(msgEl, 'error', 'Agrega al menos un ítem válido (con descripción, cantidad y precio unitario).'); return; }
+
+    var solicitud = {
+      fondo_id: fondoId,
+      area_solicitante: cAreaInput.value.trim(),
+      nombre_proceso: document.getElementById('cNombreProceso').value.trim(),
+      descripcion: document.getElementById('cDescripcion').value.trim(),
+      justificacion: document.getElementById('cJustificacion').value.trim(),
+      gerencia_responsable_id: gerenciaId,
+      gerencia_responsable_nombre: cGerenciaInput.value.trim(),
+      clasificacion: document.getElementById('cClasificacion').value,
+      forma_pago: document.getElementById('cFormaPago').value,
+      items: items
+    };
+    var btn = document.getElementById('btnGuardarCertificacion');
+    btn.disabled = true;
+    apiCall('solicitudes', {
+      method: 'POST',
+      body: { action: 'update', id: certId, solicitud: solicitud, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
+    }).then(function (r) {
+      btn.disabled = false;
+      if (r.ok) {
+        showMsg(msgEl, 'success', 'Cambios guardados correctamente.');
+        cargarSolicitudes();
+      } else {
+        showMsg(msgEl, 'error', r.error || 'No se pudieron guardar los cambios.');
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg(msgEl, 'error', 'Error de conexión al guardar.');
     });
   });
 
@@ -2130,6 +2425,7 @@
   function actualizarVisibilidadTabs() {
     document.getElementById('groupSolicitud').classList.toggle('hidden', !canLoad);
     document.getElementById('tabCrearSolicitudBtn').classList.toggle('hidden', !canLoad);
+    document.getElementById('tabCertificacionBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));

@@ -35,6 +35,8 @@ function numOrNull(v) {
 const CLASIFICACIONES = ['emergente', 'imprevisto', 'recurrente'];
 const FORMAS_PAGO = ['efectivo', 'transferencia', 'cheque'];
 const TIPOS_ITEM = ['bien', 'servicio'];
+const ESPECIFICO_RE = /^\d{5}$/;
+const CEP_RE = /^\d{2}$/;
 
 function construirItems(items) {
   const lista = Array.isArray(items) ? items : [];
@@ -49,12 +51,21 @@ function construirItems(items) {
     if (cantidad == null || cantidad <= 0) return { error: 'Ítem #' + (i + 1) + ': cantidad inválida.' };
     const precioUnitario = numOrNull(it.precio_unitario);
     if (precioUnitario == null || precioUnitario < 0) return { error: 'Ítem #' + (i + 1) + ': precio unitario inválido.' };
+    // Específico Presupuestario / CEP: códigos que se asignan en la
+    // certificación presupuestaria, después de creada la solicitud — por
+    // eso son opcionales, pero si llegan deben tener el largo exacto.
+    const especifico = String(it.especifico_presupuestario || '').trim();
+    if (especifico && !ESPECIFICO_RE.test(especifico)) return { error: 'Ítem #' + (i + 1) + ': Específico Presupuestario debe tener 5 dígitos.' };
+    const cep = String(it.cep || '').trim();
+    if (cep && !CEP_RE.test(cep)) return { error: 'Ítem #' + (i + 1) + ': CEP debe tener 2 dígitos.' };
     limpios.push({
       numero: i + 1,
       tipo: tipo,
       cantidad: cantidad,
       descripcion: descripcion,
       precio_unitario: precioUnitario,
+      especifico_presupuestario: especifico,
+      cep: cep,
       total: Math.round(cantidad * precioUnitario * 100) / 100
     });
   }
@@ -131,6 +142,22 @@ module.exports = async (req, res) => {
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        res.status(200).json({ ok: true, solicitud: data[0] });
+        return;
+      }
+
+      if (action === 'update') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre);
+        if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        const row = built.row;
+        delete row.created_by_id;
+        delete row.created_by_nombre;
+        const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }

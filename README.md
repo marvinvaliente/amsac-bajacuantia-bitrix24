@@ -8,7 +8,7 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
 ## Qué hace
 
-- El menú **"Solicitud"** agrupa tres pantallas (se puede colapsar/expandir
+- El menú **"Solicitud"** agrupa cuatro pantallas (se puede colapsar/expandir
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), área solicitante,
@@ -19,15 +19,25 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      **ítems** (se pueden agregar o quitar filas): tipo (Bien/Servicio),
      cantidad, descripción, precio unitario y total (se calcula solo,
      cantidad × precio unitario); el monto total de la solicitud es la suma
-     de los ítems.
-  2. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
+     de los ítems. El N° de ítem siempre queda correlativo (1, 2, 3...): si
+     se quita una fila, las demás se renumeran para no dejar huecos.
+  2. **Certificación presupuestaria**: se elige una solicitud ya creada (de
+     cualquier fondo, no solo los propios) y se cargan todos sus datos para
+     poder editarlos — incluida la tabla de ítems, que aquí suma dos columnas
+     más: **Específico Presupuestario** (código de 5 dígitos) y **CEP**
+     (código de 2 dígitos), ambos opcionales y solo dígitos. "Guardar
+     cambios" actualiza la solicitud; como Registrar gasto/Cargar Excel leen
+     esos datos de la solicitud al momento de guardar cada gasto, cualquier
+     edición hecha aquí se refleja de inmediato en los gastos nuevos que se
+     le asocien.
+  3. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
      descripción/justificación, se **elige una Solicitud ya creada** y el
      sistema completa esos campos automáticamente (de solo lectura, tomados
      siempre del servidor). Lo que sí se pide en este formulario: fecha,
      número de documento, proveedor, monto retenido y monto total. El mes se
      calcula automáticamente desde la fecha. Todo gasto nuevo se guarda con
      **estado `registrado`**.
-  3. **Cargar desde Excel**: igual que Registrar gasto, primero se elige la
+  4. **Cargar desde Excel**: igual que Registrar gasto, primero se elige la
      **Solicitud** a la que pertenece todo el lote, y luego se sube un
      `.xlsx`/`.xls`/`.csv` con las columnas `fecha`, `mes`, `numero_documento`,
      `proveedor`, `monto_retenido`, `monto_total` (fondo, área, descripción y
