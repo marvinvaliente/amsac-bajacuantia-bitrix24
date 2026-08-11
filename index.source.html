@@ -69,6 +69,11 @@
   }
   .drawer-nav .tab.active svg { opacity: 1; color: var(--accent-dark); }
   .drawer-nav .tab.hidden { display: none; }
+  .drawer-nav .drawer-label {
+    padding: 14px 22px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: #9aa5bd;
+  }
+  .drawer-nav .drawer-label.hidden { display: none; }
 
   .app-main { flex: 1; min-width: 0; }
 
@@ -241,6 +246,7 @@
 <div class="app-body">
   <nav id="drawer" class="drawer">
     <ul class="drawer-nav">
+      <li class="drawer-label hidden" id="labelSolicitud">Solicitud</li>
       <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
         <span>Registrar gasto</span>
@@ -1855,6 +1861,7 @@
   // Init
   // ==================================================================
   function actualizarVisibilidadTabs() {
+    document.getElementById('labelSolicitud').classList.toggle('hidden', !canLoad);
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
