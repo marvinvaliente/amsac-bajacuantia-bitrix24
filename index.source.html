@@ -103,7 +103,7 @@
     width: 100%; padding: 11px 10px; border: 1px solid var(--border); border-radius: 6px;
     font-size: 16px; font-family: inherit; background: #fff; color: var(--text);
   }
-  input[readonly] { background: var(--bg); color: #6b7a86; }
+  input[readonly], textarea[readonly], select.select-locked { background: var(--bg); color: #6b7a86; cursor: pointer; }
   textarea { min-height: 70px; resize: vertical; }
   .row { display: flex; gap: 12px; }
   .row > div { flex: 1; min-width: 0; }
@@ -398,6 +398,12 @@
       <div id="certVacio" class="empty-state">Selecciona una solicitud para ver y editar sus datos.</div>
 
       <form id="formCertificacion" style="display:none">
+        <div class="info-box">
+          Los datos de la solicitud se cargan bloqueados. Haz <b>doble clic</b> en
+          un campo para habilitarlo y corregirlo. Solo <b>Específico
+          Presupuestario</b> y <b>CEP</b> están activos de entrada, y son
+          obligatorios en cada ítem para poder guardar.
+        </div>
         <label for="cFondo">Fondo *</label>
         <select id="cFondo" required></select>
 
@@ -1323,11 +1329,12 @@
       cAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
     }
   }
-  function abrirCAreaDropdown() { renderCAreaDropdown(); cAreaDropdown.classList.add('open'); }
+  function abrirCAreaDropdown() { if (cAreaInput.readOnly) return; renderCAreaDropdown(); cAreaDropdown.classList.add('open'); }
   function cerrarCAreaDropdown() { cAreaDropdown.classList.remove('open'); }
   cAreaInput.addEventListener('focus', abrirCAreaDropdown);
   cAreaInput.addEventListener('input', abrirCAreaDropdown);
   cAreaDropdown.addEventListener('mousedown', function (ev) {
+    if (cAreaInput.readOnly) return;
     var opt = ev.target.closest('[data-area]');
     if (!opt) return;
     ev.preventDefault();
@@ -1346,11 +1353,12 @@
       ? opciones.map(function (u) { return '<div class="combo-option" data-uid="' + u.ID + '" data-uname="' + esc(fullName(u)) + '">' + esc(fullName(u)) + '</div>'; }).join('')
       : '<div class="combo-empty">Sin coincidencias.</div>';
   }
-  function abrirCGerenciaDropdown() { renderCGerenciaDropdown(); cGerenciaDropdown.classList.add('open'); }
+  function abrirCGerenciaDropdown() { if (cGerenciaInput.readOnly) return; renderCGerenciaDropdown(); cGerenciaDropdown.classList.add('open'); }
   function cerrarCGerenciaDropdown() { cGerenciaDropdown.classList.remove('open'); }
   cGerenciaInput.addEventListener('focus', abrirCGerenciaDropdown);
   cGerenciaInput.addEventListener('input', function () { cGerenciaIdInput.value = ''; abrirCGerenciaDropdown(); });
   cGerenciaDropdown.addEventListener('mousedown', function (ev) {
+    if (cGerenciaInput.readOnly) return;
     var opt = ev.target.closest('[data-uid]');
     if (!opt) return;
     ev.preventDefault();
@@ -1359,13 +1367,41 @@
     cerrarCGerenciaDropdown();
   });
 
+  // ---- Bloqueo de campos: toda la información carga inactiva y se activa
+  // con doble clic (excepto Específico Presupuestario / CEP, que siempre
+  // están activos porque son lo que se captura en esta pantalla). ----
+  function campoBloqueado(el) { return el.tagName === 'SELECT' ? el.classList.contains('select-locked') : el.readOnly; }
+  function bloquearCampo(el) {
+    el.title = 'Doble clic para editar';
+    if (el.tagName === 'SELECT') el.classList.add('select-locked'); else el.readOnly = true;
+  }
+  function desbloquearCampo(el) {
+    el.removeAttribute('title');
+    if (el.tagName === 'SELECT') el.classList.remove('select-locked'); else el.readOnly = false;
+  }
+  document.addEventListener('mousedown', function (ev) {
+    if (ev.target.tagName === 'SELECT' && ev.target.classList.contains('select-locked')) ev.preventDefault();
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.target.tagName === 'SELECT' && ev.target.classList.contains('select-locked')) ev.preventDefault();
+  });
+  formCertificacion.addEventListener('dblclick', function (ev) {
+    var el = ev.target;
+    if (el.tagName !== 'SELECT' && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA') return;
+    if (!campoBloqueado(el)) return;
+    desbloquearCampo(el);
+    if (el.tagName !== 'SELECT') el.focus();
+  });
+
   document.addEventListener('click', function (ev) {
     if (ev.target !== cAreaInput && !cAreaDropdown.contains(ev.target)) cerrarCAreaDropdown();
     if (ev.target !== cGerenciaInput && !cGerenciaDropdown.contains(ev.target)) cerrarCGerenciaDropdown();
   });
 
   // ---- Tabla de ítems (Certificación) ----
-  function crearFilaItemCert(item) {
+  // "locked": los ítems que ya traía la solicitud cargan bloqueados (salvo
+  // Específico Presupuestario/CEP); los que se agregan de nuevo aquí, no.
+  function crearFilaItemCert(item, locked) {
     item = item || {};
     var tr = document.createElement('tr');
     tr.innerHTML =
@@ -1374,8 +1410,8 @@
       '<td><input type="number" class="it-cantidad" min="0" step="0.01" placeholder="0" /></td>' +
       '<td><input type="text" class="it-desc" maxlength="200" placeholder="Descripción" /></td>' +
       '<td><input type="number" class="it-precio" min="0" step="0.01" placeholder="0" /></td>' +
-      '<td><input type="text" class="it-especifico" inputmode="numeric" maxlength="5" placeholder="00000" /></td>' +
-      '<td><input type="text" class="it-cep" inputmode="numeric" maxlength="2" placeholder="00" /></td>' +
+      '<td><input type="text" class="it-especifico" inputmode="numeric" maxlength="5" pattern="\\d{5}" required placeholder="00000" /></td>' +
+      '<td><input type="text" class="it-cep" inputmode="numeric" maxlength="2" pattern="\\d{2}" required placeholder="00" /></td>' +
       '<td class="it-total">$0.00</td>' +
       '<td><button type="button" class="secondary it-remove">✕</button></td>';
     tr.querySelector('.it-tipo').value = item.tipo === 'servicio' ? 'servicio' : 'bien';
@@ -1384,6 +1420,12 @@
     tr.querySelector('.it-precio').value = item.precio_unitario != null ? item.precio_unitario : '';
     tr.querySelector('.it-especifico').value = item.especifico_presupuestario || '';
     tr.querySelector('.it-cep').value = item.cep || '';
+    if (locked) {
+      bloquearCampo(tr.querySelector('.it-tipo'));
+      bloquearCampo(tr.querySelector('.it-cantidad'));
+      bloquearCampo(tr.querySelector('.it-desc'));
+      bloquearCampo(tr.querySelector('.it-precio'));
+    }
     document.getElementById('cItemsBody').appendChild(tr);
     renumerarItemsCert();
     return tr;
@@ -1441,8 +1483,16 @@
     document.getElementById('cClasificacion').value = s.clasificacion || '';
     document.getElementById('cFormaPago').value = s.forma_pago || '';
     document.getElementById('cItemsBody').innerHTML = '';
-    (Array.isArray(s.items) && s.items.length ? s.items : [{}]).forEach(function (it) { crearFilaItemCert(it); });
+    (Array.isArray(s.items) ? s.items : []).forEach(function (it) { crearFilaItemCert(it, true); });
     recalcularItemsTotalCert();
+
+    // Toda la información cargada queda bloqueada; solo Específico
+    // Presupuestario y CEP (ya activos por diseño) quedan editables.
+    ['cFondo', 'cNombreProceso', 'cDescripcion', 'cJustificacion', 'cClasificacion', 'cFormaPago'].forEach(function (id) {
+      bloquearCampo(document.getElementById(id));
+    });
+    bloquearCampo(cAreaInput);
+    bloquearCampo(cGerenciaInput);
   }
   document.getElementById('certSolicitud').addEventListener('change', function () {
     hideMsg(document.getElementById('certificacionMsg'));
@@ -1465,18 +1515,19 @@
     if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
 
     var items = [];
+    var filasIncompletas = 0;
     document.querySelectorAll('#cItemsBody tr').forEach(function (tr) {
       var tipo = tr.querySelector('.it-tipo').value;
       var cantidad = parseFloat(tr.querySelector('.it-cantidad').value);
       var descripcion = tr.querySelector('.it-desc').value.trim();
       var precioUnitario = parseFloat(tr.querySelector('.it-precio').value);
+      var especifico = tr.querySelector('.it-especifico').value.trim();
+      var cep = tr.querySelector('.it-cep').value.trim();
       if (!descripcion || !(cantidad > 0) || !(precioUnitario >= 0)) return;
-      items.push({
-        tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario,
-        especifico_presupuestario: tr.querySelector('.it-especifico').value.trim(),
-        cep: tr.querySelector('.it-cep').value.trim()
-      });
+      if (!/^\d{5}$/.test(especifico) || !/^\d{2}$/.test(cep)) { filasIncompletas++; return; }
+      items.push({ tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario, especifico_presupuestario: especifico, cep: cep });
     });
+    if (filasIncompletas) { showMsg(msgEl, 'error', 'Completa Específico Presupuestario (5 dígitos) y CEP (2 dígitos) en todos los ítems.'); return; }
     if (!items.length) { showMsg(msgEl, 'error', 'Agrega al menos un ítem válido (con descripción, cantidad y precio unitario).'); return; }
 
     var solicitud = {

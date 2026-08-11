@@ -22,14 +22,15 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      de los ítems. El N° de ítem siempre queda correlativo (1, 2, 3...): si
      se quita una fila, las demás se renumeran para no dejar huecos.
   2. **Certificación presupuestaria**: se elige una solicitud ya creada (de
-     cualquier fondo, no solo los propios) y se cargan todos sus datos para
-     poder editarlos — incluida la tabla de ítems, que aquí suma dos columnas
-     más: **Específico Presupuestario** (código de 5 dígitos) y **CEP**
-     (código de 2 dígitos), ambos opcionales y solo dígitos. "Guardar
-     cambios" actualiza la solicitud; como Registrar gasto/Cargar Excel leen
-     esos datos de la solicitud al momento de guardar cada gasto, cualquier
-     edición hecha aquí se refleja de inmediato en los gastos nuevos que se
-     le asocien.
+     cualquier fondo, no solo los propios) y se cargan todos sus datos. Todos
+     los campos cargan **bloqueados** (solo lectura) — **doble clic** en
+     cualquiera lo habilita para corregirlo puntualmente. La tabla de ítems
+     suma dos columnas que sí quedan activas de entrada: **Específico
+     Presupuestario** (5 dígitos) y **CEP** (2 dígitos), **obligatorios en
+     cada ítem** para poder guardar. "Guardar cambios" actualiza la
+     solicitud; como Registrar gasto/Cargar Excel leen esos datos al momento
+     de guardar cada gasto, cualquier edición hecha aquí se refleja de
+     inmediato en los gastos nuevos que se le asocien.
   3. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
      descripción/justificación, se **elige una Solicitud ya creada** y el
      sistema completa esos campos automáticamente (de solo lectura, tomados

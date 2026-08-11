@@ -49,7 +49,7 @@ const TIPOS_ITEM = ['bien', 'servicio'];
 const ESPECIFICO_RE = /^\d{5}$/;
 const CEP_RE = /^\d{2}$/;
 
-function construirItems(items) {
+function construirItems(items, exigirPresupuestario) {
   const lista = Array.isArray(items) ? items : [];
   const limpios = [];
   for (let i = 0; i < lista.length; i++) {
@@ -63,11 +63,14 @@ function construirItems(items) {
     const precioUnitario = numOrNull(it.precio_unitario);
     if (precioUnitario == null || precioUnitario < 0) return { error: 'Ítem #' + (i + 1) + ': precio unitario inválido.' };
     // Específico Presupuestario / CEP: códigos que se asignan en la
-    // certificación presupuestaria, después de creada la solicitud — por
-    // eso son opcionales, pero si llegan deben tener el largo exacto.
+    // certificación presupuestaria, después de creada la solicitud — por eso
+    // no se piden al crearla (exigirPresupuestario=false), pero sí son
+    // obligatorios al guardar cambios desde Certificación presupuestaria.
     const especifico = String(it.especifico_presupuestario || '').trim();
+    if (exigirPresupuestario && !especifico) return { error: 'Ítem #' + (i + 1) + ': falta el Específico Presupuestario.' };
     if (especifico && !ESPECIFICO_RE.test(especifico)) return { error: 'Ítem #' + (i + 1) + ': Específico Presupuestario debe tener 5 dígitos.' };
     const cep = String(it.cep || '').trim();
+    if (exigirPresupuestario && !cep) return { error: 'Ítem #' + (i + 1) + ': falta el CEP.' };
     if (cep && !CEP_RE.test(cep)) return { error: 'Ítem #' + (i + 1) + ': CEP debe tener 2 dígitos.' };
     limpios.push({
       numero: i + 1,
@@ -84,7 +87,7 @@ function construirItems(items) {
   return { items: limpios };
 }
 
-function construirSolicitud(s, actorId, actorNombre) {
+function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
   s = s || {};
   const fondoId = parseInt(s.fondo_id, 10);
   if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece esta solicitud.' };
@@ -103,7 +106,7 @@ function construirSolicitud(s, actorId, actorNombre) {
   const formaPago = FORMAS_PAGO.indexOf(s.forma_pago) !== -1 ? s.forma_pago : null;
   if (!formaPago) return { error: 'Selecciona una forma de pago válida.' };
 
-  const itemsBuilt = construirItems(s.items);
+  const itemsBuilt = construirItems(s.items, exigirPresupuestario);
   if (itemsBuilt.error) return { error: itemsBuilt.error };
   const montoTotal = itemsBuilt.items.reduce((acc, it) => acc + it.total, 0);
 
@@ -149,7 +152,7 @@ module.exports = async (req, res) => {
       const action = body.action;
 
       if (action === 'create') {
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre);
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
@@ -162,7 +165,7 @@ module.exports = async (req, res) => {
 
       if (action === 'update') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre);
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
         delete row.created_by_id;
