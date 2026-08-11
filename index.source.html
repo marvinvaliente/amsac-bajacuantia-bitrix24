@@ -69,11 +69,17 @@
   }
   .drawer-nav .tab.active svg { opacity: 1; color: var(--accent-dark); }
   .drawer-nav .tab.hidden { display: none; }
-  .drawer-nav .drawer-label {
-    padding: 14px 22px 4px; font-size: 10.5px; font-weight: 700; letter-spacing: 1px;
-    text-transform: uppercase; color: #9aa5bd;
+  .drawer-nav .drawer-group-head {
+    display: flex; align-items: center; gap: 13px; padding: 13px 22px; font-size: 14.5px;
+    color: #46536b; cursor: pointer; user-select: none; font-weight: 700;
   }
-  .drawer-nav .drawer-label.hidden { display: none; }
+  .drawer-nav .drawer-group-head:hover { background: #f4f6fa; }
+  .drawer-nav .drawer-group-head svg.chevron { width: 15px; height: 15px; flex: none; margin-left: auto; opacity: .7; transition: transform .18s ease; }
+  .drawer-nav .drawer-group.open .drawer-group-head svg.chevron { transform: rotate(90deg); }
+  .drawer-subnav { list-style: none; margin: 0; padding: 0; max-height: 0; overflow: hidden; transition: max-height .2s ease; }
+  .drawer-nav .drawer-group.open .drawer-subnav { max-height: 220px; }
+  .drawer-subnav .tab { padding-left: 42px; }
+  .drawer-nav .drawer-group.hidden { display: none; }
 
   .app-main { flex: 1; min-width: 0; }
 
@@ -142,6 +148,18 @@
   .combo-empty { padding: 9px 12px; font-size: 13px; color: #6b7a86; }
 
   .section-title { font-size: 14px; font-weight: 700; margin: 6px 0 10px; color: var(--primary-dark); }
+
+  .solicitud-info { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 10px 0 4px; font-size: 13px; line-height: 1.65; }
+  .solicitud-info div { margin: 2px 0; }
+
+  .items-table th, .items-table td { white-space: normal; vertical-align: middle; }
+  .items-table input, .items-table select { padding: 7px 6px; font-size: 13px; min-width: 64px; }
+  .items-table td:nth-child(4) input { min-width: 150px; }
+  .items-table .item-n { text-align: center; font-weight: 700; color: #6b7a86; }
+  .items-table .it-total { font-weight: 700; white-space: nowrap; }
+  .items-table button.secondary { width: auto; margin: 0; padding: 7px 10px; }
+  .items-total-row { margin-top: 12px; font-size: 14.5px; text-align: right; }
+  .items-total-row b { color: var(--primary-dark); }
 
   .fondo-info-bar {
     display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
@@ -246,14 +264,26 @@
 <div class="app-body">
   <nav id="drawer" class="drawer">
     <ul class="drawer-nav">
-      <li class="drawer-label hidden" id="labelSolicitud">Solicitud</li>
-      <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-        <span>Registrar gasto</span>
-      </li>
-      <li class="tab hidden" id="tabExcelBtn" data-tab="excel">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
-        <span>Cargar desde Excel</span>
+      <li class="drawer-group hidden open" id="groupSolicitud">
+        <div class="drawer-group-head" id="groupSolicitudHead">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12h6M9 16h6"/></svg>
+          <span>Solicitud</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <ul class="drawer-subnav">
+          <li class="tab hidden" id="tabCrearSolicitudBtn" data-tab="crearSolicitud">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            <span>Crear Solicitud</span>
+          </li>
+          <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Registrar gasto</span>
+          </li>
+          <li class="tab hidden" id="tabExcelBtn" data-tab="excel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+            <span>Cargar desde Excel</span>
+          </li>
+        </ul>
       </li>
       <li class="tab hidden" id="tabHistorialBtn" data-tab="historial">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
@@ -292,12 +322,80 @@
 
     <div id="viewInicioLoading" class="card loading">Cargando...</div>
 
+    <!-- ---- Crear Solicitud ---- -->
+    <div id="viewCrearSolicitud" class="card" style="display:none">
+      <div class="section-title">Crear Solicitud</div>
+      <form id="formSolicitud">
+        <label for="sFondo">Fondo *</label>
+        <select id="sFondo" required></select>
+
+        <label for="sAreaSolicitante">Área solicitante *</label>
+        <div class="combo-wrap">
+          <input type="text" id="sAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+          <div id="sAreaDropdown" class="combo-dropdown"></div>
+        </div>
+
+        <label for="sDescripcion">Descripción *</label>
+        <textarea id="sDescripcion" placeholder="Descripción de la compra" required></textarea>
+
+        <label for="sJustificacion">Justificación *</label>
+        <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
+
+        <label for="sGerencia">Gerencia responsable *</label>
+        <div class="combo-wrap">
+          <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+          <div id="sGerenciaDropdown" class="combo-dropdown"></div>
+          <input type="hidden" id="sGerenciaId" />
+        </div>
+
+        <label for="sClasificacion">Clasificación del gasto *</label>
+        <select id="sClasificacion" required>
+          <option value="">Selecciona una opción</option>
+          <option value="emergente">Gasto Emergente</option>
+          <option value="imprevisto">Gasto Imprevisto</option>
+          <option value="recurrente">Gasto Recurrente</option>
+        </select>
+
+        <label for="sFormaPago">Forma de Pago *</label>
+        <select id="sFormaPago" required>
+          <option value="">Selecciona una opción</option>
+          <option value="efectivo">Efectivo</option>
+          <option value="transferencia">Transferencia Bancaria</option>
+          <option value="cheque">Cheque</option>
+        </select>
+
+        <div class="section-title" style="margin-top:22px">Ítems</div>
+        <div class="table-wrap">
+          <table class="data-table items-table" id="sItemsTable">
+            <thead>
+              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario</th><th>Total</th><th></th></tr>
+            </thead>
+            <tbody id="sItemsBody"></tbody>
+          </table>
+        </div>
+        <button type="button" id="btnAgregarItem" class="secondary">+ Agregar ítem</button>
+        <div class="items-total-row">Total de la solicitud: <b id="sItemsTotal">$0.00</b></div>
+
+        <div class="btn-row">
+          <button type="submit" id="btnGuardarSolicitud">Crear solicitud</button>
+        </div>
+        <div id="solicitudMsg" class="msg"></div>
+      </form>
+    </div>
+
     <!-- ---- Registrar gasto ---- -->
     <div id="viewRegistrar" class="card" style="display:none">
       <div class="section-title" id="registrarTitulo">Registrar gasto</div>
       <form id="formGasto">
-        <label for="gFondo">Fondo *</label>
-        <select id="gFondo" required></select>
+        <label for="gSolicitud">Solicitud *</label>
+        <select id="gSolicitud" required></select>
+
+        <div id="gSolicitudInfo" class="solicitud-info" style="display:none">
+          <div><b>Fondo:</b> <span id="gFondoDisplay">—</span></div>
+          <div><b>Área solicitante:</b> <span id="gAreaDisplay">—</span></div>
+          <div><b>Descripción:</b> <span id="gDescripcionDisplay">—</span></div>
+          <div><b>Justificación:</b> <span id="gJustificacionDisplay">—</span></div>
+        </div>
 
         <label for="gFecha">Fecha *</label>
         <input type="date" id="gFecha" required />
@@ -305,20 +403,8 @@
         <label for="gMes">Mes</label>
         <input type="text" id="gMes" readonly />
 
-        <label for="gAreaSolicitante">Área solicitante *</label>
-        <div class="combo-wrap">
-          <input type="text" id="gAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
-          <div id="gAreaDropdown" class="combo-dropdown"></div>
-        </div>
-
         <label for="gNombreProceso">Nombre del proceso *</label>
         <input type="text" id="gNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
-
-        <label for="gDescripcion">Descripción *</label>
-        <textarea id="gDescripcion" placeholder="Descripción de la compra" required></textarea>
-
-        <label for="gJustificacion">Justificación *</label>
-        <textarea id="gJustificacion" placeholder="Justificación de la compra" required></textarea>
 
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
@@ -356,14 +442,13 @@
           <li><b>mes</b> — número 1 a 12 (opcional, se recalcula desde la fecha)</li>
           <li><b>numero_documento</b> — número de factura, CF o ticket</li>
           <li><b>proveedor</b> — nombre del proveedor</li>
-          <li><b>descripcion</b> — descripción de la compra</li>
-          <li><b>area_solicitante</b> — nombre del área solicitante, igual al registrado en sistema</li>
           <li><b>monto_retenido</b> — si no aplica, ingrese 0</li>
           <li><b>monto_total</b> — total de la compra según documento</li>
         </ul>
+        El fondo, área solicitante, descripción y justificación se toman de la solicitud elegida abajo y se aplican a todas las filas del archivo.
       </div>
-      <label for="excFondo">Fondo *</label>
-      <select id="excFondo" required></select>
+      <label for="excSolicitud">Solicitud *</label>
+      <select id="excSolicitud" required></select>
       <input type="file" id="gExcelFile" accept=".xlsx,.xls,.csv" />
       <button type="button" id="btnProcesarExcel">Procesar archivo</button>
       <div id="excelResumen" class="stat-row" style="display:none"></div>
@@ -782,11 +867,12 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
+  var VIEWS = ['crearSolicitud', 'registrar', 'excel', 'historial', 'informe', 'reportes', 'dashboard', 'config'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
     if (window.innerWidth < 900) closeDrawer();
+    if (name === 'crearSolicitud') initCrearSolicitud();
     if (name === 'historial') loadHistorial();
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
@@ -795,6 +881,9 @@
   }
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () { activarTab(tab.getAttribute('data-tab')); });
+  });
+  document.getElementById('groupSolicitudHead').addEventListener('click', function () {
+    document.getElementById('groupSolicitud').classList.toggle('open');
   });
 
   // ==================================================================
@@ -815,52 +904,84 @@
     formGasto.reset();
     gMes.value = '';
     document.getElementById('gMontoRetenido').value = '0';
+    document.getElementById('gSolicitudInfo').style.display = 'none';
     editingId = null;
     document.getElementById('registrarTitulo').textContent = 'Registrar gasto';
     document.getElementById('btnGuardarGasto').textContent = 'Registrar gasto';
     document.getElementById('btnCancelarEdicion').style.display = 'none';
-    prellenarAreaSolicitante();
-    poblarFondosUsuario();
+    poblarSolicitudesSelectores();
   }
 
   // Por defecto sugiere la unidad/dependencia de Bitrix24 a la que pertenece
-  // quien está registrando el gasto; el campo sigue siendo editable por si
-  // necesita registrarlo a nombre de otra área.
+  // quien está creando la solicitud; el campo sigue siendo editable por si
+  // necesita registrarla a nombre de otra área.
   function prellenarAreaSolicitante() {
     var propia = getUnidad(currentUser.ID);
-    document.getElementById('gAreaSolicitante').value = (propia && propia !== '—') ? propia : '';
+    document.getElementById('sAreaSolicitante').value = (propia && propia !== '—') ? propia : '';
   }
 
-  // Lista solo los fondos a los que pertenece quien está registrando el gasto;
+  // Lista solo los fondos a los que pertenece quien está creando la solicitud;
   // si solo tiene uno, se autoselecciona.
   function poblarFondosUsuario() {
     var misFondos = fondos.filter(function (f) {
       return (f.usuario_ids || []).some(function (id) { return String(id) === String(currentUser.ID); });
     });
-    ['gFondo', 'excFondo'].forEach(function (selId) {
+    var sel = document.getElementById('sFondo');
+    var actual = sel.value;
+    sel.innerHTML = misFondos.length
+      ? misFondos.map(function (f) {
+          return '<option value="' + f.id + '">' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + esc(f.anio) + '</option>';
+        }).join('')
+      : '<option value="">No tienes ningún fondo asignado</option>';
+    if (actual && misFondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
+  }
+
+  // Solicitudes disponibles para elegir en "Registrar gasto" y "Cargar desde
+  // Excel"; se listan todas (no solo las propias) porque una solicitud puede
+  // haber sido creada por otra persona a nombre del área/fondo.
+  function labelSolicitud(s) {
+    var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
+    var fondoTxt = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : 'Fondo #' + s.fondo_id;
+    var desc = (s.descripcion || '').slice(0, 40);
+    return '#' + s.id + ' · ' + esc(fondoTxt) + ' · ' + esc(s.area_solicitante || '') + (desc ? ' · ' + esc(desc) : '');
+  }
+  function poblarSolicitudesSelectores() {
+    var ordenadas = solicitudes.slice().sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+    ['gSolicitud', 'excSolicitud'].forEach(function (selId) {
       var sel = document.getElementById(selId);
       var actual = sel.value;
-      sel.innerHTML = misFondos.length
-        ? misFondos.map(function (f) {
-            return '<option value="' + f.id + '">' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + esc(f.anio) + '</option>';
+      sel.innerHTML = ordenadas.length
+        ? '<option value="">Selecciona una solicitud</option>' + ordenadas.map(function (s) {
+            return '<option value="' + s.id + '">' + labelSolicitud(s) + '</option>';
           }).join('')
-        : '<option value="">No tienes ningún fondo asignado</option>';
-      if (actual && misFondos.some(function (f) { return String(f.id) === actual; })) sel.value = actual;
+        : '<option value="">No hay solicitudes creadas todavía</option>';
+      if (actual && ordenadas.some(function (s) { return String(s.id) === actual; })) sel.value = actual;
     });
+    mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
   }
+  function mostrarSolicitudSeleccionada(id) {
+    var box = document.getElementById('gSolicitudInfo');
+    var s = solicitudes.find(function (x) { return String(x.id) === String(id); });
+    if (!s) { box.style.display = 'none'; return; }
+    var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
+    document.getElementById('gFondoDisplay').textContent = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : '—';
+    document.getElementById('gAreaDisplay').textContent = s.area_solicitante || '—';
+    document.getElementById('gDescripcionDisplay').textContent = s.descripcion || '—';
+    document.getElementById('gJustificacionDisplay').textContent = s.justificacion || '—';
+    box.style.display = 'block';
+  }
+  document.getElementById('gSolicitud').addEventListener('change', function () { mostrarSolicitudSeleccionada(this.value); });
 
   function cargarGastoEnFormulario(g) {
     editingId = g.id;
     gFecha.value = g.fecha;
     gFecha.dispatchEvent(new Event('change'));
-    poblarFondosUsuario();
-    document.getElementById('gFondo').value = g.fondo_id != null ? String(g.fondo_id) : '';
+    poblarSolicitudesSelectores();
+    document.getElementById('gSolicitud').value = g.solicitud_id != null ? String(g.solicitud_id) : '';
+    mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
-    document.getElementById('gDescripcion').value = g.descripcion || '';
     document.getElementById('gNombreProceso').value = g.nombre_proceso || '';
-    document.getElementById('gJustificacion').value = g.justificacion || '';
-    document.getElementById('gAreaSolicitante').value = g.area_solicitante || '';
     document.getElementById('gMontoRetenido').value = g.monto_retenido != null ? g.monto_retenido : 0;
     document.getElementById('gMontoTotal').value = g.monto_total != null ? g.monto_total : '';
     document.getElementById('registrarTitulo').textContent = 'Editar gasto';
@@ -874,20 +995,17 @@
     ev.preventDefault();
     var msgEl = document.getElementById('gastoMsg');
     hideMsg(msgEl);
-    var fondoId = document.getElementById('gFondo').value;
-    if (!fondoId) {
-      showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece este gasto.');
+    var solicitudId = document.getElementById('gSolicitud').value;
+    if (!solicitudId) {
+      showMsg(msgEl, 'error', 'Selecciona la solicitud a la que pertenece este gasto.');
       return;
     }
     var gasto = {
       fecha: gFecha.value,
-      fondo_id: fondoId,
+      solicitud_id: solicitudId,
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
-      descripcion: document.getElementById('gDescripcion').value.trim(),
       nombre_proceso: document.getElementById('gNombreProceso').value.trim(),
-      justificacion: document.getElementById('gJustificacion').value.trim(),
-      area_solicitante: document.getElementById('gAreaSolicitante').value.trim(),
       monto_retenido: document.getElementById('gMontoRetenido').value || 0,
       monto_total: document.getElementById('gMontoTotal').value
     };
@@ -918,39 +1036,184 @@
     )).sort();
   }
 
-  // ---- Combo con buscador para "Área solicitante" ----
-  var gAreaInput = document.getElementById('gAreaSolicitante');
-  var gAreaDropdown = document.getElementById('gAreaDropdown');
+  // ---- Combo con buscador para "Área solicitante" (Crear Solicitud) ----
+  var sAreaInput = document.getElementById('sAreaSolicitante');
+  var sAreaDropdown = document.getElementById('sAreaDropdown');
 
   function renderAreaDropdown() {
-    var filtro = gAreaInput.value.trim().toLowerCase();
+    var filtro = sAreaInput.value.trim().toLowerCase();
     var opciones = filtro
       ? areasDisponibles.filter(function (a) { return a.toLowerCase().indexOf(filtro) !== -1; })
       : areasDisponibles;
     if (opciones.length) {
-      gAreaDropdown.innerHTML = opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('');
+      sAreaDropdown.innerHTML = opciones.map(function (a) { return '<div class="combo-option" data-area="' + esc(a) + '">' + esc(a) + '</div>'; }).join('');
     } else if (!areasDisponibles.length) {
-      gAreaDropdown.innerHTML = '<div class="combo-empty">No se pudieron cargar las unidades de Bitrix24' +
+      sAreaDropdown.innerHTML = '<div class="combo-empty">No se pudieron cargar las unidades de Bitrix24' +
         (departamentosError ? ' (falta el permiso "department" en la app)' : '') +
         '. Puedes escribir el área manualmente.</div>';
     } else {
-      gAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+      sAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
     }
   }
-  function abrirAreaDropdown() { renderAreaDropdown(); gAreaDropdown.classList.add('open'); }
-  function cerrarAreaDropdown() { gAreaDropdown.classList.remove('open'); }
+  function abrirAreaDropdown() { renderAreaDropdown(); sAreaDropdown.classList.add('open'); }
+  function cerrarAreaDropdown() { sAreaDropdown.classList.remove('open'); }
 
-  gAreaInput.addEventListener('focus', abrirAreaDropdown);
-  gAreaInput.addEventListener('input', abrirAreaDropdown);
-  gAreaDropdown.addEventListener('mousedown', function (ev) {
+  sAreaInput.addEventListener('focus', abrirAreaDropdown);
+  sAreaInput.addEventListener('input', abrirAreaDropdown);
+  sAreaDropdown.addEventListener('mousedown', function (ev) {
     var opt = ev.target.closest('[data-area]');
     if (!opt) return;
     ev.preventDefault();
-    gAreaInput.value = opt.getAttribute('data-area');
+    sAreaInput.value = opt.getAttribute('data-area');
     cerrarAreaDropdown();
   });
   document.addEventListener('click', function (ev) {
-    if (ev.target !== gAreaInput && !gAreaDropdown.contains(ev.target)) cerrarAreaDropdown();
+    if (ev.target !== sAreaInput && !sAreaDropdown.contains(ev.target)) cerrarAreaDropdown();
+  });
+
+  // ---- Combo con buscador para "Gerencia responsable" (usuario Bitrix24) ----
+  var sGerenciaInput = document.getElementById('sGerencia');
+  var sGerenciaDropdown = document.getElementById('sGerenciaDropdown');
+  var sGerenciaIdInput = document.getElementById('sGerenciaId');
+
+  function renderGerenciaDropdown() {
+    var filtro = sGerenciaInput.value.trim().toLowerCase();
+    var opciones = (filtro ? allUsers.filter(function (u) { return fullName(u).toLowerCase().indexOf(filtro) !== -1; }) : allUsers).slice(0, 40);
+    sGerenciaDropdown.innerHTML = opciones.length
+      ? opciones.map(function (u) { return '<div class="combo-option" data-uid="' + u.ID + '" data-uname="' + esc(fullName(u)) + '">' + esc(fullName(u)) + '</div>'; }).join('')
+      : '<div class="combo-empty">Sin coincidencias.</div>';
+  }
+  function abrirGerenciaDropdown() { renderGerenciaDropdown(); sGerenciaDropdown.classList.add('open'); }
+  function cerrarGerenciaDropdown() { sGerenciaDropdown.classList.remove('open'); }
+
+  sGerenciaInput.addEventListener('focus', abrirGerenciaDropdown);
+  sGerenciaInput.addEventListener('input', function () { sGerenciaIdInput.value = ''; abrirGerenciaDropdown(); });
+  sGerenciaDropdown.addEventListener('mousedown', function (ev) {
+    var opt = ev.target.closest('[data-uid]');
+    if (!opt) return;
+    ev.preventDefault();
+    sGerenciaInput.value = opt.getAttribute('data-uname');
+    sGerenciaIdInput.value = opt.getAttribute('data-uid');
+    cerrarGerenciaDropdown();
+  });
+  document.addEventListener('click', function (ev) {
+    if (ev.target !== sGerenciaInput && !sGerenciaDropdown.contains(ev.target)) cerrarGerenciaDropdown();
+  });
+
+  // ---- Tabla de ítems (Crear Solicitud) ----
+  var itemsCounter = 0;
+  function crearFilaItem() {
+    itemsCounter++;
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td class="item-n">' + itemsCounter + '</td>' +
+      '<td><select class="it-tipo"><option value="bien">Bien</option><option value="servicio">Servicio</option></select></td>' +
+      '<td><input type="number" class="it-cantidad" min="0" step="0.01" value="1" /></td>' +
+      '<td><input type="text" class="it-desc" maxlength="200" placeholder="Descripción" /></td>' +
+      '<td><input type="number" class="it-precio" min="0" step="0.01" value="0" /></td>' +
+      '<td class="it-total">$0.00</td>' +
+      '<td><button type="button" class="secondary it-remove">✕</button></td>';
+    document.getElementById('sItemsBody').appendChild(tr);
+    return tr;
+  }
+  function renumerarItems() {
+    document.querySelectorAll('#sItemsBody tr').forEach(function (tr, i) { tr.querySelector('.item-n').textContent = i + 1; });
+  }
+  function recalcularItemsTotal() {
+    var total = 0;
+    document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
+      var cant = parseFloat(tr.querySelector('.it-cantidad').value) || 0;
+      var precio = parseFloat(tr.querySelector('.it-precio').value) || 0;
+      var t = cant * precio;
+      tr.querySelector('.it-total').textContent = '$' + money(t);
+      total += t;
+    });
+    document.getElementById('sItemsTotal').textContent = '$' + money(total);
+    return total;
+  }
+  document.getElementById('btnAgregarItem').addEventListener('click', function () {
+    crearFilaItem();
+    recalcularItemsTotal();
+  });
+  document.getElementById('sItemsBody').addEventListener('input', function (ev) {
+    if (ev.target.classList.contains('it-cantidad') || ev.target.classList.contains('it-precio')) recalcularItemsTotal();
+  });
+  document.getElementById('sItemsBody').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.it-remove');
+    if (!btn) return;
+    if (document.querySelectorAll('#sItemsBody tr').length <= 1) return;
+    btn.closest('tr').remove();
+    renumerarItems();
+    recalcularItemsTotal();
+  });
+
+  function limpiarFormSolicitud() {
+    formSolicitud.reset();
+    sGerenciaIdInput.value = '';
+    document.getElementById('sItemsBody').innerHTML = '';
+    itemsCounter = 0;
+    crearFilaItem();
+    recalcularItemsTotal();
+    poblarFondosUsuario();
+    prellenarAreaSolicitante();
+  }
+
+  function initCrearSolicitud() {
+    if (!document.getElementById('sItemsBody').children.length) crearFilaItem();
+    poblarFondosUsuario();
+    recalcularItemsTotal();
+  }
+
+  var formSolicitud = document.getElementById('formSolicitud');
+  formSolicitud.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var msgEl = document.getElementById('solicitudMsg');
+    hideMsg(msgEl);
+    var fondoId = document.getElementById('sFondo').value;
+    if (!fondoId) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece esta solicitud.'); return; }
+    var gerenciaId = sGerenciaIdInput.value;
+    if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
+
+    var items = [];
+    document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
+      var tipo = tr.querySelector('.it-tipo').value;
+      var cantidad = parseFloat(tr.querySelector('.it-cantidad').value);
+      var descripcion = tr.querySelector('.it-desc').value.trim();
+      var precioUnitario = parseFloat(tr.querySelector('.it-precio').value);
+      if (!descripcion || !(cantidad > 0) || !(precioUnitario >= 0)) return;
+      items.push({ tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario });
+    });
+    if (!items.length) { showMsg(msgEl, 'error', 'Agrega al menos un ítem válido (con descripción, cantidad y precio unitario).'); return; }
+
+    var solicitud = {
+      fondo_id: fondoId,
+      area_solicitante: sAreaInput.value.trim(),
+      descripcion: document.getElementById('sDescripcion').value.trim(),
+      justificacion: document.getElementById('sJustificacion').value.trim(),
+      gerencia_responsable_id: gerenciaId,
+      gerencia_responsable_nombre: sGerenciaInput.value.trim(),
+      clasificacion: document.getElementById('sClasificacion').value,
+      forma_pago: document.getElementById('sFormaPago').value,
+      items: items
+    };
+    var btn = document.getElementById('btnGuardarSolicitud');
+    btn.disabled = true;
+    apiCall('solicitudes', {
+      method: 'POST',
+      body: { action: 'create', solicitud: solicitud, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
+    }).then(function (r) {
+      btn.disabled = false;
+      if (r.ok) {
+        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Ya está disponible en "Registrar gasto" y "Cargar desde Excel".');
+        limpiarFormSolicitud();
+        cargarSolicitudes();
+      } else {
+        showMsg(msgEl, 'error', r.error || 'No se pudo crear la solicitud.');
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg(msgEl, 'error', 'Error de conexión al crear la solicitud.');
+    });
   });
 
   function cargarProveedores() {
@@ -1001,8 +1264,6 @@
     if (!numeroDocumento) return { ok: false, motivo: 'Falta número de documento.' };
     var proveedor = String(out.proveedor || '').trim();
     if (!proveedor) return { ok: false, motivo: 'Falta proveedor.' };
-    var areaSolicitante = String(out.area_solicitante || '').trim();
-    if (!areaSolicitante) return { ok: false, motivo: 'Falta área solicitante.' };
     var montoTotal = numExcel(out.monto_total);
     if (montoTotal == null) return { ok: false, motivo: 'Monto total inválido: "' + (out.monto_total || '') + '"' };
     var montoRetenido = numExcel(out.monto_retenido);
@@ -1011,7 +1272,6 @@
       ok: true,
       row: {
         fecha: fecha, numero_documento: numeroDocumento, proveedor: proveedor,
-        descripcion: String(out.descripcion || '').trim(), area_solicitante: areaSolicitante,
         monto_retenido: montoRetenido, monto_total: montoTotal
       }
     };
@@ -1020,7 +1280,7 @@
   document.getElementById('btnProcesarExcel').addEventListener('click', function () {
     var msgEl = document.getElementById('excelMsg');
     hideMsg(msgEl);
-    if (!document.getElementById('excFondo').value) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenecen estos gastos.'); return; }
+    if (!document.getElementById('excSolicitud').value) { showMsg(msgEl, 'error', 'Selecciona la solicitud a la que pertenecen estos gastos.'); return; }
     var file = document.getElementById('gExcelFile').files[0];
     if (!file) { showMsg(msgEl, 'error', 'Selecciona un archivo primero.'); return; }
     var reader = new FileReader();
@@ -1071,7 +1331,7 @@
     btn.disabled = true;
     apiCall('gastos', {
       method: 'POST',
-      body: { action: 'bulk_save', rows: filasExcelValidas, fondo_id: document.getElementById('excFondo').value, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
+      body: { action: 'bulk_save', rows: filasExcelValidas, solicitud_id: document.getElementById('excSolicitud').value, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
@@ -1645,10 +1905,18 @@
   // Configurar usuarios / Fondos (solo admin)
   // ==================================================================
   var fondos = [];
+  var solicitudes = [];
   var editingFondoId = null;
   var fondoAsignando = null;
   var pendingAsignadosIds = [];
   var TIPO_FONDO_LABEL = { caja_chica: 'Fondo de caja chica', circulante: 'Fondo circulante' };
+
+  function cargarSolicitudes() {
+    return apiCall('solicitudes?action=list').then(function (r) {
+      solicitudes = r.solicitudes || [];
+      poblarSolicitudesSelectores();
+    });
+  }
 
   function poblarAnios() {
     var sel = document.getElementById('fAnio');
@@ -1861,7 +2129,8 @@
   // Init
   // ==================================================================
   function actualizarVisibilidadTabs() {
-    document.getElementById('labelSolicitud').classList.toggle('hidden', !canLoad);
+    document.getElementById('groupSolicitud').classList.toggle('hidden', !canLoad);
+    document.getElementById('tabCrearSolicitudBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabExcelBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
@@ -1885,14 +2154,16 @@
       if (departamentosError) console.error('department.get falló:', departamentosError);
       poblarAreasDesdeDepartamentos();
       poblarAnios();
-      return apiCall('fondos?action=list');
-    }).then(function (r) {
-      fondos = r.fondos || [];
+      return Promise.all([apiCall('fondos?action=list'), apiCall('solicitudes?action=list')]);
+    }).then(function (resList) {
+      fondos = resList[0].fondos || [];
+      solicitudes = resList[1].solicitudes || [];
       recalcularAutorizacion();
+      poblarSolicitudesSelectores();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
-      if (canLoad) { activarTab('registrar'); prellenarAreaSolicitante(); poblarFondosUsuario(); cargarProveedores(); }
+      if (canLoad) { activarTab('crearSolicitud'); poblarFondosUsuario(); prellenarAreaSolicitante(); cargarProveedores(); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
     }).catch(function (err) {

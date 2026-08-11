@@ -34,7 +34,21 @@ function numOrNull(v) {
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function construirFila(g, actorId, actorNombre) {
+// Un gasto se registra ELIGIENDO una solicitud ya creada; el fondo, área
+// solicitante, descripción y justificación se toman siempre del servidor
+// (nunca de lo que mande el navegador) para que coincidan con lo aprobado
+// en la solicitud.
+async function buscarSolicitud(solicitudIdRaw) {
+  const solicitudId = parseInt(solicitudIdRaw, 10);
+  if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
+  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,descripcion,justificacion');
+  const data = await r.json();
+  if (!r.ok || !data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
+  if (data[0].fondo_id == null) return { error: 'La solicitud seleccionada no tiene un fondo asociado.' };
+  return { solicitud: data[0] };
+}
+
+function construirFila(g, solicitud, actorId, actorNombre) {
   const fecha = g.fecha || '';
   if (!FECHA_RE.test(fecha)) return { error: 'Fecha inválida (se espera AAAA-MM-DD): ' + fecha };
   const montoTotal = numOrNull(g.monto_total);
@@ -42,12 +56,8 @@ function construirFila(g, actorId, actorNombre) {
   const montoRetenido = numOrNull(g.monto_retenido) || 0;
   const numeroDocumento = String(g.numero_documento || '').trim();
   const proveedor = String(g.proveedor || '').trim();
-  const areaSolicitante = String(g.area_solicitante || '').trim();
   if (!numeroDocumento) return { error: 'Falta número de documento.' };
   if (!proveedor) return { error: 'Falta proveedor.' };
-  if (!areaSolicitante) return { error: 'Falta área solicitante.' };
-  const fondoId = parseInt(g.fondo_id, 10);
-  if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece este gasto.' };
 
   return {
     row: {
@@ -55,13 +65,14 @@ function construirFila(g, actorId, actorNombre) {
       mes: parseInt(fecha.slice(5, 7), 10),
       numero_documento: numeroDocumento,
       proveedor: proveedor,
-      descripcion: String(g.descripcion || '').trim(),
+      descripcion: solicitud.descripcion || '',
       nombre_proceso: String(g.nombre_proceso || '').trim(),
-      justificacion: String(g.justificacion || '').trim(),
-      area_solicitante: areaSolicitante,
+      justificacion: solicitud.justificacion || '',
+      area_solicitante: solicitud.area_solicitante || '',
       monto_retenido: montoRetenido,
       monto_total: montoTotal,
-      fondo_id: fondoId,
+      fondo_id: solicitud.fondo_id,
+      solicitud_id: solicitud.id,
       created_by_id: String(actorId || ''),
       created_by_nombre: actorNombre || ''
     }
@@ -118,7 +129,9 @@ module.exports = async (req, res) => {
       const action = body.action;
 
       if (action === 'save') {
-        const built = construirFila(body.gasto || {}, body.actor_id, body.actor_nombre);
+        const solRes = await buscarSolicitud((body.gasto || {}).solicitud_id);
+        if (solRes.error) { res.status(400).json({ ok: false, error: solRes.error }); return; }
+        const built = construirFila(body.gasto || {}, solRes.solicitud, body.actor_id, body.actor_nombre);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
 
@@ -151,11 +164,13 @@ module.exports = async (req, res) => {
       }
 
       if (action === 'bulk_save') {
+        const solRes = await buscarSolicitud(body.solicitud_id);
+        if (solRes.error) { res.status(400).json({ ok: false, error: solRes.error }); return; }
         const rows = Array.isArray(body.rows) ? body.rows : [];
         const buenas = [];
         const errores = [];
         rows.forEach((g, i) => {
-          const built = construirFila(Object.assign({}, g, { fondo_id: body.fondo_id }), body.actor_id, body.actor_nombre);
+          const built = construirFila(g, solRes.solicitud, body.actor_id, body.actor_nombre);
           if (built.error) errores.push({ fila: i + 1, error: built.error });
           else { built.row.estado = 'registrado'; buenas.push(built.row); }
         });

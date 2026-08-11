@@ -8,27 +8,37 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
 ## Qué hace
 
-- Cualquier usuario **autorizado** (o un administrador) puede registrar un gasto de
-  baja cuantía: **fondo** (solo lista los fondos a los que pertenece quien
-  registra; se autoselecciona si solo tiene uno), fecha, número de documento,
-  proveedor, descripción, **nombre del proceso**, **justificación**, área
-  solicitante, monto retenido y monto total. El mes se calcula automáticamente
-  desde la fecha. Todo gasto nuevo se guarda con **estado `registrado`**.
-  "Nombre del proceso" y "Justificación" son obligatorios solo en este
-  formulario individual; la carga por Excel no los pide (quedan vacíos en los
-  gastos importados por ese medio).
-- El mismo formulario permite editar un gasto (solo quien lo creó, mientras esté
-  en estado `registrado`, o un administrador en cualquier estado). **Eliminar es
-  un borrado lógico**: el gasto no se borra de la base de datos, pasa a estado
-  `eliminado` (guardando el estado anterior) y deja de ser visible para todos
-  salvo un administrador. Un gasto `informado` solo puede editarse/eliminarse
-  por un administrador.
-- **Carga por Excel**: se elige primero el **fondo** al que pertenece todo el lote
-  (mismo criterio que Registrar gasto), y luego se sube un `.xlsx`/`.xls`/`.csv`
-  con las columnas `fecha`, `mes`, `numero_documento`, `proveedor`,
-  `descripcion`, `area_solicitante`, `monto_retenido`, `monto_total`. La app
-  valida cada fila antes de importar y muestra cuáles quedaron bien y cuáles
-  tienen error, sin bloquear el resto.
+- El menú **"Solicitud"** agrupa tres pantallas (se puede colapsar/expandir
+  haciendo clic en su encabezado):
+  1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
+     lista los fondos a los que pertenece quien la crea), área solicitante,
+     descripción, justificación, **gerencia responsable** (se busca y elige un
+     usuario de Bitrix24), **clasificación del gasto** (Gasto Emergente /
+     Imprevisto / Recurrente) y **forma de pago** (Efectivo / Transferencia
+     Bancaria / Cheque). Incluye una tabla de **ítems** (se pueden agregar o
+     quitar filas): tipo (Bien/Servicio), cantidad, descripción, precio
+     unitario y total (se calcula solo, cantidad × precio unitario); el monto
+     total de la solicitud es la suma de los ítems.
+  2. **Registrar gasto**: en vez de escribir fondo/área/descripción/
+     justificación, se **elige una Solicitud ya creada** y el sistema
+     completa esos cuatro campos automáticamente (de solo lectura, tomados
+     siempre del servidor). Lo que sí se pide en este formulario: fecha,
+     **nombre del proceso**, número de documento, proveedor, monto retenido y
+     monto total. El mes se calcula automáticamente desde la fecha. Todo
+     gasto nuevo se guarda con **estado `registrado`**.
+  3. **Cargar desde Excel**: igual que Registrar gasto, primero se elige la
+     **Solicitud** a la que pertenece todo el lote, y luego se sube un
+     `.xlsx`/`.xls`/`.csv` con las columnas `fecha`, `mes`, `numero_documento`,
+     `proveedor`, `monto_retenido`, `monto_total` (fondo, área, descripción y
+     justificación se toman de la solicitud elegida, igual para todas las
+     filas). La app valida cada fila antes de importar y muestra cuáles
+     quedaron bien y cuáles tienen error, sin bloquear el resto.
+- El formulario de "Registrar gasto" también permite editar un gasto (solo
+  quien lo creó, mientras esté en estado `registrado`, o un administrador en
+  cualquier estado). **Eliminar es un borrado lógico**: el gasto no se borra de
+  la base de datos, pasa a estado `eliminado` (guardando el estado anterior) y
+  deja de ser visible para todos salvo un administrador. Un gasto `informado`
+  solo puede editarse/eliminarse por un administrador.
 - **Historial**: lista de gastos (los administradores ven todos, solo los
   propios, o los **eliminados**; el resto de usuarios autorizados solo ve los
   suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
@@ -66,10 +76,11 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
 1. Entra al proyecto Supabase que ya usa `amsac-transporte-bitrix24`.
 2. SQL Editor → New query → pega y ejecuta el contenido de [`schema.sql`](schema.sql).
-   Crea `gastos_registros`, `gastos_historial`, `gastos_fondos` y
-   `gastos_fondo_usuarios`; no toca ninguna tabla `transporte_*`. El script es
-   seguro de volver a correr aunque las tablas ya existan (usa `if not exists` /
-   migraciones idempotentes), por ejemplo para agregar la columna `estado`.
+   Crea `gastos_registros`, `gastos_historial`, `gastos_fondos`,
+   `gastos_fondo_usuarios` y `gastos_solicitudes`; no toca ninguna tabla
+   `transporte_*`. El script es seguro de volver a correr aunque las tablas ya
+   existan (usa `if not exists` / migraciones idempotentes), por ejemplo para
+   agregar la columna `estado` o `solicitud_id`.
 
 ## Variables de entorno (Vercel)
 
@@ -122,9 +133,16 @@ entorno anteriores.
 - Excel (carga e importación) usa SheetJS (`xlsx.full.min.js` por CDN) en el
   navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en transporte.
 - **`fondo_id`**: cada gasto guarda a qué fondo específico pertenece (columna
-  `fondo_id` en `gastos_registros`, poblada desde el selector "Fondo" en
-  Registrar gasto/Cargar Excel). Los gastos creados **antes** de que existiera
-  esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y el
-  "Fondo" mostrado en Historial/Informe/Reportes recurren como respaldo a los
-  fondos del usuario que lo registró, y solo lo resuelven sin ambigüedad si ese
-  usuario pertenece a un único fondo.
+  `fondo_id` en `gastos_registros`). Los gastos creados **antes** de que
+  existiera esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y
+  el "Fondo" mostrado en Historial/Informe/Reportes recurren como respaldo a
+  los fondos del usuario que lo registró, y solo lo resuelven sin ambigüedad si
+  ese usuario pertenece a un único fondo.
+- **`solicitud_id`**: desde que existe "Crear Solicitud", cada gasto se crea
+  eligiendo una solicitud (`gastos_solicitudes`) y el servidor copia de ahí
+  `fondo_id`, `area_solicitante`, `descripcion` y `justificacion` hacia la fila
+  del gasto — nunca se confía en esos valores si los manda el navegador. Por
+  eso Historial, Informe, Reportes, Dashboard y las exportaciones no cambiaron:
+  siguen leyendo esos campos directo del gasto. Editar un gasto (incluidos los
+  creados antes de que existiera este flujo) exige elegir una solicitud, igual
+  como ya exigía elegir un fondo antes de este cambio.

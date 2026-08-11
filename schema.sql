@@ -83,3 +83,39 @@ create index if not exists gastos_registros_fondo_idx on gastos_registros (fondo
 -- Nombre del proceso / Justificación: campos adicionales de Registrar gasto.
 alter table gastos_registros add column if not exists nombre_proceso text not null default '';
 alter table gastos_registros add column if not exists justificacion text not null default '';
+
+-- Solicitudes: encabezado de una solicitud de compra (fondo, área, gerencia
+-- responsable, clasificación, forma de pago) con su detalle de ítems. Un
+-- gasto (gastos_registros) ahora se registra ELIGIENDO una solicitud ya
+-- creada, y hereda de ella el fondo, área solicitante, descripción y
+-- justificación (ver solicitud_id más abajo).
+create table if not exists gastos_solicitudes (
+  id                            bigserial primary key,
+  fondo_id                      bigint references gastos_fondos(id) on delete set null,
+  area_solicitante              text not null default '',
+  descripcion                   text not null default '',
+  justificacion                 text not null default '',
+  gerencia_responsable_id       text not null default '',
+  gerencia_responsable_nombre   text not null default '',
+  clasificacion                 text not null check (clasificacion in ('emergente','imprevisto','recurrente')),
+  forma_pago                    text not null check (forma_pago in ('efectivo','transferencia','cheque')),
+  items                         jsonb not null default '[]'::jsonb,
+  monto_total                   numeric(12,2) not null default 0,
+  created_by_id                 text not null,
+  created_by_nombre             text not null default '',
+  created_at                    timestamptz not null default now()
+);
+create index if not exists gastos_solicitudes_fondo_idx      on gastos_solicitudes (fondo_id);
+create index if not exists gastos_solicitudes_created_by_idx on gastos_solicitudes (created_by_id);
+
+-- solicitud_id: de qué solicitud proviene cada gasto. Los gastos creados
+-- antes de que existiera esta columna quedan con solicitud_id vacío (se
+-- guardaron con área/descripción/justificación propias, sin cambios).
+alter table gastos_registros add column if not exists solicitud_id bigint;
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'gastos_registros_solicitud_id_fkey') then
+    alter table gastos_registros add constraint gastos_registros_solicitud_id_fkey
+      foreign key (solicitud_id) references gastos_solicitudes(id) on delete set null;
+  end if;
+end $$;
+create index if not exists gastos_registros_solicitud_idx on gastos_registros (solicitud_id);
