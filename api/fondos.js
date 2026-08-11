@@ -15,6 +15,17 @@ function sb(path, options) {
   return fetch(URL + '/rest/v1/' + path, Object.assign({}, options, { headers }));
 }
 
+// Convierte la respuesta de error de Supabase/PostgREST en un texto legible
+// para mostrar en el formulario, en vez de un mensaje genérico sin pistas.
+function dbErrorMsg(data) {
+  if (!data) return 'Error desconocido de la base de datos.';
+  if (Array.isArray(data)) {
+    const msg = data.map((d) => d && d.message).filter(Boolean).join('; ');
+    return msg || 'Error desconocido de la base de datos.';
+  }
+  return data.message || data.error || data.hint || JSON.stringify(data);
+}
+
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   if (typeof req.body === 'string' && req.body) {
@@ -84,7 +95,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify(built.row)
         });
         const data = await r.json();
-        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         res.status(200).json({ ok: true, fondo: Object.assign({}, data[0], { usuario_ids: [] }) });
         return;
       }
@@ -99,7 +110,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify(built.row)
         });
         const data = await r.json();
-        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         res.status(200).json({ ok: true, fondo: data[0] });
         return;
       }

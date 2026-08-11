@@ -148,7 +148,7 @@ module.exports = async (req, res) => {
             method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
           });
           data = await r.json();
-          if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+          if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
           await insertHistorial({ gasto_id: data[0].id, accion: 'editado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: row });
         } else {
           row.estado = 'registrado';
@@ -156,7 +156,7 @@ module.exports = async (req, res) => {
             method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
           });
           data = await r.json();
-          if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+          if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
           await insertHistorial({ gasto_id: data[0].id, accion: 'creado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: row });
         }
         res.status(200).json({ ok: true, gasto: data[0] });
@@ -199,7 +199,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({ estado: 'informado', updated_at: new Date().toISOString() })
         });
         const data = await r.json();
-        if (!r.ok) { res.status(500).json({ ok: false, raw: data }); return; }
+        if (!r.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         await insertHistorial({ accion: 'informado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { ids: ids, actualizados: (data || []).length } });
         res.status(200).json({ ok: true, actualizados: (data || []).length });
         return;
@@ -222,7 +222,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({ estado: 'eliminado', estado_anterior: estadoAnterior, updated_at: new Date().toISOString() })
         });
         const data = await r.json();
-        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         await insertHistorial({ gasto_id: body.id, accion: 'eliminado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado_anterior: estadoAnterior } });
         res.status(200).json({ ok: true });
         return;
@@ -243,7 +243,7 @@ module.exports = async (req, res) => {
           body: JSON.stringify({ estado: destino, estado_anterior: null, updated_at: new Date().toISOString() })
         });
         const data = await r.json();
-        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, raw: data }); return; }
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         await insertHistorial({ gasto_id: body.id, accion: 'restablecido', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado: destino } });
         res.status(200).json({ ok: true, gasto: data[0] });
         return;
