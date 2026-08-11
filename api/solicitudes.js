@@ -165,13 +165,32 @@ module.exports = async (req, res) => {
 
       if (action === 'update') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actualData = await actual.json();
+        if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
+        if (actualData[0].estado === 'eliminada') { res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada.' }); return; }
+
         const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
         delete row.created_by_id;
         delete row.created_by_nombre;
+        // Guardar cambios aquí ya exige Específico Presupuestario/CEP en
+        // todos los ítems, así que el guardado en sí certifica la solicitud.
+        row.estado = 'certificado';
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
+        res.status(200).json({ ok: true, solicitud: data[0] });
+        return;
+      }
+
+      if (action === 'delete') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ estado: 'eliminada' })
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }

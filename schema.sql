@@ -112,6 +112,15 @@ create index if not exists gastos_solicitudes_created_by_idx on gastos_solicitud
 -- Nombre del proceso: se movió de "Registrar gasto" a "Crear Solicitud".
 alter table gastos_solicitudes add column if not exists nombre_proceso text not null default '';
 
+-- Estado de la solicitud: 'pendiente' al crearla; pasa a 'certificado' al
+-- guardar cambios desde Certificación presupuestaria (esa acción ya exige
+-- Específico Presupuestario/CEP en todos los ítems, así que guardar ahí ES
+-- certificarla); 'eliminada' es borrado lógico (no se pueden editar).
+alter table gastos_solicitudes add column if not exists estado text not null default 'pendiente';
+alter table gastos_solicitudes drop constraint if exists gastos_solicitudes_estado_check;
+alter table gastos_solicitudes add constraint gastos_solicitudes_estado_check check (estado in ('pendiente','certificado','eliminada'));
+create index if not exists gastos_solicitudes_estado_idx on gastos_solicitudes (estado);
+
 -- solicitud_id: de qué solicitud proviene cada gasto. Los gastos creados
 -- antes de que existiera esta columna quedan con solicitud_id vacío (se
 -- guardaron con área/descripción/justificación propias, sin cambios).

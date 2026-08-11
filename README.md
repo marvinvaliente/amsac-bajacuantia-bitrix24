@@ -21,16 +21,22 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      cantidad × precio unitario); el monto total de la solicitud es la suma
      de los ítems. El N° de ítem siempre queda correlativo (1, 2, 3...): si
      se quita una fila, las demás se renumeran para no dejar huecos.
-  2. **Certificación presupuestaria**: se elige una solicitud ya creada (de
-     cualquier fondo, no solo los propios) y se cargan todos sus datos. Todos
-     los campos cargan **bloqueados** (solo lectura) — **doble clic** en
-     cualquiera lo habilita para corregirlo puntualmente. La tabla de ítems
-     suma dos columnas que sí quedan activas de entrada: **Específico
-     Presupuestario** (5 dígitos) y **CEP** (2 dígitos), **obligatorios en
-     cada ítem** para poder guardar. "Guardar cambios" actualiza la
-     solicitud; como Registrar gasto/Cargar Excel leen esos datos al momento
-     de guardar cada gasto, cualquier edición hecha aquí se refleja de
-     inmediato en los gastos nuevos que se le asocien.
+  2. **Certificación presupuestaria**: muestra **todas las solicitudes en una
+     tabla** (fecha, fondo, área, descripción, total y **estado**, con
+     colores: naranja = Pendiente, verde = Certificado, rojo = Eliminada) con
+     botones **Editar** y **Eliminar** por fila. "Editar" abre el formulario
+     (de cualquier fondo, no solo los propios) con todos los campos
+     **bloqueados** (solo lectura) — **doble clic** en cualquiera lo habilita
+     para corregirlo puntualmente. La tabla de ítems suma dos columnas que sí
+     quedan activas de entrada: **Específico Presupuestario** (5 dígitos) y
+     **CEP** (2 dígitos), **obligatorios en cada ítem** para poder guardar —
+     guardar cambios aquí es lo que **certifica** la solicitud (pasa de
+     Pendiente a Certificado). "Eliminar" es un borrado lógico: la solicitud
+     queda en estado Eliminada, ya no se puede editar ni volver a elegir
+     desde Registrar gasto/Cargar Excel, pero sigue visible en la tabla para
+     trazabilidad. Como Registrar gasto/Cargar Excel leen los datos de la
+     solicitud al momento de guardar cada gasto, cualquier edición hecha aquí
+     se refleja de inmediato en los gastos nuevos que se le asocien.
   3. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
      descripción/justificación, se **elige una Solicitud ya creada** y el
      sistema completa esos campos automáticamente (de solo lectura, tomados

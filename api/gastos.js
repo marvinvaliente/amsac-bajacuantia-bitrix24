@@ -41,9 +41,10 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 async function buscarSolicitud(solicitudIdRaw) {
   const solicitudId = parseInt(solicitudIdRaw, 10);
   if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
-  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion');
+  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado');
   const data = await r.json();
   if (!r.ok || !data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
+  if (data[0].estado === 'eliminada') return { error: 'La solicitud seleccionada fue eliminada.' };
   if (data[0].fondo_id == null) return { error: 'La solicitud seleccionada no tiene un fondo asociado.' };
   return { solicitud: data[0] };
 }
