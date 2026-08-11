@@ -335,6 +335,13 @@
           <div id="sAreaDropdown" class="combo-dropdown"></div>
         </div>
 
+        <label for="sGerencia">Gerencia responsable *</label>
+        <div class="combo-wrap">
+          <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+          <div id="sGerenciaDropdown" class="combo-dropdown"></div>
+          <input type="hidden" id="sGerenciaId" />
+        </div>
+
         <label for="sNombreProceso">Nombre del proceso *</label>
         <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
 
@@ -343,13 +350,6 @@
 
         <label for="sJustificacion">Justificación *</label>
         <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
-
-        <label for="sGerencia">Gerencia responsable *</label>
-        <div class="combo-wrap">
-          <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
-          <div id="sGerenciaDropdown" class="combo-dropdown"></div>
-          <input type="hidden" id="sGerenciaId" />
-        </div>
 
         <label for="sClasificacion">Clasificación del gasto *</label>
         <select id="sClasificacion" required>
