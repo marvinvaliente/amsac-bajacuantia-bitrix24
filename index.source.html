@@ -1116,9 +1116,6 @@
     document.getElementById('sItemsBody').appendChild(tr);
     return tr;
   }
-  function renumerarItems() {
-    document.querySelectorAll('#sItemsBody tr').forEach(function (tr, i) { tr.querySelector('.item-n').textContent = i + 1; });
-  }
   function recalcularItemsTotal() {
     var total = 0;
     document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
@@ -1143,7 +1140,6 @@
     if (!btn) return;
     if (document.querySelectorAll('#sItemsBody tr').length <= 1) return;
     btn.closest('tr').remove();
-    renumerarItems();
     recalcularItemsTotal();
   });
 
@@ -1181,7 +1177,8 @@
       var descripcion = tr.querySelector('.it-desc').value.trim();
       var precioUnitario = parseFloat(tr.querySelector('.it-precio').value);
       if (!descripcion || !(cantidad > 0) || !(precioUnitario >= 0)) return;
-      items.push({ tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario });
+      var numero = parseInt(tr.querySelector('.item-n').textContent, 10);
+      items.push({ numero: numero, tipo: tipo, cantidad: cantidad, descripcion: descripcion, precio_unitario: precioUnitario });
     });
     if (!items.length) { showMsg(msgEl, 'error', 'Agrega al menos un ítem válido (con descripción, cantidad y precio unitario).'); return; }
 
