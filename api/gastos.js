@@ -41,7 +41,7 @@ const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 async function buscarSolicitud(solicitudIdRaw) {
   const solicitudId = parseInt(solicitudIdRaw, 10);
   if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
-  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,descripcion,justificacion');
+  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion');
   const data = await r.json();
   if (!r.ok || !data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
   if (data[0].fondo_id == null) return { error: 'La solicitud seleccionada no tiene un fondo asociado.' };
@@ -66,7 +66,7 @@ function construirFila(g, solicitud, actorId, actorNombre) {
       numero_documento: numeroDocumento,
       proveedor: proveedor,
       descripcion: solicitud.descripcion || '',
-      nombre_proceso: String(g.nombre_proceso || '').trim(),
+      nombre_proceso: solicitud.nombre_proceso || '',
       justificacion: solicitud.justificacion || '',
       area_solicitante: solicitud.area_solicitante || '',
       monto_retenido: montoRetenido,

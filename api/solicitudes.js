@@ -68,6 +68,8 @@ function construirSolicitud(s, actorId, actorNombre) {
   if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece esta solicitud.' };
   const areaSolicitante = String(s.area_solicitante || '').trim();
   if (!areaSolicitante) return { error: 'Falta el área solicitante.' };
+  const nombreProceso = String(s.nombre_proceso || '').trim();
+  if (!nombreProceso) return { error: 'Falta el nombre del proceso.' };
   const descripcion = String(s.descripcion || '').trim();
   if (!descripcion) return { error: 'Falta la descripción.' };
   const justificacion = String(s.justificacion || '').trim();
@@ -87,6 +89,7 @@ function construirSolicitud(s, actorId, actorNombre) {
     row: {
       fondo_id: fondoId,
       area_solicitante: areaSolicitante,
+      nombre_proceso: nombreProceso,
       descripcion: descripcion,
       justificacion: justificacion,
       gerencia_responsable_id: gerenciaId,

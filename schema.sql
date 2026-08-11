@@ -93,6 +93,7 @@ create table if not exists gastos_solicitudes (
   id                            bigserial primary key,
   fondo_id                      bigint references gastos_fondos(id) on delete set null,
   area_solicitante              text not null default '',
+  nombre_proceso                text not null default '',
   descripcion                   text not null default '',
   justificacion                 text not null default '',
   gerencia_responsable_id       text not null default '',
@@ -107,6 +108,9 @@ create table if not exists gastos_solicitudes (
 );
 create index if not exists gastos_solicitudes_fondo_idx      on gastos_solicitudes (fondo_id);
 create index if not exists gastos_solicitudes_created_by_idx on gastos_solicitudes (created_by_id);
+
+-- Nombre del proceso: se movió de "Registrar gasto" a "Crear Solicitud".
+alter table gastos_solicitudes add column if not exists nombre_proceso text not null default '';
 
 -- solicitud_id: de qué solicitud proviene cada gasto. Los gastos creados
 -- antes de que existiera esta columna quedan con solicitud_id vacío (se

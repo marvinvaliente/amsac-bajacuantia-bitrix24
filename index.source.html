@@ -335,6 +335,9 @@
           <div id="sAreaDropdown" class="combo-dropdown"></div>
         </div>
 
+        <label for="sNombreProceso">Nombre del proceso *</label>
+        <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+
         <label for="sDescripcion">Descripción *</label>
         <textarea id="sDescripcion" placeholder="Descripción de la compra" required></textarea>
 
@@ -393,6 +396,7 @@
         <div id="gSolicitudInfo" class="solicitud-info" style="display:none">
           <div><b>Fondo:</b> <span id="gFondoDisplay">—</span></div>
           <div><b>Área solicitante:</b> <span id="gAreaDisplay">—</span></div>
+          <div><b>Nombre del proceso:</b> <span id="gNombreProcesoDisplay">—</span></div>
           <div><b>Descripción:</b> <span id="gDescripcionDisplay">—</span></div>
           <div><b>Justificación:</b> <span id="gJustificacionDisplay">—</span></div>
         </div>
@@ -402,9 +406,6 @@
 
         <label for="gMes">Mes</label>
         <input type="text" id="gMes" readonly />
-
-        <label for="gNombreProceso">Nombre del proceso *</label>
-        <input type="text" id="gNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
 
         <label for="gNumeroDocumento">N° de documento *</label>
         <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
@@ -966,6 +967,7 @@
     var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
     document.getElementById('gFondoDisplay').textContent = f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : '—';
     document.getElementById('gAreaDisplay').textContent = s.area_solicitante || '—';
+    document.getElementById('gNombreProcesoDisplay').textContent = s.nombre_proceso || '—';
     document.getElementById('gDescripcionDisplay').textContent = s.descripcion || '—';
     document.getElementById('gJustificacionDisplay').textContent = s.justificacion || '—';
     box.style.display = 'block';
@@ -981,7 +983,6 @@
     mostrarSolicitudSeleccionada(document.getElementById('gSolicitud').value);
     document.getElementById('gNumeroDocumento').value = g.numero_documento || '';
     document.getElementById('gProveedor').value = g.proveedor || '';
-    document.getElementById('gNombreProceso').value = g.nombre_proceso || '';
     document.getElementById('gMontoRetenido').value = g.monto_retenido != null ? g.monto_retenido : 0;
     document.getElementById('gMontoTotal').value = g.monto_total != null ? g.monto_total : '';
     document.getElementById('registrarTitulo').textContent = 'Editar gasto';
@@ -1005,7 +1006,6 @@
       solicitud_id: solicitudId,
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
-      nombre_proceso: document.getElementById('gNombreProceso').value.trim(),
       monto_retenido: document.getElementById('gMontoRetenido').value || 0,
       monto_total: document.getElementById('gMontoTotal').value
     };
@@ -1188,6 +1188,7 @@
     var solicitud = {
       fondo_id: fondoId,
       area_solicitante: sAreaInput.value.trim(),
+      nombre_proceso: document.getElementById('sNombreProceso').value.trim(),
       descripcion: document.getElementById('sDescripcion').value.trim(),
       justificacion: document.getElementById('sJustificacion').value.trim(),
       gerencia_responsable_id: gerenciaId,

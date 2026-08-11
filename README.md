@@ -12,20 +12,21 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), área solicitante,
-     descripción, justificación, **gerencia responsable** (se busca y elige un
-     usuario de Bitrix24), **clasificación del gasto** (Gasto Emergente /
-     Imprevisto / Recurrente) y **forma de pago** (Efectivo / Transferencia
-     Bancaria / Cheque). Incluye una tabla de **ítems** (se pueden agregar o
-     quitar filas): tipo (Bien/Servicio), cantidad, descripción, precio
-     unitario y total (se calcula solo, cantidad × precio unitario); el monto
-     total de la solicitud es la suma de los ítems.
-  2. **Registrar gasto**: en vez de escribir fondo/área/descripción/
-     justificación, se **elige una Solicitud ya creada** y el sistema
-     completa esos cuatro campos automáticamente (de solo lectura, tomados
+     **nombre del proceso**, descripción, justificación, **gerencia
+     responsable** (se busca y elige un usuario de Bitrix24), **clasificación
+     del gasto** (Gasto Emergente / Imprevisto / Recurrente) y **forma de
+     pago** (Efectivo / Transferencia Bancaria / Cheque). Incluye una tabla de
+     **ítems** (se pueden agregar o quitar filas): tipo (Bien/Servicio),
+     cantidad, descripción, precio unitario y total (se calcula solo,
+     cantidad × precio unitario); el monto total de la solicitud es la suma
+     de los ítems.
+  2. **Registrar gasto**: en vez de escribir fondo/área/nombre del proceso/
+     descripción/justificación, se **elige una Solicitud ya creada** y el
+     sistema completa esos campos automáticamente (de solo lectura, tomados
      siempre del servidor). Lo que sí se pide en este formulario: fecha,
-     **nombre del proceso**, número de documento, proveedor, monto retenido y
-     monto total. El mes se calcula automáticamente desde la fecha. Todo
-     gasto nuevo se guarda con **estado `registrado`**.
+     número de documento, proveedor, monto retenido y monto total. El mes se
+     calcula automáticamente desde la fecha. Todo gasto nuevo se guarda con
+     **estado `registrado`**.
   3. **Cargar desde Excel**: igual que Registrar gasto, primero se elige la
      **Solicitud** a la que pertenece todo el lote, y luego se sube un
      `.xlsx`/`.xls`/`.csv` con las columnas `fecha`, `mes`, `numero_documento`,
@@ -140,8 +141,8 @@ entorno anteriores.
   ese usuario pertenece a un único fondo.
 - **`solicitud_id`**: desde que existe "Crear Solicitud", cada gasto se crea
   eligiendo una solicitud (`gastos_solicitudes`) y el servidor copia de ahí
-  `fondo_id`, `area_solicitante`, `descripcion` y `justificacion` hacia la fila
-  del gasto — nunca se confía en esos valores si los manda el navegador. Por
+  `fondo_id`, `area_solicitante`, `nombre_proceso`, `descripcion` y
+  `justificacion` hacia la fila del gasto — nunca se confía en esos valores si los manda el navegador. Por
   eso Historial, Informe, Reportes, Dashboard y las exportaciones no cambiaron:
   siguen leyendo esos campos directo del gasto. Editar un gasto (incluidos los
   creados antes de que existiera este flujo) exige elegir una solicitud, igual
