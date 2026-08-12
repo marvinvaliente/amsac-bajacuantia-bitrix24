@@ -158,17 +158,23 @@ del portal, que da acceso a todo sin excepción).
      administrador siempre es también usuario del fondo). Al **editar** un
      fondo, este mismo checklist aparece precargado con los administradores
      actuales y se puede modificar (agregar/quitar) igual que al crearlo.
-  2. **Fondos creados**: el botón **"Asignar usuarios"** de cada fondo abre
-     un modal para dar acceso al fondo (Crear Solicitud, Registrar factura,
-     Historial e Informe) con tres formas de elegir, combinables entre sí:
-     **"Seleccionar todos los usuarios"** (un solo checkbox), **"Asignar
-     por departamento"** (checklist de departamentos de Bitrix24 — marcar
-     uno agrega a todos sus miembros) y **"Asignar por usuario individual"**
-     (buscador + checklist, como antes). Este modal ya no gestiona
-     administradores — eso se hace desde "Crear fondo" / "Editar". Un
-     usuario queda habilitado para usar la app únicamente si está asignado
-     a al menos un fondo, es certificador, es administrador de algún fondo,
-     o es administrador del portal.
+  2. **Fondos creados**: cada fondo muestra sus usuarios asignados y sus
+     administradores como **chips con una "×"** — clic ahí para
+     desasociar a esa persona al toque, sin abrir ningún modal (quitar un
+     chip de "usuarios asignados" lo saca por completo del fondo, incluido
+     como administrador si lo era; quitar un chip de "administradores"
+     solo le retira ese rol, sigue siendo usuario normal del fondo). El
+     botón **"Asignar usuarios"** abre un modal para dar acceso al fondo
+     (Crear Solicitud, Registrar factura, Historial e Informe) con tres
+     formas de elegir, combinables entre sí: **"Seleccionar todos los
+     usuarios"** (un solo checkbox), **"Asignar por departamento"**
+     (checklist de departamentos de Bitrix24 — marcar uno agrega a todos
+     sus miembros) y **"Asignar por usuario individual"** (buscador +
+     checklist, como antes). Este modal ya no gestiona administradores —
+     eso se hace desde "Crear fondo" / "Editar". Un usuario queda
+     habilitado para usar la app únicamente si está asignado a al menos un
+     fondo, es certificador, es administrador de algún fondo, o es
+     administrador del portal.
   3. **Certificación presupuestaria**: dos listas de checkboxes —
      **usuarios certificadores** (buscador + lista de todos los usuarios de
      Bitrix24) y **departamentos certificadores** (lista de todos los
