@@ -129,6 +129,13 @@ alter table gastos_solicitudes add column if not exists desembolsado_at timestam
 alter table gastos_solicitudes add column if not exists desembolsado_por_id text;
 alter table gastos_solicitudes add column if not exists desembolsado_por_nombre text;
 
+-- Cotización(es) en PDF adjuntadas al crear la solicitud (array de
+-- {url, nombre}, subidas al bucket público "cotizaciones" en Supabase
+-- Storage vía api/upload.js). Quedan disponibles para revisión en
+-- Certificación y Desembolso, y se anexan como páginas extra al PDF de
+-- Desembolso.
+alter table gastos_solicitudes add column if not exists cotizacion_urls jsonb not null default '[]'::jsonb;
+
 -- solicitud_id: de qué solicitud proviene cada gasto. Los gastos creados
 -- antes de que existiera esta columna quedan con solicitud_id vacío (se
 -- guardaron con área/descripción/justificación propias, sin cambios).

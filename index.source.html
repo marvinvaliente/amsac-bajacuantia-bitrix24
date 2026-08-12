@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
   :root {
     --primary: #1b2a4a;
@@ -161,6 +162,17 @@
   .items-table button.secondary { width: auto; margin: 0; padding: 7px 10px; }
   .items-total-row { margin-top: 12px; font-size: 14.5px; text-align: right; }
   .items-total-row b { color: var(--primary-dark); }
+
+  .cotizacion-lista { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .cotizacion-item {
+    display: flex; align-items: center; gap: 8px; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; font-size: 13px;
+  }
+  .cotizacion-item a { color: var(--primary-dark); font-weight: 600; text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cotizacion-item a:hover { text-decoration: underline; }
+  .cotizacion-item button { width: auto; margin: 0; padding: 4px 9px; font-size: 12px; background: #fff; color: var(--danger); border: 1px solid var(--danger); }
+  .cotizacion-item .subiendo { color: #6b7a86; font-style: italic; }
+  .cotizacion-empty { font-size: 13px; color: #6b7a86; margin-top: 6px; }
 
   .fondo-info-bar {
     display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
@@ -364,6 +376,10 @@
         <label for="sJustificacion">Justificación *</label>
         <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
 
+        <label for="sCotizacionFile">Adjuntar cotización (PDF)</label>
+        <input type="file" id="sCotizacionFile" accept="application/pdf" multiple />
+        <div id="sCotizacionLista" class="cotizacion-lista"></div>
+
         <label for="sClasificacion">Clasificación del gasto *</label>
         <select id="sClasificacion" required>
           <option value="">Selecciona una opción</option>
@@ -427,6 +443,9 @@
 
         <label for="cJustificacion">Justificación *</label>
         <textarea id="cJustificacion" placeholder="Justificación de la compra" required></textarea>
+
+        <label>Cotización adjunta</label>
+        <div id="cCotizacionLista" class="cotizacion-lista"></div>
 
         <label for="cClasificacion">Clasificación del gasto *</label>
         <select id="cClasificacion" required>
@@ -497,6 +516,9 @@
           <div><b>Estado:</b> <span id="dEstado">—</span></div>
           <div><b>Creada por:</b> <span id="dCreador">—</span></div>
         </div>
+
+        <label style="margin-top:14px">Cotización adjunta</label>
+        <div id="dCotizacionLista" class="cotizacion-lista"></div>
 
         <div class="section-title" style="margin-top:16px">Ítems</div>
         <div class="table-wrap">
@@ -1452,6 +1474,66 @@
     recalcularItemsTotal();
   });
 
+  // ---- Adjuntar cotización (PDF) ----
+  var sCotizacionItems = []; // { nombre, url, subiendo }
+
+  function renderSCotizacionLista() {
+    var el = document.getElementById('sCotizacionLista');
+    if (!sCotizacionItems.length) { el.innerHTML = ''; return; }
+    el.innerHTML = sCotizacionItems.map(function (c, i) {
+      if (c.subiendo) return '<div class="cotizacion-item"><span class="subiendo">Subiendo "' + esc(c.nombre) + '"...</span></div>';
+      return '<div class="cotizacion-item">' +
+        '<a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre) + '</a>' +
+        '<button type="button" class="secondary" data-quitar-cotizacion="' + i + '">Quitar</button>' +
+        '</div>';
+    }).join('');
+    el.querySelectorAll('[data-quitar-cotizacion]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        sCotizacionItems.splice(parseInt(btn.getAttribute('data-quitar-cotizacion'), 10), 1);
+        renderSCotizacionLista();
+      });
+    });
+  }
+
+  function leerArchivoBase64(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function () { resolve(String(reader.result || '').split(',')[1] || ''); };
+      reader.onerror = function () { reject(new Error('No se pudo leer el archivo.')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  document.getElementById('sCotizacionFile').addEventListener('change', function () {
+    var archivos = Array.prototype.slice.call(this.files || []);
+    this.value = '';
+    var msgEl = document.getElementById('solicitudMsg');
+    archivos.forEach(function (file) {
+      if (file.type !== 'application/pdf') { showMsg(msgEl, 'error', '"' + file.name + '" no es un PDF.'); return; }
+      if (file.size > 3 * 1024 * 1024) { showMsg(msgEl, 'error', '"' + file.name + '" pesa más de 3 MB.'); return; }
+      var entry = { nombre: file.name, url: '', subiendo: true };
+      sCotizacionItems.push(entry);
+      renderSCotizacionLista();
+      leerArchivoBase64(file).then(function (base64) {
+        return apiCall('upload', { method: 'POST', body: { filename: file.name, contentType: file.type, dataBase64: base64 } });
+      }).then(function (r) {
+        var idx = sCotizacionItems.indexOf(entry);
+        if (r.ok) {
+          if (idx !== -1) sCotizacionItems[idx] = { nombre: r.nombre, url: r.url, subiendo: false };
+        } else {
+          if (idx !== -1) sCotizacionItems.splice(idx, 1);
+          showMsg(msgEl, 'error', 'No se pudo subir "' + file.name + '": ' + (r.error || 'error desconocido'));
+        }
+        renderSCotizacionLista();
+      }).catch(function () {
+        var idx2 = sCotizacionItems.indexOf(entry);
+        if (idx2 !== -1) sCotizacionItems.splice(idx2, 1);
+        showMsg(msgEl, 'error', 'Error de conexión al subir "' + file.name + '".');
+        renderSCotizacionLista();
+      });
+    });
+  });
+
   function limpiarFormSolicitud() {
     formSolicitud.reset();
     sGerenciaIdInput.value = '';
@@ -1460,6 +1542,8 @@
     recalcularItemsTotal();
     poblarFondosUsuario();
     prellenarAreaSolicitante();
+    sCotizacionItems = [];
+    renderSCotizacionLista();
   }
 
   function initCrearSolicitud() {
@@ -1477,6 +1561,10 @@
     if (!fondoId) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece esta solicitud.'); return; }
     var gerenciaId = sGerenciaIdInput.value;
     if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
+    if (sCotizacionItems.some(function (c) { return c.subiendo; })) {
+      showMsg(msgEl, 'error', 'Espera a que terminen de subir las cotizaciones.');
+      return;
+    }
 
     var items = [];
     document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
@@ -1499,6 +1587,7 @@
       gerencia_responsable_nombre: sGerenciaInput.value.trim(),
       clasificacion: document.getElementById('sClasificacion').value,
       forma_pago: document.getElementById('sFormaPago').value,
+      cotizacion_urls: sCotizacionItems.map(function (c) { return { url: c.url, nombre: c.nombre }; }),
       items: items
     };
     var btn = document.getElementById('btnGuardarSolicitud');
@@ -1737,11 +1826,27 @@
   }
   document.getElementById('btnCerrarCertificacion').addEventListener('click', cerrarFormCertificacion);
 
+  var certEditingCotizaciones = [];
+
+  // Muestra una lista de cotizaciones adjuntas de solo lectura (sin botón
+  // "Quitar"), usada en Certificación y Desembolso.
+  function renderCotizacionListaReadonly(containerId, lista) {
+    var el = document.getElementById(containerId);
+    lista = Array.isArray(lista) ? lista : [];
+    el.innerHTML = lista.length
+      ? lista.map(function (c) {
+          return '<div class="cotizacion-item"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre || 'cotizacion.pdf') + '</a></div>';
+        }).join('')
+      : '<div class="cotizacion-empty">Sin cotización adjunta.</div>';
+  }
+
   function abrirCertificacionEdicion(id) {
     var s = solicitudes.find(function (x) { return String(x.id) === String(id); });
     if (!s) return;
     if (s.estado === 'eliminada') { customAlert('Esta solicitud fue eliminada y ya no se puede editar.'); return; }
     certEditingId = s.id;
+    certEditingCotizaciones = Array.isArray(s.cotizacion_urls) ? s.cotizacion_urls : [];
+    renderCotizacionListaReadonly('cCotizacionLista', certEditingCotizaciones);
     hideMsg(document.getElementById('certificacionMsg'));
     document.getElementById('certFormTitulo').textContent = 'Editar solicitud #' + s.id;
     document.getElementById('certFormTitulo').style.display = 'block';
@@ -1811,6 +1916,7 @@
       gerencia_responsable_nombre: cGerenciaInput.value.trim(),
       clasificacion: document.getElementById('cClasificacion').value,
       forma_pago: document.getElementById('cFormaPago').value,
+      cotizacion_urls: certEditingCotizaciones,
       items: items
     };
     var btn = document.getElementById('btnGuardarCertificacion');
@@ -1874,6 +1980,7 @@
     document.getElementById('dFormaPago').textContent = FORMA_PAGO_LABEL[s.forma_pago] || s.forma_pago || '—';
     document.getElementById('dEstado').innerHTML = '<span class="badge estado-' + esc(estado) + '">' + (SOLICITUD_ESTADO_LABEL[estado] || estado) + '</span>';
     document.getElementById('dCreador').textContent = s.created_by_nombre || '—';
+    renderCotizacionListaReadonly('dCotizacionLista', s.cotizacion_urls);
 
     var items = Array.isArray(s.items) ? s.items : [];
     document.getElementById('dItemsBody').innerHTML = items.map(function (it) {
@@ -1912,7 +2019,7 @@
   }
   document.getElementById('btnCerrarDesembolso').addEventListener('click', cerrarDesembolsoDetalle);
 
-  function generarPdfDesembolso(s) {
+  async function generarPdfDesembolso(s) {
     var jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     var doc = new jsPDFCtor({ unit: 'mm', format: 'letter', orientation: 'portrait' });
     var y = 16;
@@ -1959,6 +2066,16 @@
     doc.text(justLineas, 14, y);
     y += justLineas.length * 5 + 6;
 
+    var cotizaciones = Array.isArray(s.cotizacion_urls) ? s.cotizacion_urls : [];
+    doc.setFont(undefined, 'bold');
+    doc.text('Cotización adjunta:', 14, y);
+    y += 5;
+    doc.setFont(undefined, 'normal');
+    var cotTexto = cotizaciones.length ? cotizaciones.map(function (c) { return c.nombre; }).join(', ') + ' (anexa a continuación)' : 'Ninguna';
+    var cotLineas = doc.splitTextToSize(cotTexto, 180);
+    doc.text(cotLineas, 14, y);
+    y += cotLineas.length * 5 + 4;
+
     var items = Array.isArray(s.items) ? s.items : [];
     doc.autoTable({
       startY: y,
@@ -1983,7 +2100,41 @@
     doc.text('Fecha y hora de desembolso: ' + fechaDesembolso.toLocaleDateString('es-HN') + ' ' + fechaDesembolso.toLocaleTimeString('es-HN'), 14, finalY + 15);
     doc.text('Fecha y hora de impresión: ' + ahora.toLocaleDateString('es-HN') + ' ' + ahora.toLocaleTimeString('es-HN'), 14, finalY + 20);
 
-    doc.save('Desembolso_Solicitud_' + s.id + '_' + todayStr() + '.pdf');
+    var nombreArchivo = 'Desembolso_Solicitud_' + s.id + '_' + todayStr() + '.pdf';
+
+    // Si hay cotizaciones adjuntas y pdf-lib cargó, se anexan como páginas
+    // extra al final del comprobante. Si algo falla, se entrega igual el
+    // comprobante base (sin bloquear el desembolso ya confirmado).
+    if (!cotizaciones.length || !window.PDFLib) {
+      doc.save(nombreArchivo);
+      return;
+    }
+    try {
+      var mergedPdf = await PDFLib.PDFDocument.create();
+      var receiptDoc = await PDFLib.PDFDocument.load(doc.output('arraybuffer'));
+      var receiptPages = await mergedPdf.copyPages(receiptDoc, receiptDoc.getPageIndices());
+      receiptPages.forEach(function (p) { mergedPdf.addPage(p); });
+
+      for (var i = 0; i < cotizaciones.length; i++) {
+        try {
+          var bytes = await fetch(cotizaciones[i].url).then(function (r) { return r.arrayBuffer(); });
+          var cotDoc = await PDFLib.PDFDocument.load(bytes);
+          var cotPages = await mergedPdf.copyPages(cotDoc, cotDoc.getPageIndices());
+          cotPages.forEach(function (p) { mergedPdf.addPage(p); });
+        } catch (eUna) { /* si una cotización no carga, se omite y se sigue con el resto */ }
+      }
+
+      var finalBytes = await mergedPdf.save();
+      var blob = new Blob([finalBytes], { type: 'application/pdf' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nombreArchivo;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch (eMerge) {
+      doc.save(nombreArchivo);
+    }
   }
 
   document.getElementById('btnDesembolsar').addEventListener('click', function () {

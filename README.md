@@ -21,6 +21,11 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      cantidad × precio unitario); el monto total de la solicitud es la suma
      de los ítems. El N° de ítem siempre queda correlativo (1, 2, 3...): si
      se quita una fila, las demás se renumeran para no dejar huecos.
+     También se pueden **adjuntar cotizaciones en PDF** (uno o varios
+     archivos, máx. 3 MB cada uno); quedan disponibles para revisión —de
+     solo lectura— en Certificación presupuestaria y Desembolso de fondos,
+     y se anexan como páginas adicionales al PDF que se descarga al
+     desembolsar.
   2. **Certificación presupuestaria**: muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
      colores: naranja = Pendiente, verde = Certificado, azul = Desembolsado,
@@ -42,13 +47,15 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      (fondo, área, gerencia responsable, nombre del proceso, descripción,
      justificación, clasificación, forma de pago, la tabla completa de
      ítems con Específico Presupuestario/CEP) con el **monto solicitado**
-     destacado en grande. El botón **"Desembolsar"** (solo visible si la
-     solicitud está Certificado) cambia su estado a **Desembolsado**,
-     guarda quién y cuándo la desembolsó, y **genera y descarga
-     automáticamente un PDF** con toda esa información más la fecha y hora
-     de desembolso y de impresión. Una solicitud desembolsada ya no se
-     puede editar ni eliminar desde Certificación, y es la que habilita
-     "Registrar factura".
+     destacado en grande, más las cotizaciones adjuntas (si hay). El botón
+     **"Desembolsar"** (solo visible si la solicitud está Certificado)
+     cambia su estado a **Desembolsado**, guarda quién y cuándo la
+     desembolsó, y **genera y descarga automáticamente un PDF** con toda
+     esa información más la fecha y hora de desembolso y de impresión — si
+     la solicitud tiene cotizaciones adjuntas, sus páginas se **anexan al
+     final del mismo PDF** (fusión hecha en el navegador con pdf-lib). Una
+     solicitud desembolsada ya no se puede editar ni eliminar desde
+     Certificación, y es la que habilita "Registrar factura".
   4. **Registrar factura o documento equivalente**: muestra en una tabla
      (estilo Certificación) solo las solicitudes en estado **Desembolsado**,
      con una columna **Facturación** ("N/M ítems") que indica cuántos de sus
@@ -115,6 +122,12 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
    `transporte_*`. El script es seguro de volver a correr aunque las tablas ya
    existan (usa `if not exists` / migraciones idempotentes), por ejemplo para
    agregar la columna `estado` o `solicitud_id`.
+3. Las cotizaciones en PDF se guardan en **Supabase Storage**, en un bucket
+   llamado `cotizaciones`. No hace falta crearlo a mano: `api/upload.js` lo
+   crea automáticamente (público, solo PDF, 3 MB máx. por archivo) la
+   primera vez que alguien adjunta una cotización. Si prefieres crearlo tú
+   antes, ve a **Storage → New bucket** en el panel de Supabase, nómbralo
+   `cotizaciones` y márcalo como **público**.
 
 ## Variables de entorno (Vercel)
 
@@ -166,7 +179,16 @@ entorno anteriores.
   `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
 - La exportación a Excel (Reportes) usa SheetJS (`xlsx.full.min.js` por CDN)
   en el navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en
-  transporte.
+  transporte. El PDF de Desembolso además usa `pdf-lib` (CDN) para anexarle
+  las cotizaciones adjuntas como páginas extra.
+- **Cotizaciones (PDF)**: `api/upload.js` las sube a Supabase Storage (bucket
+  `cotizaciones`, público) usando la service role key; el navegador nunca
+  ve esa key, solo manda el PDF en base64 a este endpoint. Al ser un bucket
+  público, cualquiera con el enlace exacto (una URL larga con un sufijo
+  aleatorio) puede abrir el archivo — igual de "protegido por oscuridad"
+  que el resto de esta herramienta interna, no es un control de acceso
+  real. Límite de 3 MB por archivo (margen para el límite de payload de
+  las funciones de Vercel); se puede subir más de un PDF por solicitud.
 - **`fondo_id`**: cada gasto guarda a qué fondo específico pertenece (columna
   `fondo_id` en `gastos_registros`). Los gastos creados **antes** de que
   existiera esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y

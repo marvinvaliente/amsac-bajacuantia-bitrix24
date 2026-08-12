@@ -87,6 +87,19 @@ function construirItems(items, exigirPresupuestario) {
   return { items: limpios };
 }
 
+// Cotizaciones en PDF adjuntadas (ya subidas a Storage por api/upload.js;
+// aquí solo se valida/sanea la lista de {url, nombre} que llega).
+function construirCotizaciones(input) {
+  const lista = Array.isArray(input) ? input : [];
+  const limpios = [];
+  for (const it of lista) {
+    const url = String((it && it.url) || '').trim();
+    if (!/^https:\/\//.test(url)) continue;
+    limpios.push({ url: url, nombre: String((it && it.nombre) || '').trim() || 'cotizacion.pdf' });
+  }
+  return limpios;
+}
+
 function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
   s = s || {};
   const fondoId = parseInt(s.fondo_id, 10);
@@ -122,6 +135,7 @@ function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
       clasificacion: clasificacion,
       forma_pago: formaPago,
       items: itemsBuilt.items,
+      cotizacion_urls: construirCotizaciones(s.cotizacion_urls),
       monto_total: Math.round(montoTotal * 100) / 100,
       created_by_id: String(actorId || ''),
       created_by_nombre: actorNombre || ''
