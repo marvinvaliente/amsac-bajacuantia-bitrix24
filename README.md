@@ -25,8 +25,11 @@ pertenezcan (se asignan desde **Configurar usuarios**, ver más abajo):
   **solo para las solicitudes del/los fondo(s) que administra**: es un
   subconjunto de los usuarios asignados a un fondo (no todos los que
   pueden usarlo para crear solicitudes son también administradores de
-  ese fondo). El servidor valida esto también al momento de desembolsar,
-  no solo la pantalla.
+  ese fondo). Se elige al **crear el fondo** (y se puede cambiar después
+  al **editarlo**); si alguien deja de ser administrador sigue siendo
+  usuario normal del fondo (no pierde el acceso a crear solicitudes
+  contra él, solo el de desembolsar). El servidor valida esto también al
+  momento de desembolsar, no solo la pantalla.
 
 Estos tres grupos son independientes entre sí: un usuario puede pertenecer
 a ninguno, a uno o a los tres a la vez (además de ser o no administrador
@@ -148,17 +151,25 @@ del portal, que da acceso a todo sin excepción).
   refleja el estado más reciente guardado en Supabase al momento de
   cargar/actualizar).
 - **Configurar usuarios** (solo administradores): tiene tres partes.
-  1. **Crear fondo** / **Fondos creados**: igual que antes — se crean
-     **fondos** (Fondo de caja chica / Fondo circulante, con monto total y
-     año). El botón **"Asignar usuarios"** de cada fondo abre un modal con
-     dos casillas por usuario: **"Asignar"** (da acceso al fondo — Crear
-     Solicitud, Registrar factura, Historial e Informe) y **"Administrador"**
-     (solo disponible si está asignado; además puede **desembolsar** las
-     solicitudes de ese fondo específico). Un usuario queda habilitado para
-     usar la app únicamente si está asignado a al menos un fondo, es
-     certificador, es administrador de algún fondo, o es administrador del
-     portal.
-  2. **Certificación presupuestaria**: dos listas de checkboxes —
+  1. **Crear fondo**: además de tipo/monto/año, tiene un buscador con
+     checklist **"Administrador(es) del fondo"** — quienes se marquen aquí
+     podrán **desembolsar** las solicitudes de ese fondo. Si alguno todavía
+     no es usuario del fondo, se agrega automáticamente al guardar (un
+     administrador siempre es también usuario del fondo). Al **editar** un
+     fondo, este mismo checklist aparece precargado con los administradores
+     actuales y se puede modificar (agregar/quitar) igual que al crearlo.
+  2. **Fondos creados**: el botón **"Asignar usuarios"** de cada fondo abre
+     un modal para dar acceso al fondo (Crear Solicitud, Registrar factura,
+     Historial e Informe) con tres formas de elegir, combinables entre sí:
+     **"Seleccionar todos los usuarios"** (un solo checkbox), **"Asignar
+     por departamento"** (checklist de departamentos de Bitrix24 — marcar
+     uno agrega a todos sus miembros) y **"Asignar por usuario individual"**
+     (buscador + checklist, como antes). Este modal ya no gestiona
+     administradores — eso se hace desde "Crear fondo" / "Editar". Un
+     usuario queda habilitado para usar la app únicamente si está asignado
+     a al menos un fondo, es certificador, es administrador de algún fondo,
+     o es administrador del portal.
+  3. **Certificación presupuestaria**: dos listas de checkboxes —
      **usuarios certificadores** (buscador + lista de todos los usuarios de
      Bitrix24) y **departamentos certificadores** (lista de todos los
      departamentos). "Guardar certificadores" reemplaza la lista completa

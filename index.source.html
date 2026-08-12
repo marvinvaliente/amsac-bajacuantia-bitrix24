@@ -873,7 +873,15 @@
           <select id="fAnio"></select>
         </div>
       </div>
-      <div class="btn-row">
+
+      <label style="margin-top:14px;display:block">Administrador(es) del fondo</label>
+      <div class="gasto-line" style="margin-bottom:8px">Podrán desembolsar las solicitudes de este fondo. Si aún no son usuarios del fondo, se agregan automáticamente al guardar.</div>
+      <div class="search-box">
+        <input type="text" id="fAdminSearch" placeholder="Buscar usuario..." />
+      </div>
+      <div id="fAdminList" class="user-list" style="max-height:220px"></div>
+
+      <div class="btn-row" style="margin-top:14px">
         <button type="button" id="btnCrearFondo">Crear fondo</button>
         <button type="button" id="btnCancelarEdicionFondo" class="secondary" style="display:none">Cancelar edición</button>
       </div>
@@ -904,7 +912,16 @@
         <div class="map-modal-header">
           <b id="asignarModalTitle">Asignar usuarios</b>
         </div>
-        <div class="gasto-line" style="margin-bottom:10px">Marca "Asignar" para dar acceso al fondo (Crear Solicitud, Registrar factura, Historial e Informe). Marca además "Administrador" para que también pueda desembolsarlo.</div>
+        <div class="gasto-line" style="margin-bottom:10px">Da acceso al fondo (Crear Solicitud, Registrar factura, Historial e Informe). Para asignar quién puede desembolsarlo, hazlo desde "Crear fondo" / "Editar".</div>
+
+        <label class="user-row" style="font-weight:600;cursor:pointer">
+          <input type="checkbox" id="asignarTodosCheck" /><span>Seleccionar todos los usuarios</span>
+        </label>
+
+        <label style="margin-top:12px;display:block">Asignar por departamento</label>
+        <div id="asignarDeptList" class="user-list" style="margin-bottom:12px"></div>
+
+        <label style="display:block">Asignar por usuario individual</label>
         <div class="search-box">
           <input type="text" id="asignarUserSearch" placeholder="Buscar usuario..." />
         </div>
@@ -2852,6 +2869,7 @@
   var fondoAsignando = null;
   var pendingAsignadosIds = [];
   var pendingAdminIds = [];
+  var pendingFondoAdminIds = []; // administrador(es) elegidos en Crear/Editar fondo
   var TIPO_FONDO_LABEL = { caja_chica: 'Fondo de caja chica', circulante: 'Fondo circulante' };
 
   function cargarSolicitudes() {
@@ -2965,6 +2983,29 @@
     });
   }
 
+  function renderFondoAdminList() {
+    var listEl = document.getElementById('fAdminList');
+    var filter = (document.getElementById('fAdminSearch').value || '').toLowerCase();
+    listEl.innerHTML = '';
+    allUsers
+      .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
+      .forEach(function (u) {
+        var row = document.createElement('label');
+        row.className = 'user-row';
+        var checked = pendingFondoAdminIds.some(function (id) { return String(id) === String(u.ID); });
+        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
+        listEl.appendChild(row);
+      });
+  }
+  document.getElementById('fAdminSearch').addEventListener('input', renderFondoAdminList);
+  document.getElementById('fAdminList').addEventListener('change', function (ev) {
+    var cb = ev.target;
+    if (cb.tagName !== 'INPUT') return;
+    var id = cb.getAttribute('data-id');
+    if (cb.checked) { if (pendingFondoAdminIds.indexOf(id) === -1) pendingFondoAdminIds.push(id); }
+    else { pendingFondoAdminIds = pendingFondoAdminIds.filter(function (x) { return x !== id; }); }
+  });
+
   function limpiarFormFondo() {
     editingFondoId = null;
     document.getElementById('fTipo').value = 'caja_chica';
@@ -2973,6 +3014,9 @@
     document.getElementById('fondoFormTitulo').textContent = 'Crear fondo';
     document.getElementById('btnCrearFondo').textContent = 'Crear fondo';
     document.getElementById('btnCancelarEdicionFondo').style.display = 'none';
+    pendingFondoAdminIds = [];
+    document.getElementById('fAdminSearch').value = '';
+    renderFondoAdminList();
   }
 
   function cargarFondoEnFormulario(fondoId) {
@@ -2985,6 +3029,9 @@
     document.getElementById('fondoFormTitulo').textContent = 'Editar fondo';
     document.getElementById('btnCrearFondo').textContent = 'Guardar cambios';
     document.getElementById('btnCancelarEdicionFondo').style.display = 'block';
+    pendingFondoAdminIds = (f.administrador_ids || []).slice();
+    document.getElementById('fAdminSearch').value = '';
+    renderFondoAdminList();
     hideMsg(document.getElementById('fondoMsg'));
     document.getElementById('fTipo').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
@@ -3005,15 +3052,40 @@
     var btn = this;
     btn.disabled = true;
     var accion = editingFondoId ? 'update' : 'create';
+    var fondoIdEditado = editingFondoId;
+    var fondoPrevio = fondoIdEditado ? fondos.find(function (x) { return String(x.id) === String(fondoIdEditado); }) : null;
+    var adminsElegidos = pendingFondoAdminIds.slice();
+
     apiCall('fondos', { method: 'POST', body: { action: accion, id: editingFondoId, fondo: fondo } }).then(function (r) {
-      btn.disabled = false;
-      if (r.ok) {
-        showMsg(msgEl, 'success', editingFondoId ? 'Fondo actualizado correctamente.' : 'Fondo creado correctamente.');
-        limpiarFormFondo();
-        cargarFondos();
-      } else {
+      if (!r.ok) {
+        btn.disabled = false;
         showMsg(msgEl, 'error', r.error || 'No se pudo guardar el fondo.');
+        return;
       }
+      var fondoId = fondoIdEditado || (r.fondo && r.fondo.id);
+      var existentesIds = fondoPrevio ? (fondoPrevio.usuario_ids || []).slice() : [];
+      var adminsPrevios = fondoPrevio ? (fondoPrevio.administrador_ids || []).slice() : [];
+      var cambiaronAdmins = adminsElegidos.slice().sort().join(',') !== adminsPrevios.slice().sort().join(',');
+      var guardarAdmins = Promise.resolve({ ok: true });
+      if (adminsElegidos.length || cambiaronAdmins) {
+        var mergedIds = existentesIds.slice();
+        adminsElegidos.forEach(function (id) { if (mergedIds.indexOf(id) === -1) mergedIds.push(id); });
+        var usuariosPayload = mergedIds.map(function (id) { return { id: id, esAdmin: adminsElegidos.indexOf(id) !== -1 }; });
+        guardarAdmins = apiCall('fondos', { method: 'POST', body: { action: 'asignar', fondo_id: fondoId, usuarios: usuariosPayload } });
+      }
+      guardarAdmins.then(function (r2) {
+        btn.disabled = false;
+        if (r2.ok) {
+          showMsg(msgEl, 'success', editingFondoId ? 'Fondo actualizado correctamente.' : 'Fondo creado correctamente.');
+          limpiarFormFondo();
+          cargarFondos().then(recalcularAutorizacion);
+        } else {
+          showMsg(msgEl, 'error', r2.error || 'El fondo se guardó, pero no se pudo actualizar el/los administrador(es).');
+        }
+      }).catch(function () {
+        btn.disabled = false;
+        showMsg(msgEl, 'error', 'Fondo guardado, pero hubo un error de conexión al asignar administradores.');
+      });
     }).catch(function () {
       btn.disabled = false;
       showMsg(msgEl, 'error', 'Error de conexión al guardar el fondo.');
@@ -3030,7 +3102,7 @@
       'Asignar usuarios — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
     document.getElementById('asignarUserSearch').value = '';
     hideMsg(document.getElementById('asignarModalMsg'));
-    renderAsignarUserList();
+    renderAsignarTodo();
     document.getElementById('asignarModal').classList.add('open');
   }
   function cerrarModalAsignar() {
@@ -3039,6 +3111,56 @@
   }
   document.getElementById('asignarModalCancel').addEventListener('click', cerrarModalAsignar);
 
+  function renderAsignarTodo() {
+    renderAsignarTodosCheckbox();
+    renderAsignarDeptList();
+    renderAsignarUserList();
+  }
+
+  function renderAsignarTodosCheckbox() {
+    document.getElementById('asignarTodosCheck').checked =
+      allUsers.length > 0 && allUsers.every(function (u) { return pendingAsignadosIds.indexOf(String(u.ID)) !== -1; });
+  }
+  document.getElementById('asignarTodosCheck').addEventListener('change', function (ev) {
+    if (ev.target.checked) {
+      allUsers.forEach(function (u) { var id = String(u.ID); if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); });
+    } else {
+      // No se toca pendingAdminIds: al guardar solo se conserva el flag de
+      // administrador para quien siga en pendingAsignadosIds, así que si se
+      // vuelve a marcar a alguien (por depto o individual) antes de guardar,
+      // no pierde su estado de administrador por haber pasado por aquí.
+      pendingAsignadosIds = [];
+    }
+    renderAsignarTodo();
+  });
+
+  function renderAsignarDeptList() {
+    var listEl = document.getElementById('asignarDeptList');
+    if (!allDepartments.length) { listEl.innerHTML = '<div class="empty-state">No se pudieron cargar los departamentos de Bitrix24.</div>'; return; }
+    listEl.innerHTML = '';
+    allDepartments.forEach(function (d) {
+      var miembros = allUsers.filter(function (u) { return (u.UF_DEPARTMENT || []).map(String).indexOf(String(d.ID)) !== -1; }).map(function (u) { return String(u.ID); });
+      var todosAsignados = miembros.length > 0 && miembros.every(function (id) { return pendingAsignadosIds.indexOf(id) !== -1; });
+      var row = document.createElement('label');
+      row.className = 'user-row';
+      row.innerHTML = '<input type="checkbox" data-dept="' + d.ID + '" ' + (todosAsignados ? 'checked' : '') + ' /><span>' +
+        esc((d.NAME || '').replace(/[_\s]+$/, '').trim()) + ' (' + miembros.length + ' usuario' + (miembros.length === 1 ? '' : 's') + ')</span>';
+      listEl.appendChild(row);
+    });
+  }
+  document.getElementById('asignarDeptList').addEventListener('change', function (ev) {
+    var cb = ev.target;
+    if (cb.tagName !== 'INPUT') return;
+    var deptId = cb.getAttribute('data-dept');
+    var miembros = allUsers.filter(function (u) { return (u.UF_DEPARTMENT || []).map(String).indexOf(String(deptId)) !== -1; }).map(function (u) { return String(u.ID); });
+    if (cb.checked) {
+      miembros.forEach(function (id) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); });
+    } else {
+      pendingAsignadosIds = pendingAsignadosIds.filter(function (id) { return miembros.indexOf(id) === -1; });
+    }
+    renderAsignarTodo();
+  });
+
   function renderAsignarUserList() {
     var listEl = document.getElementById('asignarUserList');
     var filter = (document.getElementById('asignarUserSearch').value || '').toLowerCase();
@@ -3046,19 +3168,10 @@
     allUsers
       .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
       .forEach(function (u) {
-        var row = document.createElement('div');
+        var row = document.createElement('label');
         row.className = 'user-row';
-        var asignado = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
-        var esAdmin = pendingAdminIds.some(function (id) { return String(id) === String(u.ID); });
-        row.innerHTML =
-          '<label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">' +
-            '<input type="checkbox" class="asig-check" data-id="' + u.ID + '" ' + (asignado ? 'checked' : '') + ' />' +
-            '<span>' + esc(fullName(u)) + '</span>' +
-          '</label>' +
-          '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7a86;flex:none;white-space:nowrap">' +
-            '<input type="checkbox" class="admin-check" data-id="' + u.ID + '" ' + (esAdmin ? 'checked' : '') + ' ' + (asignado ? '' : 'disabled') + ' />' +
-            'Administrador' +
-          '</label>';
+        var checked = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
+        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
         listEl.appendChild(row);
       });
   }
@@ -3067,17 +3180,10 @@
     var cb = ev.target;
     if (cb.tagName !== 'INPUT') return;
     var id = cb.getAttribute('data-id');
-    if (cb.classList.contains('asig-check')) {
-      if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
-      else {
-        pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; });
-        pendingAdminIds = pendingAdminIds.filter(function (x) { return x !== id; });
-      }
-      renderAsignarUserList();
-    } else if (cb.classList.contains('admin-check')) {
-      if (cb.checked) { if (pendingAdminIds.indexOf(id) === -1) pendingAdminIds.push(id); }
-      else { pendingAdminIds = pendingAdminIds.filter(function (x) { return x !== id; }); }
-    }
+    if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
+    else { pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; }); }
+    renderAsignarTodosCheckbox();
+    renderAsignarDeptList();
   });
 
   document.getElementById('asignarModalGuardar').addEventListener('click', function () {
@@ -3186,6 +3292,7 @@
     poblarAnios();
     cargarFondos();
     cargarCertificadoresUI();
+    renderFondoAdminList();
   }
 
   // ==================================================================
