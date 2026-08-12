@@ -29,6 +29,7 @@
     color: var(--text);
   }
   .wrap { max-width: 900px; margin: 0 auto; padding: 22px 18px 60px; }
+  @media (min-width: 900px) { .wrap { max-width: 1180px; } }
 
   .app-header {
     position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 1000;
@@ -107,8 +108,9 @@
   input[readonly], textarea[readonly], select.select-locked { background: var(--bg); color: #6b7a86; cursor: pointer; }
   .items-table input:disabled { background: #f4f6f8; color: #9aa5bd; cursor: not-allowed; }
   textarea { min-height: 70px; resize: vertical; }
-  .row { display: flex; gap: 12px; }
+  .row { display: flex; flex-direction: column; gap: 0; }
   .row > div { flex: 1; min-width: 0; }
+  @media (min-width: 900px) { .row { flex-direction: row; gap: 12px; } }
   button {
     background: var(--primary); color: #fff; border: none; border-radius: 6px;
     padding: 13px 18px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 18px;
@@ -273,7 +275,6 @@
   @media (max-width: 480px) {
     .wrap { padding: 14px 12px 40px; }
     .card { padding: 14px; }
-    .row { flex-direction: column; gap: 0; }
     .drawer { width: 84vw; max-width: 300px; }
     .user-row { padding: 12px; flex-wrap: wrap; }
     .user-row input[type="checkbox"] { width: 20px; height: 20px; }
@@ -362,46 +363,66 @@
     <div id="viewCrearSolicitud" class="card" style="display:none">
       <div class="section-title">Crear Solicitud</div>
       <form id="formSolicitud">
-        <label for="sFondo">Fondo *</label>
-        <select id="sFondo" required></select>
-
-        <label for="sAreaSolicitante">Área solicitante *</label>
-        <div class="combo-wrap">
-          <input type="text" id="sAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
-          <div id="sAreaDropdown" class="combo-dropdown"></div>
+        <div class="row">
+          <div>
+            <label for="sFondo">Fondo *</label>
+            <select id="sFondo" required></select>
+          </div>
+          <div>
+            <label for="sAreaSolicitante">Área solicitante *</label>
+            <div class="combo-wrap">
+              <input type="text" id="sAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+              <div id="sAreaDropdown" class="combo-dropdown"></div>
+            </div>
+          </div>
         </div>
 
-        <label for="sGerencia">Gerencia responsable *</label>
-        <div class="combo-wrap">
-          <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
-          <div id="sGerenciaDropdown" class="combo-dropdown"></div>
-          <input type="hidden" id="sGerenciaId" />
+        <div class="row">
+          <div>
+            <label for="sGerencia">Gerencia responsable *</label>
+            <div class="combo-wrap">
+              <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+              <div id="sGerenciaDropdown" class="combo-dropdown"></div>
+              <input type="hidden" id="sGerenciaId" />
+            </div>
+          </div>
+          <div>
+            <label for="sNombreProceso">Nombre del proceso *</label>
+            <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+          </div>
         </div>
 
-        <label for="sNombreProceso">Nombre del proceso *</label>
-        <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+        <div class="row">
+          <div>
+            <label for="sDescripcion">Descripción *</label>
+            <textarea id="sDescripcion" placeholder="Descripción de la compra" required></textarea>
+          </div>
+          <div>
+            <label for="sJustificacion">Justificación *</label>
+            <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
+          </div>
+        </div>
 
-        <label for="sDescripcion">Descripción *</label>
-        <textarea id="sDescripcion" placeholder="Descripción de la compra" required></textarea>
-
-        <label for="sJustificacion">Justificación *</label>
-        <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
-
-        <label for="sClasificacion">Clasificación del gasto *</label>
-        <select id="sClasificacion" required>
-          <option value="">Selecciona una opción</option>
-          <option value="emergente">Gasto Emergente</option>
-          <option value="imprevisto">Gasto Imprevisto</option>
-          <option value="recurrente">Gasto Recurrente</option>
-        </select>
-
-        <label for="sFormaPago">Forma de Pago *</label>
-        <select id="sFormaPago" required>
-          <option value="">Selecciona una opción</option>
-          <option value="efectivo">Efectivo</option>
-          <option value="transferencia">Transferencia Bancaria</option>
-          <option value="cheque">Cheque</option>
-        </select>
+        <div class="row">
+          <div>
+            <label for="sClasificacion">Clasificación del gasto *</label>
+            <select id="sClasificacion" required>
+              <option value="">Selecciona una opción</option>
+              <option value="emergente">Gasto Emergente</option>
+              <option value="imprevisto">Gasto Imprevisto</option>
+              <option value="recurrente">Gasto Recurrente</option>
+            </select>
+          </div>
+          <div>
+            <label for="sFormaPago">Forma de Pago *</label>
+            <select id="sFormaPago" required>
+              <option value="">Selecciona una opción</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia Bancaria</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
 
         <div class="section-title" style="margin-top:22px">Ítems</div>
         <div class="table-wrap">
@@ -430,49 +451,69 @@
     <div id="viewCertificacion" class="card" style="display:none">
       <div class="section-title" id="certFormTitulo" style="display:none">Editar solicitud</div>
       <form id="formCertificacion" style="display:none">
-        <label for="cFondo">Fondo *</label>
-        <select id="cFondo" required></select>
-
-        <label for="cAreaSolicitante">Área solicitante *</label>
-        <div class="combo-wrap">
-          <input type="text" id="cAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
-          <div id="cAreaDropdown" class="combo-dropdown"></div>
+        <div class="row">
+          <div>
+            <label for="cFondo">Fondo *</label>
+            <select id="cFondo" required></select>
+          </div>
+          <div>
+            <label for="cAreaSolicitante">Área solicitante *</label>
+            <div class="combo-wrap">
+              <input type="text" id="cAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+              <div id="cAreaDropdown" class="combo-dropdown"></div>
+            </div>
+          </div>
         </div>
 
-        <label for="cGerencia">Gerencia responsable *</label>
-        <div class="combo-wrap">
-          <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
-          <div id="cGerenciaDropdown" class="combo-dropdown"></div>
-          <input type="hidden" id="cGerenciaId" />
+        <div class="row">
+          <div>
+            <label for="cGerencia">Gerencia responsable *</label>
+            <div class="combo-wrap">
+              <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+              <div id="cGerenciaDropdown" class="combo-dropdown"></div>
+              <input type="hidden" id="cGerenciaId" />
+            </div>
+          </div>
+          <div>
+            <label for="cNombreProceso">Nombre del proceso *</label>
+            <input type="text" id="cNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
+          </div>
         </div>
 
-        <label for="cNombreProceso">Nombre del proceso *</label>
-        <input type="text" id="cNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
-
-        <label for="cDescripcion">Descripción *</label>
-        <textarea id="cDescripcion" placeholder="Descripción de la compra" required></textarea>
-
-        <label for="cJustificacion">Justificación *</label>
-        <textarea id="cJustificacion" placeholder="Justificación de la compra" required></textarea>
+        <div class="row">
+          <div>
+            <label for="cDescripcion">Descripción *</label>
+            <textarea id="cDescripcion" placeholder="Descripción de la compra" required></textarea>
+          </div>
+          <div>
+            <label for="cJustificacion">Justificación *</label>
+            <textarea id="cJustificacion" placeholder="Justificación de la compra" required></textarea>
+          </div>
+        </div>
 
         <label>Cotización adjunta</label>
         <div id="cCotizacionLista" class="cotizacion-lista"></div>
 
-        <label for="cClasificacion">Clasificación del gasto *</label>
-        <select id="cClasificacion" required>
-          <option value="">Selecciona una opción</option>
-          <option value="emergente">Gasto Emergente</option>
-          <option value="imprevisto">Gasto Imprevisto</option>
-          <option value="recurrente">Gasto Recurrente</option>
-        </select>
-
-        <label for="cFormaPago">Forma de Pago *</label>
-        <select id="cFormaPago" required>
-          <option value="">Selecciona una opción</option>
-          <option value="efectivo">Efectivo</option>
-          <option value="transferencia">Transferencia Bancaria</option>
-          <option value="cheque">Cheque</option>
-        </select>
+        <div class="row">
+          <div>
+            <label for="cClasificacion">Clasificación del gasto *</label>
+            <select id="cClasificacion" required>
+              <option value="">Selecciona una opción</option>
+              <option value="emergente">Gasto Emergente</option>
+              <option value="imprevisto">Gasto Imprevisto</option>
+              <option value="recurrente">Gasto Recurrente</option>
+            </select>
+          </div>
+          <div>
+            <label for="cFormaPago">Forma de Pago *</label>
+            <select id="cFormaPago" required>
+              <option value="">Selecciona una opción</option>
+              <option value="efectivo">Efectivo</option>
+              <option value="transferencia">Transferencia Bancaria</option>
+              <option value="cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
 
         <div class="section-title" style="margin-top:22px">Ítems</div>
         <div class="table-wrap">
@@ -575,18 +616,28 @@
           <div><b>Ítem:</b> <span id="gItemDisplay">—</span></div>
         </div>
 
-        <label for="gFecha">Fecha *</label>
-        <input type="date" id="gFecha" required />
+        <div class="row">
+          <div>
+            <label for="gFecha">Fecha *</label>
+            <input type="date" id="gFecha" required />
+          </div>
+          <div>
+            <label for="gMes">Mes</label>
+            <input type="text" id="gMes" readonly />
+          </div>
+        </div>
 
-        <label for="gMes">Mes</label>
-        <input type="text" id="gMes" readonly />
-
-        <label for="gNumeroDocumento">N° de documento *</label>
-        <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
-
-        <label for="gProveedor">Proveedor *</label>
-        <input type="text" id="gProveedor" list="gProveedorList" placeholder="Nombre del proveedor" required maxlength="150" />
-        <datalist id="gProveedorList"></datalist>
+        <div class="row">
+          <div>
+            <label for="gNumeroDocumento">N° de documento *</label>
+            <input type="text" id="gNumeroDocumento" placeholder="Número de factura, CF o ticket" required maxlength="60" />
+          </div>
+          <div>
+            <label for="gProveedor">Proveedor *</label>
+            <input type="text" id="gProveedor" list="gProveedorList" placeholder="Nombre del proveedor" required maxlength="150" />
+            <datalist id="gProveedorList"></datalist>
+          </div>
+        </div>
 
         <div class="row">
           <div>

@@ -6,6 +6,30 @@ listado de empleados/departamentos vienen del contexto de sesión de Bitrix24
 (`BX24.js`); los datos de los gastos se guardan en el **mismo proyecto Supabase**
 que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
+## Diseño responsive
+
+Toda la app tiene dos modos, según el ancho de pantalla (punto de corte:
+**900px**, el mismo donde el menú lateral pasa de fijo a hamburguesa):
+
+- **Escritorio (≥900px)**: el contenido aprovecha hasta 1180px de ancho
+  (antes 900px fijo, se veía como una columna angosta flotando en medio de
+  la pantalla). Los formularios largos (Crear Solicitud, Certificación
+  presupuestaria, edición rápida de un gasto) agrupan sus campos en pares
+  de dos columnas (`Fondo`/`Área solicitante`, `Descripción`/
+  `Justificación`, etc.) para no obligar a hacer scroll vertical
+  innecesario.
+- **Tablet / celular (<900px)**: menú lateral colapsado a hamburguesa con
+  overlay, todos los campos de formulario apilados en una sola columna
+  (más fáciles de tocar), y las tablas con muchas columnas (ítems de una
+  solicitud, Historial, Reportes, etc.) se desplazan horizontalmente
+  dentro de su propio contenedor en vez de romper el diseño de la página.
+  Por debajo de 480px se reduce además el padding general y crecen los
+  checkboxes de las listas de usuarios para facilitar el toque.
+
+Este comportamiento es puramente CSS (clase `.row` y el ancho de `.wrap`
+según media query) — no depende de detectar el dispositivo, así que
+también se adapta si alguien cambia el tamaño de la ventana en escritorio.
+
 ## Modelo de permisos
 
 Un administrador del portal ve y puede hacer todo. Para el resto de
