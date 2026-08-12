@@ -100,7 +100,7 @@ function construirCotizaciones(input) {
   return limpios;
 }
 
-function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
+function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigirCotizacion) {
   s = s || {};
   const fondoId = parseInt(s.fondo_id, 10);
   if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece esta solicitud.' };
@@ -119,6 +119,13 @@ function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
   const formaPago = FORMAS_PAGO.indexOf(s.forma_pago) !== -1 ? s.forma_pago : null;
   if (!formaPago) return { error: 'Selecciona una forma de pago válida.' };
 
+  // Obligatorio solo al crear (exigirCotizacion=true); al certificar
+  // (update) no se exige, para no bloquear solicitudes creadas antes de
+  // que este campo existiera — Certificación tampoco ofrece forma de
+  // agregarlas, solo las conserva de solo lectura.
+  const cotizaciones = construirCotizaciones(s.cotizacion_urls);
+  if (exigirCotizacion && !cotizaciones.length) return { error: 'Debes adjuntar al menos una cotización en PDF.' };
+
   const itemsBuilt = construirItems(s.items, exigirPresupuestario);
   if (itemsBuilt.error) return { error: itemsBuilt.error };
   const montoTotal = itemsBuilt.items.reduce((acc, it) => acc + it.total, 0);
@@ -135,7 +142,7 @@ function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario) {
       clasificacion: clasificacion,
       forma_pago: formaPago,
       items: itemsBuilt.items,
-      cotizacion_urls: construirCotizaciones(s.cotizacion_urls),
+      cotizacion_urls: cotizaciones,
       monto_total: Math.round(montoTotal * 100) / 100,
       created_by_id: String(actorId || ''),
       created_by_nombre: actorNombre || ''
@@ -166,7 +173,7 @@ module.exports = async (req, res) => {
       const action = body.action;
 
       if (action === 'create') {
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false);
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
@@ -188,7 +195,7 @@ module.exports = async (req, res) => {
           return;
         }
 
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true);
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true, false);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
         delete row.created_by_id;

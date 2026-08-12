@@ -376,10 +376,6 @@
         <label for="sJustificacion">Justificación *</label>
         <textarea id="sJustificacion" placeholder="Justificación de la compra" required></textarea>
 
-        <label for="sCotizacionFile">Adjuntar cotización (PDF)</label>
-        <input type="file" id="sCotizacionFile" accept="application/pdf" multiple />
-        <div id="sCotizacionLista" class="cotizacion-lista"></div>
-
         <label for="sClasificacion">Clasificación del gasto *</label>
         <select id="sClasificacion" required>
           <option value="">Selecciona una opción</option>
@@ -407,6 +403,10 @@
         </div>
         <button type="button" id="btnAgregarItem" class="secondary">+ Agregar ítem</button>
         <div class="items-total-row">Total de la solicitud: <b id="sItemsTotal">$0.00</b></div>
+
+        <label for="sCotizacionFile" style="margin-top:22px">Adjuntar cotizaciones (PDF) *</label>
+        <input type="file" id="sCotizacionFile" accept="application/pdf" multiple />
+        <div id="sCotizacionLista" class="cotizacion-lista"></div>
 
         <div class="btn-row">
           <button type="submit" id="btnGuardarSolicitud">Crear solicitud</button>
@@ -1474,7 +1474,7 @@
     recalcularItemsTotal();
   });
 
-  // ---- Adjuntar cotización (PDF) ----
+  // ---- Adjuntar cotizaciones (PDF) ----
   var sCotizacionItems = []; // { nombre, url, subiendo }
 
   function renderSCotizacionLista() {
@@ -1563,6 +1563,10 @@
     if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
     if (sCotizacionItems.some(function (c) { return c.subiendo; })) {
       showMsg(msgEl, 'error', 'Espera a que terminen de subir las cotizaciones.');
+      return;
+    }
+    if (!sCotizacionItems.length) {
+      showMsg(msgEl, 'error', 'Adjunta al menos una cotización en PDF.');
       return;
     }
 

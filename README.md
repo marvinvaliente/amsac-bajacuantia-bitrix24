@@ -21,10 +21,12 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      cantidad × precio unitario); el monto total de la solicitud es la suma
      de los ítems. El N° de ítem siempre queda correlativo (1, 2, 3...): si
      se quita una fila, las demás se renumeran para no dejar huecos.
-     También se pueden **adjuntar cotizaciones en PDF** (uno o varios
-     archivos, máx. 3 MB cada uno); quedan disponibles para revisión —de
-     solo lectura— en Certificación presupuestaria y Desembolso de fondos,
-     y se anexan como páginas adicionales al PDF que se descarga al
+     Al final del formulario, justo antes de "Crear solicitud", **"Adjuntar
+     cotizaciones (PDF) \*" es obligatorio**: hay que subir al menos un
+     archivo (se pueden subir varios, máx. 3 MB cada uno) para poder crear
+     la solicitud. Quedan disponibles para revisión —de solo lectura— en
+     Certificación presupuestaria y Desembolso de fondos, y se anexan como
+     páginas adicionales al PDF que se descarga al
      desembolsar.
   2. **Certificación presupuestaria**: muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
@@ -189,6 +191,11 @@ entorno anteriores.
   que el resto de esta herramienta interna, no es un control de acceso
   real. Límite de 3 MB por archivo (margen para el límite de payload de
   las funciones de Vercel); se puede subir más de un PDF por solicitud.
+  Es obligatorio al **crear** una solicitud (al menos un PDF); al
+  **certificarla** (Certificación presupuestaria) no se vuelve a exigir,
+  para no bloquear solicitudes creadas antes de que este campo existiera
+  — ese formulario solo las conserva de solo lectura, no ofrece forma de
+  agregarlas.
 - **`fondo_id`**: cada gasto guarda a qué fondo específico pertenece (columna
   `fondo_id` en `gastos_registros`). Los gastos creados **antes** de que
   existiera esta columna quedan con `fondo_id` vacío; en ese caso el Dashboard y
