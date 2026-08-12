@@ -882,14 +882,29 @@
       <div class="section-title" style="margin-top:22px">Fondos creados</div>
       <div id="fondosLoading" class="loading">Cargando...</div>
       <div id="fondosContent" style="display:none"></div>
+
+      <div class="section-title" style="margin-top:22px">Certificación presupuestaria</div>
+      <div class="gasto-line" style="margin-bottom:10px">Usuarios individuales y/o departamentos completos de Bitrix24 autorizados para certificar solicitudes.</div>
+      <label>Usuarios certificadores</label>
+      <div class="search-box">
+        <input type="text" id="certUserSearch" placeholder="Buscar usuario..." />
+      </div>
+      <div id="certUserList" class="user-list" style="margin-bottom:16px"></div>
+      <label>Departamentos certificadores</label>
+      <div id="certDeptList" class="user-list"></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button type="button" id="btnGuardarCertificadores">Guardar certificadores</button>
+      </div>
+      <div id="certificadoresMsg" class="msg"></div>
     </div>
 
     <!-- Modal: asignar usuarios a un fondo -->
     <div id="asignarModal" class="map-modal">
       <div class="map-modal-content" style="max-width:480px">
         <div class="map-modal-header">
-          <b id="asignarModalTitle">Asignar administrador</b>
+          <b id="asignarModalTitle">Asignar usuarios</b>
         </div>
+        <div class="gasto-line" style="margin-bottom:10px">Marca "Asignar" para dar acceso al fondo (Crear Solicitud, Registrar factura, Historial e Informe). Marca además "Administrador" para que también pueda desembolsarlo.</div>
         <div class="search-box">
           <input type="text" id="asignarUserSearch" placeholder="Buscar usuario..." />
         </div>
@@ -936,6 +951,11 @@
 
   var todosLosGastos = [];      // cache para Reportes (solo admin)
   var gastosFiltrados = [];
+
+  var certificadores = [];      // [{id, tipo:'usuario'|'departamento', valor}]
+  var puedeCertificar = false;  // acceso a Certificación presupuestaria
+  var puedeDesembolsar = false; // acceso a Desembolso de fondos
+  var fondosAdministrados = []; // ids de fondo donde el usuario actual es administrador
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -2030,8 +2050,11 @@
   var desembolsoActualId = null;
 
   function renderDesembolsoTabla() {
-    var lista = solicitudes.filter(function (s) { return s.estado === 'certificado' || s.estado === 'desembolsado'; })
-      .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+    var lista = solicitudes.filter(function (s) {
+      if (s.estado !== 'certificado' && s.estado !== 'desembolsado') return false;
+      if (isAdmin) return true;
+      return fondosAdministrados.some(function (fid) { return String(fid) === String(s.fondo_id); });
+    }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
     document.getElementById('desembolsoListLoading').style.display = 'none';
     document.getElementById('desembolsoListVacio').style.display = lista.length ? 'none' : 'block';
     document.getElementById('desembolsoTableBody').innerHTML = lista.map(function (s) {
@@ -2231,7 +2254,7 @@
       btn.disabled = true;
       apiCall('solicitudes', {
         method: 'POST',
-        body: { action: 'desembolsar', id: desembolsoActualId, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) }
+        body: { action: 'desembolsar', id: desembolsoActualId, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin }
       }).then(function (r) {
         btn.disabled = false;
         if (r.ok) {
@@ -2828,6 +2851,7 @@
   var editingFondoId = null;
   var fondoAsignando = null;
   var pendingAsignadosIds = [];
+  var pendingAdminIds = [];
   var TIPO_FONDO_LABEL = { caja_chica: 'Fondo de caja chica', circulante: 'Fondo circulante' };
 
   function cargarSolicitudes() {
@@ -2854,6 +2878,19 @@
     fondos.forEach(function (f) { (f.usuario_ids || []).forEach(function (id) { union[String(id)] = true; }); });
     autorizadosIds = Object.keys(union);
     canLoad = isAdmin || autorizadosIds.indexOf(String(currentUser.ID)) !== -1;
+
+    var misDeptos = ((currentUser && currentUser.UF_DEPARTMENT) || []).map(String);
+    var certUsuarios = certificadores.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
+    var certDeptos = certificadores.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
+    puedeCertificar = isAdmin ||
+      certUsuarios.indexOf(String(currentUser.ID)) !== -1 ||
+      misDeptos.some(function (d) { return certDeptos.indexOf(d) !== -1; });
+
+    fondosAdministrados = fondos
+      .filter(function (f) { return (f.administrador_ids || []).some(function (id) { return String(id) === String(currentUser.ID); }); })
+      .map(function (f) { return f.id; });
+    puedeDesembolsar = isAdmin || fondosAdministrados.length > 0;
+
     actualizarVisibilidadTabs();
     actualizarBarraFondo();
   }
@@ -2889,6 +2926,7 @@
     }
     el.innerHTML = fondos.map(function (f) {
       var n = (f.usuario_ids || []).length;
+      var nAdmin = (f.administrador_ids || []).length;
       return '<div class="gasto-item">' +
         '<div class="gasto-top">' +
           '<span><b>' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + '</b> · ' + esc(f.anio) + '</span>' +
@@ -2897,9 +2935,12 @@
         '<div class="gasto-line">' + n + ' usuario' + (n === 1 ? '' : 's') + ' asignado' + (n === 1 ? '' : 's') +
           (n ? ': ' + esc(f.usuario_ids.map(nombreDe).join(', ')) : '') +
         '</div>' +
+        '<div class="gasto-line">' + nAdmin + ' administrador' + (nAdmin === 1 ? '' : 'es') + ' de fondo (puede' + (nAdmin === 1 ? '' : 'n') + ' desembolsar)' +
+          (nAdmin ? ': ' + esc(f.administrador_ids.map(nombreDe).join(', ')) : '') +
+        '</div>' +
         '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-editar-fondo="' + f.id + '">Editar</button>' +
-          '<button type="button" class="secondary" data-asignar="' + f.id + '">Asignar administrador</button>' +
+          '<button type="button" class="secondary" data-asignar="' + f.id + '">Asignar usuarios</button>' +
           '<button type="button" class="danger" data-eliminar-fondo="' + f.id + '">Eliminar</button>' +
         '</div>' +
       '</div>';
@@ -2984,8 +3025,9 @@
     fondoAsignando = fondos.find(function (f) { return String(f.id) === String(fondoId); });
     if (!fondoAsignando) return;
     pendingAsignadosIds = (fondoAsignando.usuario_ids || []).slice();
+    pendingAdminIds = (fondoAsignando.administrador_ids || []).slice();
     document.getElementById('asignarModalTitle').textContent =
-      'Asignar administrador — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
+      'Asignar usuarios — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
     document.getElementById('asignarUserSearch').value = '';
     hideMsg(document.getElementById('asignarModalMsg'));
     renderAsignarUserList();
@@ -3004,10 +3046,19 @@
     allUsers
       .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
       .forEach(function (u) {
-        var row = document.createElement('label');
+        var row = document.createElement('div');
         row.className = 'user-row';
-        var checked = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
-        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
+        var asignado = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
+        var esAdmin = pendingAdminIds.some(function (id) { return String(id) === String(u.ID); });
+        row.innerHTML =
+          '<label style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">' +
+            '<input type="checkbox" class="asig-check" data-id="' + u.ID + '" ' + (asignado ? 'checked' : '') + ' />' +
+            '<span>' + esc(fullName(u)) + '</span>' +
+          '</label>' +
+          '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#6b7a86;flex:none;white-space:nowrap">' +
+            '<input type="checkbox" class="admin-check" data-id="' + u.ID + '" ' + (esAdmin ? 'checked' : '') + ' ' + (asignado ? '' : 'disabled') + ' />' +
+            'Administrador' +
+          '</label>';
         listEl.appendChild(row);
       });
   }
@@ -3016,8 +3067,17 @@
     var cb = ev.target;
     if (cb.tagName !== 'INPUT') return;
     var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
-    else { pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; }); }
+    if (cb.classList.contains('asig-check')) {
+      if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
+      else {
+        pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; });
+        pendingAdminIds = pendingAdminIds.filter(function (x) { return x !== id; });
+      }
+      renderAsignarUserList();
+    } else if (cb.classList.contains('admin-check')) {
+      if (cb.checked) { if (pendingAdminIds.indexOf(id) === -1) pendingAdminIds.push(id); }
+      else { pendingAdminIds = pendingAdminIds.filter(function (x) { return x !== id; }); }
+    }
   });
 
   document.getElementById('asignarModalGuardar').addEventListener('click', function () {
@@ -3025,7 +3085,10 @@
     var msgEl = document.getElementById('asignarModalMsg');
     var btn = this;
     btn.disabled = true;
-    apiCall('fondos', { method: 'POST', body: { action: 'asignar', fondo_id: fondoAsignando.id, usuario_ids: pendingAsignadosIds } }).then(function (r) {
+    var usuarios = pendingAsignadosIds.map(function (id) {
+      return { id: id, esAdmin: pendingAdminIds.indexOf(id) !== -1 };
+    });
+    apiCall('fondos', { method: 'POST', body: { action: 'asignar', fondo_id: fondoAsignando.id, usuarios: usuarios } }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
         cerrarModalAsignar();
@@ -3039,24 +3102,106 @@
     });
   });
 
+  // ---- Certificadores (usuarios y/o departamentos) ----
+  var pendingCertUsuarios = [];
+  var pendingCertDeptos = [];
+
+  function cargarCertificadoresUI() {
+    pendingCertUsuarios = certificadores.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
+    pendingCertDeptos = certificadores.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
+    document.getElementById('certUserSearch').value = '';
+    hideMsg(document.getElementById('certificadoresMsg'));
+    renderCertUserList();
+    renderCertDeptList();
+  }
+
+  function renderCertUserList() {
+    var listEl = document.getElementById('certUserList');
+    var filter = (document.getElementById('certUserSearch').value || '').toLowerCase();
+    listEl.innerHTML = '';
+    allUsers
+      .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
+      .forEach(function (u) {
+        var row = document.createElement('label');
+        row.className = 'user-row';
+        var checked = pendingCertUsuarios.indexOf(String(u.ID)) !== -1;
+        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
+        listEl.appendChild(row);
+      });
+  }
+  document.getElementById('certUserSearch').addEventListener('input', renderCertUserList);
+  document.getElementById('certUserList').addEventListener('change', function (ev) {
+    var cb = ev.target;
+    if (cb.tagName !== 'INPUT') return;
+    var id = cb.getAttribute('data-id');
+    if (cb.checked) { if (pendingCertUsuarios.indexOf(id) === -1) pendingCertUsuarios.push(id); }
+    else { pendingCertUsuarios = pendingCertUsuarios.filter(function (x) { return x !== id; }); }
+  });
+
+  function renderCertDeptList() {
+    var listEl = document.getElementById('certDeptList');
+    if (!allDepartments.length) { listEl.innerHTML = '<div class="empty-state">No se pudieron cargar los departamentos de Bitrix24.</div>'; return; }
+    listEl.innerHTML = '';
+    allDepartments.forEach(function (d) {
+      var row = document.createElement('label');
+      row.className = 'user-row';
+      var checked = pendingCertDeptos.indexOf(String(d.ID)) !== -1;
+      row.innerHTML = '<input type="checkbox" data-id="' + d.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc((d.NAME || '').replace(/[_\s]+$/, '').trim()) + '</span>';
+      listEl.appendChild(row);
+    });
+  }
+  document.getElementById('certDeptList').addEventListener('change', function (ev) {
+    var cb = ev.target;
+    if (cb.tagName !== 'INPUT') return;
+    var id = cb.getAttribute('data-id');
+    if (cb.checked) { if (pendingCertDeptos.indexOf(id) === -1) pendingCertDeptos.push(id); }
+    else { pendingCertDeptos = pendingCertDeptos.filter(function (x) { return x !== id; }); }
+  });
+
+  document.getElementById('btnGuardarCertificadores').addEventListener('click', function () {
+    var msgEl = document.getElementById('certificadoresMsg');
+    hideMsg(msgEl);
+    var items = pendingCertUsuarios.map(function (id) { return { tipo: 'usuario', valor: id }; })
+      .concat(pendingCertDeptos.map(function (id) { return { tipo: 'departamento', valor: id }; }));
+    var btn = this;
+    btn.disabled = true;
+    apiCall('certificadores', { method: 'POST', body: { action: 'guardar', items: items } }).then(function (r) {
+      btn.disabled = false;
+      if (r.ok) {
+        showMsg(msgEl, 'success', 'Certificadores actualizados correctamente.');
+        apiCall('certificadores?action=list').then(function (r2) {
+          certificadores = r2.certificadores || [];
+          recalcularAutorizacion();
+        });
+      } else {
+        showMsg(msgEl, 'error', r.error || 'No se pudo guardar la lista de certificadores.');
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      showMsg(msgEl, 'error', 'Error de conexión al guardar.');
+    });
+  });
+
   function initConfigTab() {
     poblarAnios();
     cargarFondos();
+    cargarCertificadoresUI();
   }
 
   // ==================================================================
   // Init
   // ==================================================================
   function actualizarVisibilidadTabs() {
-    document.getElementById('groupSolicitud').classList.toggle('hidden', !canLoad);
+    var accesoAlgunModulo = canLoad || puedeCertificar || puedeDesembolsar;
+    document.getElementById('groupSolicitud').classList.toggle('hidden', !accesoAlgunModulo);
     document.getElementById('tabCrearSolicitudBtn').classList.toggle('hidden', !canLoad);
-    document.getElementById('tabCertificacionBtn').classList.toggle('hidden', !canLoad);
-    document.getElementById('tabDesembolsoBtn').classList.toggle('hidden', !canLoad);
+    document.getElementById('tabCertificacionBtn').classList.toggle('hidden', !puedeCertificar);
+    document.getElementById('tabDesembolsoBtn').classList.toggle('hidden', !puedeDesembolsar);
     document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabInformeBtn').classList.toggle('hidden', !(canLoad || isAdmin));
-    document.getElementById('tabReportesBtn').classList.toggle('hidden', !(canLoad || isAdmin));
-    document.getElementById('tabDashboardBtn').classList.toggle('hidden', !(canLoad || isAdmin));
+    document.getElementById('tabReportesBtn').classList.toggle('hidden', !(accesoAlgunModulo || isAdmin));
+    document.getElementById('tabDashboardBtn').classList.toggle('hidden', !(accesoAlgunModulo || isAdmin));
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }
 
@@ -3074,16 +3219,19 @@
       if (departamentosError) console.error('department.get falló:', departamentosError);
       poblarAreasDesdeDepartamentos();
       poblarAnios();
-      return Promise.all([apiCall('fondos?action=list'), apiCall('solicitudes?action=list')]);
+      return Promise.all([apiCall('fondos?action=list'), apiCall('solicitudes?action=list'), apiCall('certificadores?action=list')]);
     }).then(function (resList) {
       fondos = resList[0].fondos || [];
       solicitudes = resList[1].solicitudes || [];
+      certificadores = resList[2].certificadores || [];
       recalcularAutorizacion();
       poblarSolicitudesSelectores();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
       if (canLoad) { activarTab('crearSolicitud'); poblarFondosUsuario(); prellenarAreaSolicitante(); cargarProveedores(); }
+      else if (puedeCertificar) { activarTab('certificacion'); }
+      else if (puedeDesembolsar) { activarTab('desembolso'); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
     }).catch(function (err) {

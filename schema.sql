@@ -162,3 +162,22 @@ create index if not exists gastos_registros_solicitud_item_idx on gastos_registr
 -- en Supabase Storage vía api/upload.js.
 alter table gastos_registros add column if not exists numero_comprobante_retencion text not null default '';
 alter table gastos_registros add column if not exists factura_urls jsonb not null default '[]'::jsonb;
+
+-- Administrador de fondo: subconjunto de gastos_fondo_usuarios que puede
+-- desembolsar solicitudes de ese fondo (pestaña "Desembolso de fondos"). El
+-- resto de usuarios asignados al fondo solo puede crear solicitudes contra
+-- él, registrar su factura, revisar su historial y generar su informe.
+alter table gastos_fondo_usuarios add column if not exists es_administrador boolean not null default false;
+
+-- Certificadores: quién puede certificar presupuestariamente una solicitud
+-- (pestaña "Certificación presupuestaria"). Se asigna por usuario individual
+-- o por departamento completo de Bitrix24: si el usuario pertenece a un
+-- departamento de esta lista, también tiene acceso (aunque no esté asignado
+-- individualmente).
+create table if not exists gastos_certificadores (
+  id          bigserial primary key,
+  tipo        text not null check (tipo in ('usuario','departamento')),
+  valor       text not null,
+  created_at  timestamptz not null default now(),
+  unique (tipo, valor)
+);

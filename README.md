@@ -6,6 +6,32 @@ listado de empleados/departamentos vienen del contexto de sesión de Bitrix24
 (`BX24.js`); los datos de los gastos se guardan en el **mismo proyecto Supabase**
 que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
 
+## Modelo de permisos
+
+Un administrador del portal ve y puede hacer todo. Para el resto de
+usuarios, el acceso a cada pantalla depende de a cuál de estos tres grupos
+pertenezcan (se asignan desde **Configurar usuarios**, ver más abajo):
+
+- **Solicitante** — estar asignado a un fondo (lo mismo que hoy habilita
+  "usar" ese fondo) da acceso a **Crear Solicitud, Registrar factura o
+  documento equivalente, Historial e Informe de Gastos**. Es la misma
+  persona quien crea la solicitud, registra su factura, revisa su
+  historial y genera su informe.
+- **Certificador** — acceso a **Certificación presupuestaria**. Se asigna
+  por usuario individual y/o por departamento completo de Bitrix24 (si el
+  departamento del usuario está en la lista, tiene acceso aunque no esté
+  asignado individualmente). No depende de pertenecer a ningún fondo.
+- **Administrador de fondo** — acceso a **Desembolso de fondos**, pero
+  **solo para las solicitudes del/los fondo(s) que administra**: es un
+  subconjunto de los usuarios asignados a un fondo (no todos los que
+  pueden usarlo para crear solicitudes son también administradores de
+  ese fondo). El servidor valida esto también al momento de desembolsar,
+  no solo la pantalla.
+
+Estos tres grupos son independientes entre sí: un usuario puede pertenecer
+a ninguno, a uno o a los tres a la vez (además de ser o no administrador
+del portal, que da acceso a todo sin excepción).
+
 ## Qué hace
 
 - El menú **"Solicitud"** agrupa cuatro pantallas (se puede colapsar/expandir
@@ -28,7 +54,8 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      Certificación presupuestaria y Desembolso de fondos, y se anexan como
      páginas adicionales al PDF que se descarga al
      desembolsar.
-  2. **Certificación presupuestaria**: muestra **todas las solicitudes en una
+  2. **Certificación presupuestaria** (acceso: certificadores, ver "Modelo
+     de permisos"): muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
      colores: naranja = Pendiente, verde = Certificado, azul = Desembolsado,
      rojo = Eliminada) con botones **Editar** y **Eliminar** por fila (una
@@ -43,9 +70,12 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      "Eliminar" es un borrado lógico: la solicitud queda en estado
      Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
      la tabla para trazabilidad.
-  3. **Desembolso de fondos**: tabla con las solicitudes **Certificado** y
-     **Desembolsado** (fecha, fondo, área, descripción, monto solicitado,
-     estado). "Ver detalle" muestra **toda la información de la solicitud**
+  3. **Desembolso de fondos** (acceso: administradores de fondo, ver "Modelo
+     de permisos" — cada uno solo ve/desembolsa las solicitudes de los
+     fondos que administra, no las de otros fondos): tabla con las
+     solicitudes **Certificado** y **Desembolsado** (fecha, fondo, área,
+     descripción, monto solicitado, estado). "Ver detalle" muestra **toda
+     la información de la solicitud**
      (fondo, área, gerencia responsable, nombre del proceso, descripción,
      justificación, clasificación, forma de pago, la tabla completa de
      ítems con Específico Presupuestario/CEP) con el **monto solicitado**
@@ -117,12 +147,25 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   abre la pestaña o se le da "Actualizar" (no hay un socket de tiempo real;
   refleja el estado más reciente guardado en Supabase al momento de
   cargar/actualizar).
-- **Configurar usuarios** (solo administradores): se crean **fondos** (Fondo de
-  caja chica / Fondo circulante, con monto total y año) y se asocia a cada fondo
-  los usuarios de Bitrix24 que pueden usarlo. Un usuario queda habilitado para
-  registrar/cargar gastos únicamente si está asociado a al menos un fondo (o si
-  es administrador del portal). Ya no se usa `app.option` para esto — la lista de
-  autorizados se deriva de las asociaciones fondo↔usuario guardadas en Supabase.
+- **Configurar usuarios** (solo administradores): tiene tres partes.
+  1. **Crear fondo** / **Fondos creados**: igual que antes — se crean
+     **fondos** (Fondo de caja chica / Fondo circulante, con monto total y
+     año). El botón **"Asignar usuarios"** de cada fondo abre un modal con
+     dos casillas por usuario: **"Asignar"** (da acceso al fondo — Crear
+     Solicitud, Registrar factura, Historial e Informe) y **"Administrador"**
+     (solo disponible si está asignado; además puede **desembolsar** las
+     solicitudes de ese fondo específico). Un usuario queda habilitado para
+     usar la app únicamente si está asignado a al menos un fondo, es
+     certificador, es administrador de algún fondo, o es administrador del
+     portal.
+  2. **Certificación presupuestaria**: dos listas de checkboxes —
+     **usuarios certificadores** (buscador + lista de todos los usuarios de
+     Bitrix24) y **departamentos certificadores** (lista de todos los
+     departamentos). "Guardar certificadores" reemplaza la lista completa
+     de una vez.
+  Ya no se usa `app.option` para nada de esto — todo se deriva de
+  `gastos_fondo_usuarios` (con su columna `es_administrador`) y
+  `gastos_certificadores`, guardadas en Supabase.
 
 ## Base de datos (Supabase)
 
@@ -236,6 +279,15 @@ entorno anteriores.
   puede editar ni eliminar. `desembolsado_at`, `desembolsado_por_id` y
   `desembolsado_por_nombre` quedan guardados para trazabilidad y se usan en
   el PDF del comprobante.
+- **Permisos por módulo** (`gastos_fondo_usuarios.es_administrador` y
+  `gastos_certificadores`): ver "Modelo de permisos" más arriba. La acción
+  `desembolsar` en `api/solicitudes.js` valida en el servidor (no solo en
+  la pantalla) que quien la invoca sea administrador del portal o
+  administrador del fondo de esa solicitud específica — así que ni
+  siquiera llamando directo a la API se puede saltar esa restricción.
+  Certificación y Crear Solicitud no tienen ese refuerzo en el servidor
+  (mismo modelo de confianza que el resto de la app, ver el primer punto de
+  esta sección); el desembolso sí lo tiene por mover fondos reales.
 - **`numero_comprobante_retencion` / `factura_urls`**: campos opcionales de
   "Registrar factura o documento equivalente", uno por ítem/gasto. El
   comprobante es texto libre; `factura_urls` es un array `{url, nombre}`

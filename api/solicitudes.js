@@ -232,13 +232,24 @@ module.exports = async (req, res) => {
 
       if (action === 'desembolsar') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        const actualE = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actualE = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado,fondo_id');
         const actualEData = await actualE.json();
         if (!actualE.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualEData), raw: actualEData }); return; }
         if (!actualEData || !actualEData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
         if (actualEData[0].estado !== 'certificado') {
           res.status(400).json({ ok: false, error: 'Solo se pueden desembolsar solicitudes certificadas.' });
           return;
+        }
+        if (!body.actor_is_admin) {
+          const chk = await sb(
+            'gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(actualEData[0].fondo_id) +
+            '&usuario_id=eq.' + encodeURIComponent(body.actor_id || '') + '&es_administrador=eq.true&select=id'
+          );
+          const chkData = await chk.json();
+          if (!chk.ok || !Array.isArray(chkData) || !chkData.length) {
+            res.status(403).json({ ok: false, error: 'No eres administrador de este fondo, no puedes desembolsarlo.' });
+            return;
+          }
         }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },

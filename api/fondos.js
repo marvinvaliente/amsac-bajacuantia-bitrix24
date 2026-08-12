@@ -66,14 +66,18 @@ module.exports = async (req, res) => {
       if (action === 'list') {
         const [rFondos, rAsig] = await Promise.all([
           sb('gastos_fondos?select=*&order=anio.desc,created_at.desc'),
-          sb('gastos_fondo_usuarios?select=fondo_id,usuario_id')
+          sb('gastos_fondo_usuarios?select=fondo_id,usuario_id,es_administrador')
         ]);
         const fondos = await rFondos.json();
         const asignaciones = await rAsig.json();
-        const conUsuarios = (fondos || []).map((f) => ({
-          ...f,
-          usuario_ids: (asignaciones || []).filter((a) => a.fondo_id === f.id).map((a) => a.usuario_id)
-        }));
+        const conUsuarios = (fondos || []).map((f) => {
+          const propias = (asignaciones || []).filter((a) => a.fondo_id === f.id);
+          return {
+            ...f,
+            usuario_ids: propias.map((a) => a.usuario_id),
+            administrador_ids: propias.filter((a) => a.es_administrador).map((a) => a.usuario_id)
+          };
+        });
         res.status(200).json({ ok: rFondos.ok && rAsig.ok, fondos: conUsuarios });
         return;
       }
@@ -126,15 +130,19 @@ module.exports = async (req, res) => {
 
       if (action === 'asignar') {
         if (!body.fondo_id) { res.status(400).json({ error: 'Falta fondo_id.' }); return; }
-        const ids = Array.isArray(body.usuario_ids) ? body.usuario_ids.map((x) => String(x)) : [];
+        // body.usuarios: [{ id, esAdmin }]. Se acepta también el formato viejo
+        // (body.usuario_ids: string[]) por compatibilidad, sin administradores.
+        const usuarios = Array.isArray(body.usuarios)
+          ? body.usuarios.map((u) => ({ id: String(u.id), esAdmin: !!u.esAdmin }))
+          : (Array.isArray(body.usuario_ids) ? body.usuario_ids.map((x) => ({ id: String(x), esAdmin: false })) : []);
 
         const del = await sb('gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(body.fondo_id), {
           method: 'DELETE', headers: { Prefer: 'return=minimal' }
         });
         if (!del.ok) { res.status(500).json({ ok: false, error: 'No se pudo actualizar la asignación.' }); return; }
 
-        if (ids.length) {
-          const filas = ids.map((uid) => ({ fondo_id: body.fondo_id, usuario_id: uid }));
+        if (usuarios.length) {
+          const filas = usuarios.map((u) => ({ fondo_id: body.fondo_id, usuario_id: u.id, es_administrador: u.esAdmin }));
           const ins = await sb('gastos_fondo_usuarios', {
             method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(filas)
           });
