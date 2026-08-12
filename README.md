@@ -65,11 +65,17 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
      tabla de ítems de esa solicitud: los datos base (Tipo, Descripción,
      Precio unitario, Específico Presupuestario, CEP) se muestran de solo
      lectura como referencia, y cada ítem tiene sus propios campos
-     **Fecha, N° de documento, Proveedor, Monto retenido y Monto total** —
-     **la factura se registra por ítem, no una sola para toda la
+     **Fecha, N° de documento, Proveedor, Monto retenido, N° de comprobante
+     de retención, Monto total y Adjuntar factura o documento equivalente**
+     — **la factura se registra por ítem, no una sola para toda la
      solicitud**, así que ítems de una misma solicitud pueden facturarse por
-     separado (documentos parciales). Un ítem ya facturado queda bloqueado
-     con la etiqueta "Facturado"; "Registrar facturas" guarda de una vez
+     separado (documentos parciales). El **N° de comprobante de retención**
+     es un campo alfanumérico libre y opcional. **Adjuntar factura o
+     documento equivalente** permite subir uno o más PDF (mismo mecanismo y
+     límite de 3 MB por archivo que "Adjuntar cotizaciones"), también
+     opcional. Un ítem ya facturado queda bloqueado con la etiqueta
+     "Facturado", mostrando el comprobante guardado y el/los PDF adjuntos
+     como enlaces de solo lectura; "Registrar facturas" guarda de una vez
      todas las filas que se hayan llenado por completo. El mes se calcula
      automáticamente desde la fecha; cada factura se guarda como un gasto con
      **estado `registrado`**.
@@ -77,7 +83,10 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
   Gastos** (solo quien lo creó, mientras esté en estado `registrado`, o un
   administrador en cualquier estado); el formulario de edición muestra de
   solo lectura a qué solicitud e ítem pertenece (eso no cambia, solo se
-  corrige fecha/documento/proveedor/montos). **Eliminar es un borrado
+  corrige fecha/documento/proveedor/montos). El N° de comprobante de
+  retención y los PDF de factura adjuntos no tienen campo en este
+  formulario reducido, así que se conservan tal cual quedaron al
+  registrarse. **Eliminar es un borrado
   lógico**: el gasto no se borra de la base de datos, pasa a estado
   `eliminado` (guardando el estado anterior) y deja de ser visible para
   todos salvo un administrador. Un gasto `informado` solo puede
@@ -123,13 +132,13 @@ que ya usa la app de transporte, en tablas nuevas y separadas (`gastos_*`).
    `gastos_fondo_usuarios` y `gastos_solicitudes`; no toca ninguna tabla
    `transporte_*`. El script es seguro de volver a correr aunque las tablas ya
    existan (usa `if not exists` / migraciones idempotentes), por ejemplo para
-   agregar la columna `estado` o `solicitud_id`.
-3. Las cotizaciones en PDF se guardan en **Supabase Storage**, en un bucket
-   llamado `cotizaciones`. No hace falta crearlo a mano: `api/upload.js` lo
-   crea automáticamente (público, solo PDF, 3 MB máx. por archivo) la
-   primera vez que alguien adjunta una cotización. Si prefieres crearlo tú
-   antes, ve a **Storage → New bucket** en el panel de Supabase, nómbralo
-   `cotizaciones` y márcalo como **público**.
+   agregar la columna `estado`, `solicitud_id` o `numero_comprobante_retencion`.
+3. Las cotizaciones y facturas en PDF se guardan en **Supabase Storage**, en
+   un bucket llamado `cotizaciones` (mismo bucket para ambas). No hace falta
+   crearlo a mano: `api/upload.js` lo crea automáticamente (público, solo
+   PDF, 3 MB máx. por archivo) la primera vez que alguien adjunta un
+   archivo. Si prefieres crearlo tú antes, ve a **Storage → New bucket** en
+   el panel de Supabase, nómbralo `cotizaciones` y márcalo como **público**.
 
 ## Variables de entorno (Vercel)
 
@@ -227,3 +236,11 @@ entorno anteriores.
   puede editar ni eliminar. `desembolsado_at`, `desembolsado_por_id` y
   `desembolsado_por_nombre` quedan guardados para trazabilidad y se usan en
   el PDF del comprobante.
+- **`numero_comprobante_retencion` / `factura_urls`**: campos opcionales de
+  "Registrar factura o documento equivalente", uno por ítem/gasto. El
+  comprobante es texto libre; `factura_urls` es un array `{url, nombre}`
+  igual que `cotizacion_urls`, subido con el mismo `api/upload.js` al mismo
+  bucket `cotizaciones`. Al editar un gasto desde Historial (formulario
+  reducido, sin estos campos) el servidor exige que el navegador reenvíe
+  ambos valores sin cambios para no perderlos — el frontend los captura al
+  cargar el formulario y los reenvía tal cual.

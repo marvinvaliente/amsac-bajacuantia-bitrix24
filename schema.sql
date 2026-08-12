@@ -155,3 +155,10 @@ create index if not exists gastos_registros_solicitud_idx on gastos_registros (s
 -- la solicitud, sin desglose por ítem).
 alter table gastos_registros add column if not exists item_numero smallint;
 create index if not exists gastos_registros_solicitud_item_idx on gastos_registros (solicitud_id, item_numero);
+
+-- Número de comprobante de retención y factura/documento adjunto (PDF, uno
+-- o varios) de cada gasto registrado desde "Registrar factura o documento
+-- equivalente". Ambos opcionales; se suben al mismo bucket "cotizaciones"
+-- en Supabase Storage vía api/upload.js.
+alter table gastos_registros add column if not exists numero_comprobante_retencion text not null default '';
+alter table gastos_registros add column if not exists factura_urls jsonb not null default '[]'::jsonb;

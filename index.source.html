@@ -616,7 +616,9 @@
             <thead>
               <tr>
                 <th>N°</th><th>Tipo</th><th>Descripción</th><th>Precio unitario</th><th>Específico</th><th>CEP</th>
-                <th>Fecha</th><th>N° Documento</th><th>Proveedor</th><th>Monto retenido</th><th>Monto total</th><th>Estado</th>
+                <th>Fecha</th><th>N° Documento</th><th>Proveedor</th><th>Monto retenido</th>
+                <th>N° Comprobante de Retención</th><th>Monto total</th>
+                <th>Adjuntar factura o documento equivalente</th><th>Estado</th>
               </tr>
             </thead>
             <tbody id="facturaItemsBody"></tbody>
@@ -929,6 +931,8 @@
   var editingId = null;
   var editingSolicitudId = null;
   var editingItemNumero = null;
+  var editingNumeroComprobante = '';
+  var editingFacturaUrls = [];
 
   var todosLosGastos = [];      // cache para Reportes (solo admin)
   var gastosFiltrados = [];
@@ -1082,6 +1086,8 @@
     editingId = null;
     editingSolicitudId = null;
     editingItemNumero = null;
+    editingNumeroComprobante = '';
+    editingFacturaUrls = [];
     hideMsg(document.getElementById('gastoMsg'));
   }
 
@@ -1143,6 +1149,8 @@
     editingId = g.id;
     editingSolicitudId = g.solicitud_id;
     editingItemNumero = g.item_numero;
+    editingNumeroComprobante = g.numero_comprobante_retencion || '';
+    editingFacturaUrls = Array.isArray(g.factura_urls) ? g.factura_urls : [];
     var s = solicitudes.find(function (x) { return String(x.id) === String(g.solicitud_id); });
     var item = s && Array.isArray(s.items) ? s.items.find(function (it) { return it.numero === g.item_numero; }) : null;
     document.getElementById('gSolicitudDisplay').textContent = s ? labelSolicitud(s) : ('#' + g.solicitud_id);
@@ -1172,6 +1180,8 @@
       numero_documento: document.getElementById('gNumeroDocumento').value.trim(),
       proveedor: document.getElementById('gProveedor').value.trim(),
       monto_retenido: document.getElementById('gMontoRetenido').value || 0,
+      numero_comprobante_retencion: editingNumeroComprobante,
+      factura_urls: editingFacturaUrls,
       monto_total: document.getElementById('gMontoTotal').value
     };
     var btn = document.getElementById('btnGuardarGasto');
@@ -1183,7 +1193,6 @@
       btn.disabled = false;
       if (r.ok) {
         showMsg(msgEl, 'success', 'Gasto actualizado correctamente.');
-        limpiarFormGasto();
         cargarProveedores();
         cargarSolicitudes();
       } else {
@@ -1242,6 +1251,56 @@
     });
   }
 
+  // Adjuntar factura/documento (PDF) por fila de la grilla de facturación:
+  // cada <tr> lleva su propia lista de archivos en tr._facturaArchivos.
+  function wireFacturaUploader(tr) {
+    tr._facturaArchivos = [];
+    var fileInput = tr.querySelector('.fi-factura-file');
+    var listaEl = tr.querySelector('.fi-factura-lista');
+    function renderLista() {
+      listaEl.innerHTML = tr._facturaArchivos.map(function (c, i) {
+        if (c.subiendo) return '<div class="cotizacion-item"><span class="subiendo">Subiendo "' + esc(c.nombre) + '"...</span></div>';
+        return '<div class="cotizacion-item"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre) + '</a>' +
+          '<button type="button" class="secondary" data-quitar-factura="' + i + '">Quitar</button></div>';
+      }).join('');
+      listaEl.querySelectorAll('[data-quitar-factura]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          tr._facturaArchivos.splice(parseInt(btn.getAttribute('data-quitar-factura'), 10), 1);
+          renderLista();
+        });
+      });
+    }
+    fileInput.addEventListener('change', function () {
+      var archivos = Array.prototype.slice.call(this.files || []);
+      this.value = '';
+      var msgEl = document.getElementById('facturaItemsMsg');
+      archivos.forEach(function (file) {
+        if (file.type !== 'application/pdf') { showMsg(msgEl, 'error', '"' + file.name + '" no es un PDF.'); return; }
+        if (file.size > 3 * 1024 * 1024) { showMsg(msgEl, 'error', '"' + file.name + '" pesa más de 3 MB.'); return; }
+        var entry = { nombre: file.name, url: '', subiendo: true };
+        tr._facturaArchivos.push(entry);
+        renderLista();
+        leerArchivoBase64(file).then(function (base64) {
+          return apiCall('upload', { method: 'POST', body: { filename: file.name, contentType: file.type, dataBase64: base64 } });
+        }).then(function (r) {
+          var idx = tr._facturaArchivos.indexOf(entry);
+          if (r.ok) {
+            if (idx !== -1) tr._facturaArchivos[idx] = { nombre: r.nombre, url: r.url, subiendo: false };
+          } else {
+            if (idx !== -1) tr._facturaArchivos.splice(idx, 1);
+            showMsg(msgEl, 'error', 'No se pudo subir "' + file.name + '": ' + (r.error || 'error desconocido'));
+          }
+          renderLista();
+        }).catch(function () {
+          var idx2 = tr._facturaArchivos.indexOf(entry);
+          if (idx2 !== -1) tr._facturaArchivos.splice(idx2, 1);
+          showMsg(msgEl, 'error', 'Error de conexión al subir "' + file.name + '".');
+          renderLista();
+        });
+      });
+    });
+  }
+
   function renderFacturaItems(s) {
     var items = Array.isArray(s.items) ? s.items : [];
     var tbody = document.getElementById('facturaItemsBody');
@@ -1261,21 +1320,31 @@
         '<td><input type="text" class="fi-documento" maxlength="60" placeholder="N° de factura" /></td>' +
         '<td><input type="text" class="fi-proveedor" maxlength="150" placeholder="Proveedor" /></td>' +
         '<td><input type="number" class="fi-retenido" step="0.01" min="0" placeholder="0" /></td>' +
+        '<td><input type="text" class="fi-comprobante" maxlength="60" placeholder="N° comprobante" /></td>' +
         '<td><input type="number" class="fi-total" step="0.01" min="0" placeholder="0" /></td>' +
+        '<td class="fi-factura-cell"></td>' +
         '<td class="fi-estado"></td>';
       tbody.appendChild(tr);
       var fEstado = tr.querySelector('.fi-estado');
+      var facturaCell = tr.querySelector('.fi-factura-cell');
       if (gastoExistente) {
         tr.querySelector('.fi-fecha').value = gastoExistente.fecha || '';
         tr.querySelector('.fi-documento').value = gastoExistente.numero_documento || '';
         tr.querySelector('.fi-proveedor').value = gastoExistente.proveedor || '';
         tr.querySelector('.fi-retenido').value = gastoExistente.monto_retenido != null ? gastoExistente.monto_retenido : 0;
+        tr.querySelector('.fi-comprobante').value = gastoExistente.numero_comprobante_retencion || '';
         tr.querySelector('.fi-total').value = gastoExistente.monto_total != null ? gastoExistente.monto_total : '';
-        ['fi-fecha', 'fi-documento', 'fi-proveedor', 'fi-retenido', 'fi-total'].forEach(function (cls) {
+        ['fi-fecha', 'fi-documento', 'fi-proveedor', 'fi-retenido', 'fi-comprobante', 'fi-total'].forEach(function (cls) {
           tr.querySelector('.' + cls).disabled = true;
         });
+        var contFactura = document.createElement('div');
+        contFactura.className = 'cotizacion-lista';
+        facturaCell.appendChild(contFactura);
+        renderCotizacionListaEnElemento(contFactura, gastoExistente.factura_urls);
         fEstado.innerHTML = '<span class="badge estado-certificado">Facturado</span>';
       } else {
+        facturaCell.innerHTML = '<input type="file" class="fi-factura-file" accept="application/pdf" multiple /><div class="fi-factura-lista cotizacion-lista"></div>';
+        wireFacturaUploader(tr);
         fEstado.innerHTML = '<span class="badge estado-pendiente">Pendiente</span>';
       }
     });
@@ -1306,8 +1375,10 @@
     var filas = document.querySelectorAll('#facturaItemsBody tr');
     var candidatas = [];
     var incompletas = [];
+    var haySubiendo = false;
     filas.forEach(function (tr) {
       if (tr.querySelector('.fi-documento').disabled) return; // ya facturado
+      if (tr._facturaArchivos && tr._facturaArchivos.some(function (c) { return c.subiendo; })) haySubiendo = true;
       var fecha = tr.querySelector('.fi-fecha').value;
       var documento = tr.querySelector('.fi-documento').value.trim();
       var proveedor = tr.querySelector('.fi-proveedor').value.trim();
@@ -1321,9 +1392,15 @@
         fecha: fecha, solicitud_id: facturaSolicitudAbierta, item_numero: parseInt(tr.getAttribute('data-item-numero'), 10),
         numero_documento: documento, proveedor: proveedor,
         monto_retenido: tr.querySelector('.fi-retenido').value || 0,
+        numero_comprobante_retencion: tr.querySelector('.fi-comprobante').value.trim(),
+        factura_urls: (tr._facturaArchivos || []).filter(function (c) { return !c.subiendo; }).map(function (c) { return { url: c.url, nombre: c.nombre }; }),
         monto_total: total
       });
     });
+    if (haySubiendo) {
+      showMsg(msgEl, 'error', 'Espera a que terminen de subir los documentos adjuntos.');
+      return;
+    }
     if (incompletas.length) {
       showMsg(msgEl, 'error', 'Completa Fecha, N° Documento, Proveedor y Monto total en el/los ítem(s) #' + incompletas.join(', #') + ', o déjalos totalmente vacíos si todavía no los vas a facturar.');
       return;
@@ -1832,16 +1909,19 @@
 
   var certEditingCotizaciones = [];
 
-  // Muestra una lista de cotizaciones adjuntas de solo lectura (sin botón
-  // "Quitar"), usada en Certificación y Desembolso.
-  function renderCotizacionListaReadonly(containerId, lista) {
-    var el = document.getElementById(containerId);
+  // Muestra una lista de archivos (cotizaciones o facturas) adjuntos de
+  // solo lectura (sin botón "Quitar"), usada en Certificación, Desembolso
+  // y en las filas ya facturadas de "Registrar factura".
+  function renderCotizacionListaEnElemento(el, lista) {
     lista = Array.isArray(lista) ? lista : [];
     el.innerHTML = lista.length
       ? lista.map(function (c) {
-          return '<div class="cotizacion-item"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre || 'cotizacion.pdf') + '</a></div>';
+          return '<div class="cotizacion-item"><a href="' + esc(c.url) + '" target="_blank" rel="noopener">' + esc(c.nombre || 'archivo.pdf') + '</a></div>';
         }).join('')
-      : '<div class="cotizacion-empty">Sin cotización adjunta.</div>';
+      : '<div class="cotizacion-empty">Sin archivo adjunto.</div>';
+  }
+  function renderCotizacionListaReadonly(containerId, lista) {
+    renderCotizacionListaEnElemento(document.getElementById(containerId), lista);
   }
 
   function abrirCertificacionEdicion(id) {

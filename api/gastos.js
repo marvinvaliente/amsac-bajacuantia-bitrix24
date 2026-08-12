@@ -45,6 +45,19 @@ function numOrNull(v) {
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+// Archivos PDF adjuntos (ya subidos a Storage por api/upload.js; aquí solo
+// se valida/sanea la lista de {url, nombre} que llega).
+function construirArchivos(input) {
+  const lista = Array.isArray(input) ? input : [];
+  const limpios = [];
+  for (const it of lista) {
+    const url = String((it && it.url) || '').trim();
+    if (!/^https:\/\//.test(url)) continue;
+    limpios.push({ url: url, nombre: String((it && it.nombre) || '').trim() || 'archivo.pdf' });
+  }
+  return limpios;
+}
+
 // Un gasto se registra ELIGIENDO una solicitud ya creada; el fondo, área
 // solicitante, descripción y justificación se toman siempre del servidor
 // (nunca de lo que mande el navegador) para que coincidan con lo aprobado
@@ -97,6 +110,8 @@ function construirFila(g, solicitud, actorId, actorNombre) {
       area_solicitante: solicitud.area_solicitante || '',
       monto_retenido: montoRetenido,
       monto_total: montoTotal,
+      numero_comprobante_retencion: String(g.numero_comprobante_retencion || '').trim(),
+      factura_urls: construirArchivos(g.factura_urls),
       fondo_id: solicitud.fondo_id,
       solicitud_id: solicitud.id,
       item_numero: itemNumero,
