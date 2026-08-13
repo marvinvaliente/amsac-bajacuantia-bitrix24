@@ -184,14 +184,46 @@ module.exports = async (req, res) => {
         return;
       }
 
+      if (action === 'autorizar' || action === 'denegar') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const actualG = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado,gerencia_responsable_id');
+        const actualGData = await actualG.json();
+        if (!actualG.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualGData), raw: actualGData }); return; }
+        if (!actualGData || !actualGData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
+        if (actualGData[0].estado !== 'pendiente') {
+          res.status(400).json({ ok: false, error: 'Solo se pueden autorizar o denegar solicitudes pendientes.' });
+          return;
+        }
+        if (!body.actor_is_admin && String(actualGData[0].gerencia_responsable_id) !== String(body.actor_id || '')) {
+          res.status(403).json({ ok: false, error: 'Solo la gerencia responsable asignada a esta solicitud (o un administrador) puede autorizarla o denegarla.' });
+          return;
+        }
+        const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({
+            estado: action === 'autorizar' ? 'autorizada' : 'denegado',
+            gerencia_decision_at: new Date().toISOString(),
+            gerencia_decision_por_id: String(body.actor_id || ''),
+            gerencia_decision_por_nombre: body.actor_nombre || ''
+          })
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
+        res.status(200).json({ ok: true, solicitud: data[0] });
+        return;
+      }
+
       if (action === 'update') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
         const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
-        if (actualData[0].estado === 'eliminada' || actualData[0].estado === 'desembolsado' || actualData[0].estado === 'facturado') {
-          res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada, ya desembolsada o ya facturada.' });
+        // Certificar (esta misma acción) exige que la gerencia responsable
+        // ya la haya autorizado -- o que ya esté certificada, para permitir
+        // correcciones posteriores.
+        if (actualData[0].estado !== 'autorizada' && actualData[0].estado !== 'certificado') {
+          res.status(403).json({ ok: false, error: 'Esta solicitud todavía no fue autorizada por su gerencia responsable, o ya no se puede editar.' });
           return;
         }
 
@@ -217,8 +249,8 @@ module.exports = async (req, res) => {
         const actualD = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
         const actualDData = await actualD.json();
         if (!actualD.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualDData), raw: actualDData }); return; }
-        if (actualDData && actualDData[0] && (actualDData[0].estado === 'desembolsado' || actualDData[0].estado === 'facturado')) {
-          res.status(403).json({ ok: false, error: 'No se puede eliminar una solicitud ya desembolsada o facturada.' });
+        if (actualDData && actualDData[0] && ['desembolsado', 'facturado', 'denegado'].indexOf(actualDData[0].estado) !== -1) {
+          res.status(403).json({ ok: false, error: 'No se puede eliminar una solicitud ya desembolsada, facturada o denegada.' });
           return;
         }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {

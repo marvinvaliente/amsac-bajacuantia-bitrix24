@@ -33,18 +33,19 @@ también se adapta si alguien cambia el tamaño de la ventana en escritorio.
 ## Modelo de permisos
 
 Un administrador del portal ve y puede hacer todo. Para el resto de
-usuarios, el acceso a cada pantalla depende de a cuál de estos tres grupos
-pertenezcan (se asignan desde **Configurar usuarios**, ver más abajo):
+usuarios, el acceso a cada pantalla depende de a cuál de estos grupos
+pertenezcan:
 
 - **Solicitante** — estar asignado a un fondo (lo mismo que hoy habilita
-  "usar" ese fondo) da acceso a **Crear Solicitud, Registrar factura o
-  documento equivalente, Historial e Informe de Gastos**. Es la misma
-  persona quien crea la solicitud, registra su factura, revisa su
-  historial y genera su informe.
+  "usar" ese fondo, se asigna desde **Configurar usuarios**) da acceso a
+  **Crear Solicitud, Registrar factura o documento equivalente, Historial
+  e Informe de Gastos**. Es la misma persona quien crea la solicitud,
+  registra su factura, revisa su historial y genera su informe.
 - **Certificador** — acceso a **Certificación presupuestaria**. Se asigna
-  por usuario individual y/o por departamento completo de Bitrix24 (si el
-  departamento del usuario está en la lista, tiene acceso aunque no esté
-  asignado individualmente). No depende de pertenecer a ningún fondo.
+  desde **Configurar usuarios**, por usuario individual y/o por
+  departamento completo de Bitrix24 (si el departamento del usuario está
+  en la lista, tiene acceso aunque no esté asignado individualmente). No
+  depende de pertenecer a ningún fondo.
 - **Administrador de fondo** — acceso a **Desembolso de fondos**, pero
   **solo para las solicitudes del/los fondo(s) que administra**: es un
   subconjunto de los usuarios asignados a un fondo (no todos los que
@@ -54,14 +55,22 @@ pertenezcan (se asignan desde **Configurar usuarios**, ver más abajo):
   usuario normal del fondo (no pierde el acceso a crear solicitudes
   contra él, solo el de desembolsar). El servidor valida esto también al
   momento de desembolsar, no solo la pantalla.
+- **Gerencia responsable de una solicitud** — acceso a **Autorización de
+  gerencia**, pero solo para autorizar o denegar las solicitudes donde esa
+  persona específica fue elegida como "Gerencia responsable" al crearlas.
+  A diferencia de los otros tres grupos, **no se asigna desde Configurar
+  usuarios** — es automático: en cuanto alguien crea una solicitud
+  eligiendo a un usuario de Bitrix24 en ese campo, esa persona ve la
+  pestaña y puede decidir sobre ella, sin necesidad de que un
+  administrador la habilite primero.
 
-Estos tres grupos son independientes entre sí: un usuario puede pertenecer
-a ninguno, a uno o a los tres a la vez (además de ser o no administrador
-del portal, que da acceso a todo sin excepción).
+Estos grupos son independientes entre sí: un usuario puede pertenecer a
+ninguno, a uno o a varios a la vez (además de ser o no administrador del
+portal, que da acceso a todo sin excepción).
 
 ## Qué hace
 
-- El menú **"Solicitud"** agrupa cuatro pantallas (se puede colapsar/expandir
+- El menú **"Solicitud"** agrupa cinco pantallas (se puede colapsar/expandir
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), área solicitante,
@@ -81,23 +90,44 @@ del portal, que da acceso a todo sin excepción).
      Certificación presupuestaria y Desembolso de fondos, y se anexan como
      páginas adicionales al PDF que se descarga al
      desembolsar.
-  2. **Certificación presupuestaria** (acceso: certificadores, ver "Modelo
+  2. **Autorización de gerencia** (acceso: automático para quien fue
+     elegido como "Gerencia responsable" de al menos una solicitud, ver
+     "Modelo de permisos"): tabla con las solicitudes donde esa persona es
+     la gerencia responsable (un administrador ve las de todos). "Ver
+     detalle" muestra la misma información completa que Desembolso de
+     fondos (área, descripción, justificación, ítems, cotización, monto
+     solicitado). Mientras la solicitud está **Pendiente** aparecen los
+     botones **"Autorizar"** y **"Denegar"**: autorizarla la deja lista
+     para que un certificador la certifique; denegarla la archiva en
+     estado **Denegado** (guarda quién y cuándo decidió) y ahí termina su
+     proceso — no se puede editar, eliminar, certificar ni continuar de
+     ninguna forma. Una solicitud ya autorizada, certificada, desembolsada,
+     facturada, denegada o eliminada no muestra estos botones (ya se
+     decidió o ya avanzó). El servidor exige que quien autorice o deniegue
+     sea justo la gerencia responsable asignada a esa solicitud (o un
+     administrador), no solo la pantalla.
+  3. **Certificación presupuestaria** (acceso: certificadores, ver "Modelo
      de permisos"): muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
-     colores: naranja = Pendiente, verde = Certificado, azul = Desembolsado,
-     morado = Facturado, rojo = Eliminada) con botones **Editar** y
-     **Eliminar** por fila (una solicitud ya desembolsada o facturada no
-     muestra estos botones — queda fija, igual que una eliminada). "Editar" abre el formulario (de cualquier fondo, no
+     colores: naranja = Pendiente, cian = Autorizada, verde = Certificado,
+     azul = Desembolsado, morado = Facturado, terracota = Denegado, rojo =
+     Eliminada) con botones **Editar** y **Eliminar** por fila. Una
+     solicitud **Pendiente** (todavía sin autorizar) solo muestra
+     "Eliminar" — "Editar" (certificar) no aparece hasta que su gerencia
+     responsable la autorice desde "Autorización de gerencia". Una
+     solicitud ya desembolsada, facturada, denegada o eliminada no muestra
+     ningún botón — queda fija. "Editar" abre el formulario (de cualquier
+     fondo, no
      solo los propios) con todos los campos **bloqueados** (solo lectura) —
      **doble clic** en cualquiera lo habilita para corregirlo puntualmente.
      La tabla de ítems suma dos columnas que sí quedan activas de entrada:
      **Específico Presupuestario** (5 dígitos) y **CEP** (2 dígitos),
      **obligatorios en cada ítem** para poder guardar — guardar cambios aquí
-     es lo que **certifica** la solicitud (pasa de Pendiente a Certificado).
+     es lo que **certifica** la solicitud (pasa de Autorizada a Certificado).
      "Eliminar" es un borrado lógico: la solicitud queda en estado
      Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
      la tabla para trazabilidad.
-  3. **Desembolso de fondos** (acceso: administradores de fondo, ver "Modelo
+  4. **Desembolso de fondos** (acceso: administradores de fondo, ver "Modelo
      de permisos" — cada uno solo ve/desembolsa las solicitudes de los
      fondos que administra, no las de otros fondos): tabla con las
      solicitudes **Certificado**, **Desembolsado** y **Facturado** (fecha,
@@ -117,7 +147,7 @@ del portal, que da acceso a todo sin excepción).
      final del mismo PDF** (fusión hecha en el navegador con pdf-lib). Una
      solicitud desembolsada ya no se puede editar ni eliminar desde
      Certificación, y es la que habilita "Registrar factura".
-  4. **Registrar factura o documento equivalente**: muestra en una tabla
+  5. **Registrar factura o documento equivalente**: muestra en una tabla
      (estilo Certificación) las solicitudes en estado **Desembolsado** o
      **Facturado**, con una columna **Facturación** ("N/M ítems") que
      indica cuántos de sus ítems ya tienen factura registrada (verde
@@ -320,28 +350,39 @@ entorno anteriores.
   corregir una factura ya registrada aun cuando la solicitud ya esté
   completa). Los gastos creados antes de este cambio (o antes de que
   existiera "Registrar factura") quedan con `item_numero` vacío.
-- **Flujo de estados de una solicitud**: `pendiente` (recién creada) →
-  `certificado` (al guardar cambios en Certificación presupuestaria, con
-  Específico Presupuestario/CEP completos) → `desembolsado` (al presionar
+- **Flujo de estados de una solicitud**: `pendiente` (recién creada, a la
+  espera de que su gerencia responsable decida) → `autorizada` (la
+  gerencia responsable la aprueba desde "Autorización de gerencia") o
+  `denegado` (la rechaza; queda archivada ahí, fin del proceso) →
+  `certificado` (solo una solicitud `autorizada` se puede certificar; al
+  guardar cambios en Certificación presupuestaria, con Específico
+  Presupuestario/CEP completos) → `desembolsado` (al presionar
   "Desembolsar" en Desembolso de fondos, lo único que habilita "Registrar
   factura" para esa solicitud) → `facturado` (automático: `api/gastos.js`
   recalcula tras cada alta/edición/borrado/restauración de un gasto con
   `item_numero` si TODOS los ítems de la solicitud tienen ya una factura
   activa; si se elimina la de algún ítem, vuelve solo a `desembolsado`,
   nunca hace falta tocarlo a mano). `eliminada` es un borrado lógico
-  posible desde `pendiente` o `certificado`; una solicitud `desembolsada`
-  o `facturada` ya no se puede editar ni eliminar. `desembolsado_at`,
-  `desembolsado_por_id` y `desembolsado_por_nombre` quedan guardados para
-  trazabilidad y se usan en el PDF del comprobante.
+  posible desde `pendiente`, `autorizada` o `certificado`; una solicitud
+  `desembolsada`, `facturada` o `denegada` ya no se puede editar ni
+  eliminar. `desembolsado_at`, `desembolsado_por_id` y
+  `desembolsado_por_nombre` quedan guardados para trazabilidad y se usan
+  en el PDF del comprobante; `gerencia_decision_at`,
+  `gerencia_decision_por_id` y `gerencia_decision_por_nombre` guardan
+  quién autorizó o denegó y cuándo.
 - **Permisos por módulo** (`gastos_fondo_usuarios.es_administrador` y
-  `gastos_certificadores`): ver "Modelo de permisos" más arriba. La acción
-  `desembolsar` en `api/solicitudes.js` valida en el servidor (no solo en
-  la pantalla) que quien la invoca sea administrador del portal o
-  administrador del fondo de esa solicitud específica — así que ni
-  siquiera llamando directo a la API se puede saltar esa restricción.
-  Certificación y Crear Solicitud no tienen ese refuerzo en el servidor
-  (mismo modelo de confianza que el resto de la app, ver el primer punto de
-  esta sección); el desembolso sí lo tiene por mover fondos reales.
+  `gastos_certificadores`): ver "Modelo de permisos" más arriba. Las
+  acciones `desembolsar`, `autorizar` y `denegar` en `api/solicitudes.js`
+  validan en el servidor (no solo en la pantalla) que quien las invoca sea
+  administrador del portal, administrador del fondo de esa solicitud
+  específica (para desembolsar), o justo la gerencia responsable asignada
+  a esa solicitud (para autorizar/denegar) — así que ni siquiera llamando
+  directo a la API se puede saltar esas restricciones. `action=update`
+  (certificar) también valida en el servidor que la solicitud esté
+  `autorizada` o ya `certificado` antes de aceptar el cambio. Crear
+  Solicitud no tiene ese refuerzo (mismo modelo de confianza que el resto
+  de la app, ver el primer punto de esta sección); estas otras acciones sí
+  lo tienen por mover fondos reales o decidir el rumbo del proceso.
 - **`numero_comprobante_retencion` / `factura_urls`**: campos opcionales de
   "Registrar factura o documento equivalente", uno por ítem/gasto. El
   comprobante es texto libre; `factura_urls` es un array `{url, nombre}`

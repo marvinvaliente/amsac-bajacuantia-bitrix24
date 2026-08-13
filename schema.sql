@@ -112,20 +112,30 @@ create index if not exists gastos_solicitudes_created_by_idx on gastos_solicitud
 -- Nombre del proceso: se movió de "Registrar gasto" a "Crear Solicitud".
 alter table gastos_solicitudes add column if not exists nombre_proceso text not null default '';
 
--- Estado de la solicitud: 'pendiente' al crearla; pasa a 'certificado' al
--- guardar cambios desde Certificación presupuestaria (esa acción ya exige
--- Específico Presupuestario/CEP en todos los ítems, así que guardar ahí ES
--- certificarla); pasa a 'desembolsado' desde "Desembolso de fondos" (solo
--- entonces puede usarse en Registrar factura); pasa a 'facturado' cuando
--- TODOS sus ítems ya tienen una factura registrada (api/gastos.js lo
--- recalcula solo tras cada 'save'/'delete'/'restaurar' de un gasto con
+-- Estado de la solicitud: 'pendiente' al crearla, a la espera de que la
+-- gerencia responsable (el usuario elegido en ese campo al crearla) la
+-- autorice o deniegue desde "Autorización de gerencia"; pasa a 'autorizada'
+-- si la aprueba (solo entonces se puede certificar) o a 'denegado' si la
+-- rechaza (queda archivada, no continúa el proceso); pasa a 'certificado'
+-- al guardar cambios desde Certificación presupuestaria (esa acción ya
+-- exige Específico Presupuestario/CEP en todos los ítems, así que guardar
+-- ahí ES certificarla); pasa a 'desembolsado' desde "Desembolso de fondos"
+-- (solo entonces puede usarse en Registrar factura); pasa a 'facturado'
+-- cuando TODOS sus ítems ya tienen una factura registrada (api/gastos.js
+-- lo recalcula solo tras cada 'save'/'delete'/'restaurar' de un gasto con
 -- item_numero; si luego se elimina la factura de algún ítem, vuelve a
 -- 'desembolsado'); 'eliminada' es borrado lógico. Una solicitud
--- desembolsada, facturada o eliminada ya no se puede editar ni eliminar.
+-- desembolsada, facturada, denegada o eliminada ya no se puede editar ni
+-- eliminar.
 alter table gastos_solicitudes add column if not exists estado text not null default 'pendiente';
 alter table gastos_solicitudes drop constraint if exists gastos_solicitudes_estado_check;
-alter table gastos_solicitudes add constraint gastos_solicitudes_estado_check check (estado in ('pendiente','certificado','desembolsado','facturado','eliminada'));
+alter table gastos_solicitudes add constraint gastos_solicitudes_estado_check check (estado in ('pendiente','autorizada','certificado','desembolsado','facturado','denegado','eliminada'));
 create index if not exists gastos_solicitudes_estado_idx on gastos_solicitudes (estado);
+
+-- Auditoría de la decisión de gerencia (autorizar/denegar): quién y cuándo.
+alter table gastos_solicitudes add column if not exists gerencia_decision_at timestamptz;
+alter table gastos_solicitudes add column if not exists gerencia_decision_por_id text;
+alter table gastos_solicitudes add column if not exists gerencia_decision_por_nombre text;
 
 -- Auditoría del desembolso: quién lo hizo y cuándo (se usa también en el
 -- comprobante en PDF que se descarga al desembolsar).
