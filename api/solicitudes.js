@@ -43,11 +43,18 @@ function numOrNull(v) {
   return isNaN(n) ? null : n;
 }
 
-// URL pública de esta misma app (para armar el enlace de "ir directo a
-// autorizar/denegar" en la notificación de Bitrix24), derivada de los
-// headers de la petición -- no depende de configurar una variable de
-// entorno aparte con el dominio.
+// URL para armar el enlace de "ir directo a autorizar/denegar" en la
+// notificación de Bitrix24. Si se configura BITRIX24_APP_URL (la URL con la
+// que Bitrix24 abre esta app embebida dentro del portal, algo como
+// https://<portal>.bitrix24.es/marketplace/app/<id>/ -- se ve en la barra
+// de direcciones al abrir la app desde el menú de aplicaciones) se usa esa,
+// para que el enlace reabra la app autenticada dentro de Bitrix24 en vez de
+// como una pestaña suelta del navegador (donde BX24.init() no puede
+// autenticar). Si no está configurada, se cae de vuelta a la URL directa de
+// esta misma app (funciona si se abre ya con una sesión de Bitrix24 activa
+// en el mismo navegador, pero no reabre la app embebida).
 function urlDeLaApp(req) {
+  if (process.env.BITRIX24_APP_URL) return process.env.BITRIX24_APP_URL;
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host;
   return proto + '://' + host + '/index.html';

@@ -281,6 +281,16 @@ Mismas credenciales que ya usa el proyecto de transporte (mismo proyecto Supabas
   solicitud nueva por autorizar (ver "Instalación en Bitrix24" para cómo
   crearlo). Si no se configura, la app funciona igual — simplemente no se
   envía ese aviso.
+- `BITRIX24_APP_URL` (opcional): la URL con la que Bitrix24 abre esta app
+  embebida dentro del portal — se ve en la barra de direcciones al abrir la
+  app desde el menú de aplicaciones, tiene la forma
+  `https://<tu-portal>.bitrix24.es/marketplace/app/<id>/`. Se usa para que
+  los enlaces "Autorizar"/"Denegar" de la notificación reabran la app
+  autenticada dentro de Bitrix24, en vez de como una pestaña suelta del
+  navegador (donde `BX24.init()` no puede autenticar y la app se queda
+  cargando para siempre). Si no se configura, esos enlaces usan la URL
+  directa de la app (`https://<host>/index.html`) — funciona solo si ya hay
+  una sesión de Bitrix24 activa en el mismo navegador al hacer clic.
 
 ## Desarrollo local
 
@@ -317,13 +327,24 @@ entorno anteriores.
    usuarios autorizados.
 8. (Opcional, para el aviso automático a la gerencia responsable) Entra de
    nuevo a **Aplicaciones → Recursos para desarrolladores → Otro → "Cree
-   webhooks entrantes o salientes..."**, elige **"Webhook entrante"**, marca
-   el permiso **`im`** (Mensajería/Notificaciones) y guarda. Copia la URL
-   generada (tiene la forma
+   webhooks entrantes o salientes..."**, elige **"Webhook entrante"**, y en
+   el buscador de permisos escribe `im` y elige la opción cuyo código sea
+   exactamente **`(im)`** (por ejemplo "Chat y Notificaciones (im)") — no
+   `messageservice`, `im.import` ni `imconnector`, que son otra cosa. Guarda.
+   Copia la URL generada (tiene la forma
    `https://<tu-portal>.bitrix24.es/rest/<id>/<código>/`) y agrégala como
    `BITRIX24_WEBHOOK_URL` en las variables de entorno de Vercel (sección
    anterior). Las notificaciones le llegarán a cada gerencia responsable
    como si las enviara el usuario dueño del webhook.
+9. (Opcional, para que los enlaces "Autorizar"/"Denegar" de esa notificación
+   reabran la app embebida y autenticada dentro de Bitrix24 en vez de una
+   pestaña suelta) Abre la app una vez desde el menú de aplicaciones del
+   portal, copia la URL que queda en la barra de direcciones (tiene la forma
+   `https://<tu-portal>.bitrix24.es/marketplace/app/<id>/`) y agrégala como
+   `BITRIX24_APP_URL` en Vercel.
+10. Después de agregar cualquiera de las dos variables anteriores, hace
+    falta un **redeploy** en Vercel — agregar una variable de entorno no
+    afecta a los deployments que ya existen.
 
 ## Notas técnicas
 
@@ -418,20 +439,24 @@ entorno anteriores.
   configurada, el servidor llama a `im.notify.system.add` de Bitrix24 (best
   effort — si falla o no está configurada, no bloquea la creación) con un
   mensaje en BBCode que incluye `[URL=...]Autorizar[/URL]` y
-  `[URL=...]Denegar[/URL]` apuntando a la URL pública de esta misma app
-  (`https://<host>/index.html`, deducida de los headers de la petición, sin
-  variable de entorno aparte) con `?solicitud=<id>&accion=autorizar|denegar`.
+  `[URL=...]Denegar[/URL]` apuntando a `BITRIX24_APP_URL` (o, si no está
+  configurada, a la URL directa de esta app deducida de los headers de la
+  petición) con `?solicitud=<id>&accion=autorizar|denegar` agregado.
   `im.notify`/`im.notify.system.add` **no admiten autorización por sesión**
-  (`BX24.callMethod` desde el navegador), por eso este aviso solo puede
-  enviarse desde el servidor con un webhook — de ahí la nueva variable de
-  entorno. Al abrir ese enlace, el frontend (`manejarDeepLinkAutorizacion`
-  en `index.source.html`) lee `?solicitud=`/`?accion=` de la URL, limpia la
-  barra de direcciones, abre "Autorización de gerencia" directo en esa
-  solicitud y, si la acción es autorizar/denegar y sigue `pendiente`, deja
-  el modal de confirmación ya abierto. Esto funciona de forma fiable
-  cuando el enlace se abre dentro de una sesión de Bitrix24 ya
-  activa en el mismo navegador; Bitrix24 no documenta un mecanismo
-  garantizado para reabrir una aplicación local embebida (autenticada vía
-  `BX24.js`) desde un enlace externo a un mensaje, así que si `BX24.init()`
-  no logra autenticar fuera de ese contexto, el usuario simplemente
-  necesita entrar a la app desde Bitrix24 normalmente.
+  (`BX24.callMethod` desde el navegador) — devuelven `WRONG_AUTH_TYPE` — por
+  eso este aviso solo puede enviarse desde el servidor con un webhook, y el
+  webhook necesita el scope **`im`** específicamente (con otro scope,
+  Bitrix24 responde `401 insufficient_scope`). Al abrir ese enlace, el
+  frontend (`manejarDeepLinkAutorizacion` en `index.source.html`) lee
+  `?solicitud=`/`?accion=` de la URL, limpia la barra de direcciones, abre
+  "Autorización de gerencia" directo en esa solicitud y, si la acción es
+  autorizar/denegar y sigue `pendiente`, deja el modal de confirmación ya
+  abierto. **Esto solo funciona si el enlace abre la app embebida dentro de
+  Bitrix24** (autenticada vía `BX24.js`) — de ahí `BITRIX24_APP_URL`
+  apuntando a la URL tipo `marketplace/app/<id>/` con la que Bitrix24 abre
+  la app desde su propio menú; sin esa variable, o si el enlace igual abre
+  una pestaña suelta del navegador fuera de Bitrix24, `BX24.init()` nunca
+  logra autenticar y la app se queda cargando — por eso hay además un
+  timeout de 6 segundos que reemplaza el "Cargando..." por un mensaje
+  explicando que hay que entrar desde el menú de aplicaciones de Bitrix24 y
+  buscar "Autorización de gerencia" ahí.
