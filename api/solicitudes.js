@@ -190,8 +190,8 @@ module.exports = async (req, res) => {
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
-        if (actualData[0].estado === 'eliminada' || actualData[0].estado === 'desembolsado') {
-          res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada o ya desembolsada.' });
+        if (actualData[0].estado === 'eliminada' || actualData[0].estado === 'desembolsado' || actualData[0].estado === 'facturado') {
+          res.status(403).json({ ok: false, error: 'No se puede editar una solicitud eliminada, ya desembolsada o ya facturada.' });
           return;
         }
 
@@ -217,8 +217,8 @@ module.exports = async (req, res) => {
         const actualD = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
         const actualDData = await actualD.json();
         if (!actualD.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualDData), raw: actualDData }); return; }
-        if (actualDData && actualDData[0] && actualDData[0].estado === 'desembolsado') {
-          res.status(403).json({ ok: false, error: 'No se puede eliminar una solicitud ya desembolsada.' });
+        if (actualDData && actualDData[0] && (actualDData[0].estado === 'desembolsado' || actualDData[0].estado === 'facturado')) {
+          res.status(403).json({ ok: false, error: 'No se puede eliminar una solicitud ya desembolsada o facturada.' });
           return;
         }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {

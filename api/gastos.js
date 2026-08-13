@@ -95,7 +95,13 @@ function construirFila(g, solicitud, actorId, actorNombre) {
     if (!Number.isInteger(itemNumero)) return { error: 'Ítem inválido.' };
     const items = Array.isArray(solicitud.items) ? solicitud.items : [];
     if (!items.some((it) => it.numero === itemNumero)) return { error: 'El ítem indicado no existe en la solicitud.' };
-    if (solicitud.estado !== 'desembolsado') return { error: 'Solo se pueden registrar facturas de ítems de solicitudes desembolsadas.' };
+    // 'facturado' también se acepta aquí porque es el estado que queda una
+    // vez que TODOS los ítems ya tienen factura -- de lo contrario no se
+    // podría corregir un dato (proveedor, monto, etc.) de una factura ya
+    // registrada una vez que la solicitud completa alcanza ese estado.
+    if (solicitud.estado !== 'desembolsado' && solicitud.estado !== 'facturado') {
+      return { error: 'Solo se pueden registrar facturas de ítems de solicitudes desembolsadas.' };
+    }
   }
 
   return {
@@ -127,6 +133,37 @@ async function insertHistorial(row) {
       method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(row)
     });
   } catch (e) { /* auditoría best-effort */ }
+}
+
+// Recalcula si una solicitud debe pasar a 'facturado' (todos sus ítems
+// tienen ya un gasto activo con ese item_numero) o volver a 'desembolsado'
+// (si ya no los tiene todos, p. ej. porque se eliminó una factura). Se
+// llama después de cada save/delete/restaurar de un gasto con item_numero;
+// no toca solicitudes en otros estados (pendiente, certificado, eliminada).
+async function sincronizarEstadoSolicitud(solicitudId) {
+  if (solicitudId == null) return;
+  const rSol = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(solicitudId) + '&select=id,estado,items');
+  const dSol = await rSol.json();
+  if (!rSol.ok || !dSol || !dSol[0]) return;
+  const sol = dSol[0];
+  if (sol.estado !== 'desembolsado' && sol.estado !== 'facturado') return;
+  const items = Array.isArray(sol.items) ? sol.items : [];
+  if (!items.length) return;
+
+  const rGastos = await sb(
+    'gastos_registros?solicitud_id=eq.' + encodeURIComponent(solicitudId) +
+    '&item_numero=not.is.null&estado=neq.eliminado&select=item_numero'
+  );
+  const dGastos = await rGastos.json();
+  if (!rGastos.ok) return;
+  const facturados = new Set((dGastos || []).map((g) => g.item_numero));
+  const completo = items.every((it) => facturados.has(it.numero));
+  const nuevoEstado = completo ? 'facturado' : 'desembolsado';
+  if (nuevoEstado === sol.estado) return;
+
+  await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(solicitudId), {
+    method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: nuevoEstado })
+  });
 }
 
 async function puedeModificar(id, actorId, isAdmin) {
@@ -201,6 +238,7 @@ module.exports = async (req, res) => {
           if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
           await insertHistorial({ gasto_id: data[0].id, accion: 'creado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: row });
         }
+        if (data[0].item_numero != null) await sincronizarEstadoSolicitud(data[0].solicitud_id);
         res.status(200).json({ ok: true, gasto: data[0] });
         return;
       }
@@ -229,7 +267,7 @@ module.exports = async (req, res) => {
         }
         // Borrado lógico: el registro no se borra de la base de datos, solo
         // cambia de estado. Se guarda el estado previo para poder restaurarlo.
-        const actual = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actual = await sb('gastos_registros?id=eq.' + encodeURIComponent(body.id) + '&select=estado,solicitud_id,item_numero');
         const actualData = await actual.json();
         const estadoAnterior = (actualData && actualData[0] && actualData[0].estado) || 'registrado';
 
@@ -240,6 +278,10 @@ module.exports = async (req, res) => {
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         await insertHistorial({ gasto_id: body.id, accion: 'eliminado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado_anterior: estadoAnterior } });
+        // Si este gasto correspondía a un ítem de una solicitud ya
+        // facturada por completo, al borrarlo esa solicitud deja de estar
+        // completa y debe volver a 'desembolsado'.
+        if (data[0].item_numero != null) await sincronizarEstadoSolicitud(data[0].solicitud_id);
         res.status(200).json({ ok: true });
         return;
       }
@@ -261,6 +303,7 @@ module.exports = async (req, res) => {
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         await insertHistorial({ gasto_id: body.id, accion: 'restablecido', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: { estado: destino } });
+        if (data[0].item_numero != null) await sincronizarEstadoSolicitud(data[0].solicitud_id);
         res.status(200).json({ ok: true, gasto: data[0] });
         return;
       }

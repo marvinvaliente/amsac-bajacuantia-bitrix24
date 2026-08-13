@@ -85,9 +85,9 @@ del portal, que da acceso a todo sin excepción).
      de permisos"): muestra **todas las solicitudes en una
      tabla** (fecha, fondo, área, descripción, total y **estado**, con
      colores: naranja = Pendiente, verde = Certificado, azul = Desembolsado,
-     rojo = Eliminada) con botones **Editar** y **Eliminar** por fila (una
-     solicitud ya desembolsada no muestra estos botones — queda fija, igual
-     que una eliminada). "Editar" abre el formulario (de cualquier fondo, no
+     morado = Facturado, rojo = Eliminada) con botones **Editar** y
+     **Eliminar** por fila (una solicitud ya desembolsada o facturada no
+     muestra estos botones — queda fija, igual que una eliminada). "Editar" abre el formulario (de cualquier fondo, no
      solo los propios) con todos los campos **bloqueados** (solo lectura) —
      **doble clic** en cualquiera lo habilita para corregirlo puntualmente.
      La tabla de ítems suma dos columnas que sí quedan activas de entrada:
@@ -100,8 +100,10 @@ del portal, que da acceso a todo sin excepción).
   3. **Desembolso de fondos** (acceso: administradores de fondo, ver "Modelo
      de permisos" — cada uno solo ve/desembolsa las solicitudes de los
      fondos que administra, no las de otros fondos): tabla con las
-     solicitudes **Certificado** y **Desembolsado** (fecha, fondo, área,
-     descripción, monto solicitado, estado). "Ver detalle" muestra **toda
+     solicitudes **Certificado**, **Desembolsado** y **Facturado** (fecha,
+     fondo, área, descripción, monto solicitado, estado — las dos últimas
+     quedan ahí como registro, no hay nada más que hacer con ellas en esta
+     pantalla). "Ver detalle" muestra **toda
      la información de la solicitud**
      (fondo, área, gerencia responsable, nombre del proceso, descripción,
      justificación, clasificación, forma de pago, la tabla completa de
@@ -116,9 +118,15 @@ del portal, que da acceso a todo sin excepción).
      solicitud desembolsada ya no se puede editar ni eliminar desde
      Certificación, y es la que habilita "Registrar factura".
   4. **Registrar factura o documento equivalente**: muestra en una tabla
-     (estilo Certificación) solo las solicitudes en estado **Desembolsado**,
-     con una columna **Facturación** ("N/M ítems") que indica cuántos de sus
-     ítems ya tienen factura registrada. El botón **"Ver ítems"** abre la
+     (estilo Certificación) las solicitudes en estado **Desembolsado** o
+     **Facturado**, con una columna **Facturación** ("N/M ítems") que
+     indica cuántos de sus ítems ya tienen factura registrada (verde
+     cuando están todos). Cuando el último ítem pendiente se factura, la
+     solicitud pasa automáticamente de **Desembolsado** a **Facturado**; si
+     luego se elimina esa factura (o cualquier otra de sus ítems) desde
+     Historial, vuelve a **Desembolsado** — el estado siempre refleja si
+     TODOS los ítems tienen ahora mismo una factura activa, no si alguna
+     vez la tuvieron. El botón **"Ver ítems"** abre la
      tabla de ítems de esa solicitud: los datos base (Tipo, Descripción,
      Precio unitario, Específico Presupuestario, CEP) se muestran de solo
      lectura como referencia, y cada ítem tiene sus propios campos
@@ -307,19 +315,24 @@ entorno anteriores.
   factura por **ítem** de la solicitud (no una por toda la solicitud), así
   que cada gasto creado desde ahí queda enlazado al `numero` del ítem dentro
   de `gastos_solicitudes.items` (jsonb). El servidor exige que ese ítem
-  exista en la solicitud y que la solicitud esté en estado `desembolsado`
-  antes de aceptar la factura. Los gastos creados antes de este cambio (o
-  antes de que existiera "Registrar factura") quedan con `item_numero`
-  vacío.
+  exista en la solicitud y que la solicitud esté en estado `desembolsado` o
+  `facturado` antes de aceptar la factura (`facturado` se acepta para poder
+  corregir una factura ya registrada aun cuando la solicitud ya esté
+  completa). Los gastos creados antes de este cambio (o antes de que
+  existiera "Registrar factura") quedan con `item_numero` vacío.
 - **Flujo de estados de una solicitud**: `pendiente` (recién creada) →
   `certificado` (al guardar cambios en Certificación presupuestaria, con
   Específico Presupuestario/CEP completos) → `desembolsado` (al presionar
   "Desembolsar" en Desembolso de fondos, lo único que habilita "Registrar
-  factura" para esa solicitud). `eliminada` es un borrado lógico posible
-  desde `pendiente` o `certificado`; una solicitud `desembolsada` ya no se
-  puede editar ni eliminar. `desembolsado_at`, `desembolsado_por_id` y
-  `desembolsado_por_nombre` quedan guardados para trazabilidad y se usan en
-  el PDF del comprobante.
+  factura" para esa solicitud) → `facturado` (automático: `api/gastos.js`
+  recalcula tras cada alta/edición/borrado/restauración de un gasto con
+  `item_numero` si TODOS los ítems de la solicitud tienen ya una factura
+  activa; si se elimina la de algún ítem, vuelve solo a `desembolsado`,
+  nunca hace falta tocarlo a mano). `eliminada` es un borrado lógico
+  posible desde `pendiente` o `certificado`; una solicitud `desembolsada`
+  o `facturada` ya no se puede editar ni eliminar. `desembolsado_at`,
+  `desembolsado_por_id` y `desembolsado_por_nombre` quedan guardados para
+  trazabilidad y se usan en el PDF del comprobante.
 - **Permisos por módulo** (`gastos_fondo_usuarios.es_administrador` y
   `gastos_certificadores`): ver "Modelo de permisos" más arriba. La acción
   `desembolsar` en `api/solicitudes.js` valida en el servidor (no solo en

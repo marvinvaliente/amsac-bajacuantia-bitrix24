@@ -211,6 +211,7 @@
   .badge.estado-pendiente { background: #fff4e5; color: #a86500; }
   .badge.estado-certificado { background: #e8f8ee; color: #1f7a41; }
   .badge.estado-desembolsado { background: #e8f0fd; color: #1a56a8; }
+  .badge.estado-facturado { background: #f1e9fb; color: #6b3fa0; }
   .badge.estado-eliminada { background: #fdecec; color: #a92626; }
 
   table.data-table tr.row-eliminada td { color: #9aa5bd; }
@@ -1327,7 +1328,7 @@
   }
 
   function renderFacturaTabla() {
-    var desembolsadas = solicitudes.filter(function (s) { return s.estado === 'desembolsado'; })
+    var desembolsadas = solicitudes.filter(function (s) { return s.estado === 'desembolsado' || s.estado === 'facturado'; })
       .sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
     document.getElementById('facturaListLoading').style.display = 'none';
     document.getElementById('facturaListVacio').style.display = desembolsadas.length ? 'none' : 'block';
@@ -1951,7 +1952,7 @@
     return f ? (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio : '—';
   }
 
-  var SOLICITUD_ESTADO_LABEL = { pendiente: 'Pendiente', certificado: 'Certificado', desembolsado: 'Desembolsado', eliminada: 'Eliminada' };
+  var SOLICITUD_ESTADO_LABEL = { pendiente: 'Pendiente', certificado: 'Certificado', desembolsado: 'Desembolsado', facturado: 'Facturado', eliminada: 'Eliminada' };
 
   function renderCertTabla() {
     var ordenadas = solicitudes.slice().sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
@@ -1960,9 +1961,9 @@
     document.getElementById('certTableBody').innerHTML = ordenadas.map(function (s) {
       var estado = s.estado || 'pendiente';
       var esEliminada = estado === 'eliminada';
-      // Una solicitud ya desembolsada queda fija (no se edita ni se
-      // elimina), igual que una eliminada.
-      var esFinal = esEliminada || estado === 'desembolsado';
+      // Una solicitud ya desembolsada (o facturada) queda fija (no se
+      // edita ni se elimina), igual que una eliminada.
+      var esFinal = esEliminada || estado === 'desembolsado' || estado === 'facturado';
       return '<tr' + (esEliminada ? ' class="row-eliminada"' : '') + '>' +
         '<td>' + esc((s.created_at || '').slice(0, 10)) + '</td>' +
         '<td>' + esc(fondoLabelPorId(s.fondo_id)) + '</td>' +
@@ -2130,7 +2131,7 @@
 
   function renderDesembolsoTabla() {
     var lista = solicitudes.filter(function (s) {
-      if (s.estado !== 'certificado' && s.estado !== 'desembolsado') return false;
+      if (s.estado !== 'certificado' && s.estado !== 'desembolsado' && s.estado !== 'facturado') return false;
       if (isAdmin) return true;
       return fondosAdministrados.some(function (fid) { return String(fid) === String(s.fondo_id); });
     }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
