@@ -92,7 +92,15 @@ portal, que da acceso a todo sin excepción).
      desembolsar.
   2. **Autorización de gerencia** (acceso: automático para quien fue
      elegido como "Gerencia responsable" de al menos una solicitud, ver
-     "Modelo de permisos"): tabla con las solicitudes donde esa persona es
+     "Modelo de permisos"): al crear la solicitud, esa persona recibe
+     automáticamente una **notificación de Bitrix24** (si
+     `BITRIX24_WEBHOOK_URL` está configurada) con dos enlaces, "✅
+     Autorizar" y "❌ Denegar", que la llevan directo a esta pantalla ya
+     abierta en esa solicitud — y si entró justo desde uno de esos
+     enlaces, el cuadro de confirmación de esa decisión ya aparece armado,
+     solo falta confirmarlo. Además de por notificación, esta pantalla
+     también se usa entrando normalmente por el menú: tabla con las
+     solicitudes donde esa persona es
      la gerencia responsable (un administrador ve las de todos). "Ver
      detalle" muestra la misma información completa que Desembolso de
      fondos (área, descripción, justificación, ítems, cotización, monto
@@ -268,6 +276,11 @@ Mismas credenciales que ya usa el proyecto de transporte (mismo proyecto Supabas
 
 - `SUPABASE_URL`
 - `SUPABASE_SECRET` (service role key — solo se usa en las funciones `api/*.js`, nunca en el navegador)
+- `BITRIX24_WEBHOOK_URL` (opcional): webhook entrante de Bitrix24 con scope
+  **`im`**, usado solo para avisarle a la gerencia responsable que tiene una
+  solicitud nueva por autorizar (ver "Instalación en Bitrix24" para cómo
+  crearlo). Si no se configura, la app funciona igual — simplemente no se
+  envía ese aviso.
 
 ## Desarrollo local
 
@@ -302,6 +315,15 @@ entorno anteriores.
    registrar gastos.
 7. Comparte el acceso desde el menú de aplicaciones del portal con el resto de
    usuarios autorizados.
+8. (Opcional, para el aviso automático a la gerencia responsable) Entra de
+   nuevo a **Aplicaciones → Recursos para desarrolladores → Otro → "Cree
+   webhooks entrantes o salientes..."**, elige **"Webhook entrante"**, marca
+   el permiso **`im`** (Mensajería/Notificaciones) y guarda. Copia la URL
+   generada (tiene la forma
+   `https://<tu-portal>.bitrix24.es/rest/<id>/<código>/`) y agrégala como
+   `BITRIX24_WEBHOOK_URL` en las variables de entorno de Vercel (sección
+   anterior). Las notificaciones le llegarán a cada gerencia responsable
+   como si las enviara el usuario dueño del webhook.
 
 ## Notas técnicas
 
@@ -391,3 +413,25 @@ entorno anteriores.
   reducido, sin estos campos) el servidor exige que el navegador reenvíe
   ambos valores sin cambios para no perderlos — el frontend los captura al
   cargar el formulario y los reenvía tal cual.
+- **Notificación a la gerencia responsable**: al crear una solicitud (acción
+  `create` en `api/solicitudes.js`), si `BITRIX24_WEBHOOK_URL` está
+  configurada, el servidor llama a `im.notify.system.add` de Bitrix24 (best
+  effort — si falla o no está configurada, no bloquea la creación) con un
+  mensaje en BBCode que incluye `[URL=...]Autorizar[/URL]` y
+  `[URL=...]Denegar[/URL]` apuntando a la URL pública de esta misma app
+  (`https://<host>/index.html`, deducida de los headers de la petición, sin
+  variable de entorno aparte) con `?solicitud=<id>&accion=autorizar|denegar`.
+  `im.notify`/`im.notify.system.add` **no admiten autorización por sesión**
+  (`BX24.callMethod` desde el navegador), por eso este aviso solo puede
+  enviarse desde el servidor con un webhook — de ahí la nueva variable de
+  entorno. Al abrir ese enlace, el frontend (`manejarDeepLinkAutorizacion`
+  en `index.source.html`) lee `?solicitud=`/`?accion=` de la URL, limpia la
+  barra de direcciones, abre "Autorización de gerencia" directo en esa
+  solicitud y, si la acción es autorizar/denegar y sigue `pendiente`, deja
+  el modal de confirmación ya abierto. Esto funciona de forma fiable
+  cuando el enlace se abre dentro de una sesión de Bitrix24 ya
+  activa en el mismo navegador; Bitrix24 no documenta un mecanismo
+  garantizado para reabrir una aplicación local embebida (autenticada vía
+  `BX24.js`) desde un enlace externo a un mensaje, así que si `BX24.init()`
+  no logra autenticar fuera de ese contexto, el usuario simplemente
+  necesita entrar a la app desde Bitrix24 normalmente.

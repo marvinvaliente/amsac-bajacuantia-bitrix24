@@ -43,6 +43,48 @@ function numOrNull(v) {
   return isNaN(n) ? null : n;
 }
 
+// URL pública de esta misma app (para armar el enlace de "ir directo a
+// autorizar/denegar" en la notificación de Bitrix24), derivada de los
+// headers de la petición -- no depende de configurar una variable de
+// entorno aparte con el dominio.
+function urlDeLaApp(req) {
+  const proto = req.headers['x-forwarded-proto'] || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return proto + '://' + host + '/index.html';
+}
+
+// Avisa por Bitrix24 (notificación del sistema, campana/mensajería) a la
+// gerencia responsable de una solicitud recién creada, con enlaces que la
+// llevan directo a "Autorización de gerencia" para esa solicitud. Requiere
+// la variable de entorno BITRIX24_WEBHOOK_URL (webhook entrante con scope
+// "im"); si no está configurada, o si Bitrix24 no responde, no bloquea la
+// creación de la solicitud -- es un aviso "best effort".
+async function notificarGerencia(row, req) {
+  const webhook = process.env.BITRIX24_WEBHOOK_URL;
+  if (!webhook || !row || !row.gerencia_responsable_id) return;
+  try {
+    const base = webhook.endsWith('/') ? webhook : webhook + '/';
+    const appUrl = urlDeLaApp(req);
+    const linkAutorizar = appUrl + '?solicitud=' + encodeURIComponent(row.id) + '&accion=autorizar';
+    const linkDenegar = appUrl + '?solicitud=' + encodeURIComponent(row.id) + '&accion=denegar';
+    const monto = '$' + (Math.round((row.monto_total || 0) * 100) / 100).toFixed(2);
+    const mensaje =
+      'Tienes una nueva solicitud de compra para autorizar (#' + row.id + '): ' +
+      (row.descripcion || 'sin descripción') + '. Monto solicitado: ' + monto + '.\n' +
+      '[URL=' + linkAutorizar + ']✅ Autorizar[/URL]   [URL=' + linkDenegar + ']❌ Denegar[/URL]';
+    await fetch(base + 'im.notify.system.add', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        USER_ID: row.gerencia_responsable_id,
+        MESSAGE: mensaje,
+        MESSAGE_OUT: 'Solicitud #' + row.id + ' pendiente de tu autorización (' + monto + ').',
+        TAG: 'GASTOS_AUTORIZACION_' + row.id
+      })
+    });
+  } catch (e) { /* aviso best-effort, nunca bloquea la creación de la solicitud */ }
+}
+
 const CLASIFICACIONES = ['emergente', 'imprevisto', 'recurrente'];
 const FORMAS_PAGO = ['efectivo', 'transferencia', 'cheque'];
 const TIPOS_ITEM = ['bien', 'servicio'];
@@ -180,6 +222,7 @@ module.exports = async (req, res) => {
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
+        await notificarGerencia(data[0], req);
         res.status(200).json({ ok: true, solicitud: data[0] });
         return;
       }

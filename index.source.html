@@ -2257,6 +2257,27 @@
     renderAutorizacionTabla();
   }
 
+  // Enlace directo desde la notificación de Bitrix24 que se envía a la
+  // gerencia responsable al crear una solicitud (?solicitud=ID&accion=
+  // autorizar|denegar): abre esa solicitud en Autorización de gerencia y,
+  // si corresponde, deja el modal de confirmación ya armado con un clic.
+  function manejarDeepLinkAutorizacion() {
+    var params = new URLSearchParams(window.location.search);
+    var solId = params.get('solicitud');
+    var accion = params.get('accion');
+    if (!solId) return;
+    history.replaceState(null, '', window.location.pathname);
+    var s = solicitudes.find(function (x) { return String(x.id) === String(solId); });
+    if (!s) return;
+    var puedeVerla = isAdmin || String(s.gerencia_responsable_id) === String(currentUser.ID);
+    if (!puedeVerla) return;
+    activarTab('autorizacion');
+    abrirAutorizacionDetalle(solId);
+    if ((accion === 'autorizar' || accion === 'denegar') && s.estado === 'pendiente') {
+      decidirAutorizacion(accion);
+    }
+  }
+
   function initCertificacion() {
     renderCertTabla();
   }
@@ -3649,6 +3670,8 @@
       else if (puedeDesembolsar) { activarTab('desembolso'); }
       else if (isAdmin) { activarTab('reportes'); }
       else { document.getElementById('viewSinAcceso').style.display = 'block'; }
+
+      manejarDeepLinkAutorizacion();
     }).catch(function (err) {
       document.getElementById('viewInicioLoading').textContent =
         'Error al iniciar la app: ' + (err && err.ex ? err.ex.error_description : JSON.stringify(err));
