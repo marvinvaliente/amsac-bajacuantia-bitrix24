@@ -3640,7 +3640,22 @@
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }
 
+  // Si BX24.init() nunca llama a su callback (p. ej. porque se abrió esta
+  // URL directo en una pestaña del navegador -- como al hacer clic en el
+  // enlace "Autorizar"/"Denegar" de una notificación de Bitrix24 -- en vez
+  // de estar embebida dentro de Bitrix24, la app se queda con el spinner de
+  // "Cargando..." para siempre sin ninguna pista. Tras unos segundos sin
+  // respuesta, se reemplaza por un mensaje que explica qué hacer.
+  var bx24InitTimeout = setTimeout(function () {
+    document.getElementById('viewInicioLoading').innerHTML =
+      'No se pudo conectar con Bitrix24 desde esta ventana.<br><br>' +
+      'Si llegaste aquí desde el enlace "Autorizar" o "Denegar" de una notificación, ' +
+      'esta página necesita abrirse dentro de Bitrix24: entra normalmente a la app desde el menú de aplicaciones ' +
+      'de tu portal y ve a <b>"Autorización de gerencia"</b> — ahí vas a ver la misma solicitud pendiente.';
+  }, 6000);
+
   BX24.init(function () {
+    clearTimeout(bx24InitTimeout);
     Promise.all([
       bx('user.current', {}),
       bx('user.admin', {}),
