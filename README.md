@@ -448,10 +448,18 @@ entorno anteriores.
   webhook necesita el scope **`im`** específicamente (con otro scope,
   Bitrix24 responde `401 insufficient_scope`). Al abrir ese enlace, el
   frontend (`manejarDeepLinkAutorizacion` en `index.source.html`) lee
-  `?solicitud=`/`?accion=` de la URL, limpia la barra de direcciones, abre
-  "Autorización de gerencia" directo en esa solicitud y, si la acción es
-  autorizar/denegar y sigue `pendiente`, deja el modal de confirmación ya
-  abierto. **Esto solo funciona si el enlace abre la app embebida dentro de
+  `?solicitud=`/`?accion=`. Bitrix24 embebe la app en un `<iframe>` con su
+  propio `src` fijo (la URL "Handler" configurada al instalar la app), **sin
+  reenviarle el query string** del enlace de la notificación — ese
+  `?solicitud=&accion=` se queda en la URL de la pestaña/página que
+  contiene el iframe, no en la del iframe mismo, así que
+  `window.location.search` llega vacío. Por eso primero se intenta ahí y,
+  si viene vacío, se cae de vuelta a `document.referrer` (que sí conserva
+  la URL completa de la página que embebió el iframe, confirmado con una
+  prueba con un iframe real). Una vez leídos, limpia la barra de
+  direcciones, abre "Autorización de gerencia" directo en esa solicitud y,
+  si la acción es autorizar/denegar y sigue `pendiente`, deja el modal de
+  confirmación ya abierto. **Esto solo funciona si el enlace abre la app embebida dentro de
   Bitrix24** (autenticada vía `BX24.js`) — de ahí `BITRIX24_APP_URL`
   apuntando a la URL tipo `marketplace/app/<id>/` con la que Bitrix24 abre
   la app desde su propio menú; sin esa variable, o si el enlace igual abre

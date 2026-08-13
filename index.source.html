@@ -2261,8 +2261,26 @@
   // gerencia responsable al crear una solicitud (?solicitud=ID&accion=
   // autorizar|denegar): abre esa solicitud en Autorización de gerencia y,
   // si corresponde, deja el modal de confirmación ya armado con un clic.
+  //
+  // Bitrix24 abre esta app dentro de un iframe cuyo src es la URL fija
+  // configurada en el portal (marketplace/app/<id>/), SIN reenviar el
+  // ?solicitud=&accion= que llevaba el enlace de la notificación -- ese
+  // query string se queda en la URL de la pestaña (la del padre), no en la
+  // de este iframe. window.location.search (el del iframe) llega vacío en
+  // ese caso. Como respaldo, se busca ese mismo query string en
+  // document.referrer, que sí suele conservar la URL completa de la página
+  // que embebió el iframe.
+  function paramsDeepLink() {
+    var search = window.location.search;
+    if (!search && document.referrer) {
+      var i = document.referrer.indexOf('?');
+      if (i !== -1) search = document.referrer.slice(i);
+    }
+    return new URLSearchParams(search);
+  }
+
   function manejarDeepLinkAutorizacion() {
-    var params = new URLSearchParams(window.location.search);
+    var params = paramsDeepLink();
     var solId = params.get('solicitud');
     var accion = params.get('accion');
     if (!solId) return;
