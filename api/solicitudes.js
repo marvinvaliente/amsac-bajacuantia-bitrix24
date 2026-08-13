@@ -72,7 +72,7 @@ async function notificarGerencia(row, req) {
       'Tienes una nueva solicitud de compra para autorizar (#' + row.id + '): ' +
       (row.descripcion || 'sin descripción') + '. Monto solicitado: ' + monto + '.\n' +
       '[URL=' + linkAutorizar + ']✅ Autorizar[/URL]   [URL=' + linkDenegar + ']❌ Denegar[/URL]';
-    await fetch(base + 'im.notify.system.add', {
+    const rNotif = await fetch(base + 'im.notify.system.add', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -82,7 +82,18 @@ async function notificarGerencia(row, req) {
         TAG: 'GASTOS_AUTORIZACION_' + row.id
       })
     });
-  } catch (e) { /* aviso best-effort, nunca bloquea la creación de la solicitud */ }
+    // Aviso best-effort: nunca bloquea la creación de la solicitud, pero si
+    // Bitrix24 responde con error lo dejamos en los logs de la función
+    // (Vercel → proyecto → Deployments → Functions) para poder diagnosticar
+    // sin tener que adivinar (webhook mal copiado, scope "im" faltante,
+    // usuario destino inválido, etc.).
+    if (!rNotif.ok) {
+      const textoError = await rNotif.text().catch(() => '');
+      console.error('notificarGerencia: Bitrix24 respondió ' + rNotif.status + ' — ' + textoError);
+    }
+  } catch (e) {
+    console.error('notificarGerencia: error de conexión con el webhook de Bitrix24 — ' + (e && e.message || e));
+  }
 }
 
 const CLASIFICACIONES = ['emergente', 'imprevisto', 'recurrente'];
