@@ -194,11 +194,13 @@ function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigi
     row: {
       fondo_id: fondoId,
       area_solicitante: areaSolicitante,
+      jefatura_solicitante: String(s.jefatura_solicitante || '').trim(),
       nombre_proceso: nombreProceso,
       descripcion: descripcion,
       justificacion: justificacion,
       gerencia_responsable_id: gerenciaId,
       gerencia_responsable_nombre: String(s.gerencia_responsable_nombre || '').trim(),
+      gerencia_responsable_unidad: String(s.gerencia_responsable_unidad || '').trim(),
       clasificacion: clasificacion,
       forma_pago: formaPago,
       items: itemsBuilt.items,

@@ -380,18 +380,30 @@
             <div class="combo-wrap">
               <input type="text" id="sAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
               <div id="sAreaDropdown" class="combo-dropdown"></div>
+              <input type="hidden" id="sAreaId" />
             </div>
           </div>
         </div>
 
         <div class="row">
           <div>
-            <label for="sGerencia">Gerencia responsable *</label>
+            <label for="sJefaturaSolicitante">Jefatura solicitante</label>
+            <input type="text" id="sJefaturaSolicitante" readonly placeholder="Se completa solo según el área solicitante" />
+          </div>
+          <div>
+            <label for="sGerencia">Gerente responsable *</label>
             <div class="combo-wrap">
               <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
               <div id="sGerenciaDropdown" class="combo-dropdown"></div>
               <input type="hidden" id="sGerenciaId" />
             </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="sGerenciaUnidad">Gerencia responsable</label>
+            <input type="text" id="sGerenciaUnidad" readonly placeholder="Se completa solo según el gerente responsable" />
           </div>
           <div>
             <label for="sNombreProceso">Nombre del proceso *</label>
@@ -466,7 +478,9 @@
         <div class="solicitud-info">
           <div><b>Fondo:</b> <span id="aFondo">—</span></div>
           <div><b>Área solicitante:</b> <span id="aArea">—</span></div>
-          <div><b>Gerencia responsable:</b> <span id="aGerencia">—</span></div>
+          <div><b>Jefatura solicitante:</b> <span id="aJefatura">—</span></div>
+          <div><b>Gerente responsable:</b> <span id="aGerencia">—</span></div>
+          <div><b>Gerencia responsable:</b> <span id="aGerenciaUnidad">—</span></div>
           <div><b>Nombre del proceso:</b> <span id="aNombreProceso">—</span></div>
           <div><b>Descripción:</b> <span id="aDescripcion">—</span></div>
           <div><b>Justificación:</b> <span id="aJustificacion">—</span></div>
@@ -505,7 +519,7 @@
       <div class="table-wrap" id="autorizacionListWrap" style="max-height:480px; overflow-y:auto">
         <table class="data-table" id="autorizacionTable">
           <thead>
-            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Gerencia responsable</th><th>Monto</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Gerente responsable</th><th>Monto</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody id="autorizacionTableBody"></tbody>
         </table>
@@ -527,18 +541,30 @@
             <div class="combo-wrap">
               <input type="text" id="cAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
               <div id="cAreaDropdown" class="combo-dropdown"></div>
+              <input type="hidden" id="cAreaId" />
             </div>
           </div>
         </div>
 
         <div class="row">
           <div>
-            <label for="cGerencia">Gerencia responsable *</label>
+            <label for="cJefaturaSolicitante">Jefatura solicitante</label>
+            <input type="text" id="cJefaturaSolicitante" readonly placeholder="Se completa solo según el área solicitante" />
+          </div>
+          <div>
+            <label for="cGerencia">Gerente responsable *</label>
             <div class="combo-wrap">
               <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
               <div id="cGerenciaDropdown" class="combo-dropdown"></div>
               <input type="hidden" id="cGerenciaId" />
             </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="cGerenciaUnidad">Gerencia responsable</label>
+            <input type="text" id="cGerenciaUnidad" readonly placeholder="Se completa solo según el gerente responsable" />
           </div>
           <div>
             <label for="cNombreProceso">Nombre del proceso *</label>
@@ -625,7 +651,9 @@
         <div class="solicitud-info">
           <div><b>Fondo:</b> <span id="dFondo">—</span></div>
           <div><b>Área solicitante:</b> <span id="dArea">—</span></div>
-          <div><b>Gerencia responsable:</b> <span id="dGerencia">—</span></div>
+          <div><b>Jefatura solicitante:</b> <span id="dJefatura">—</span></div>
+          <div><b>Gerente responsable:</b> <span id="dGerencia">—</span></div>
+          <div><b>Gerencia responsable:</b> <span id="dGerenciaUnidad">—</span></div>
           <div><b>Nombre del proceso:</b> <span id="dNombreProceso">—</span></div>
           <div><b>Descripción:</b> <span id="dDescripcion">—</span></div>
           <div><b>Justificación:</b> <span id="dJustificacion">—</span></div>
@@ -1121,6 +1149,36 @@
     var d = allDepartments.find(function (x) { return String(x.ID) === String(u.UF_DEPARTMENT[0]); });
     return d ? (d.NAME || '').replace(/[_\s]+$/, '').trim() : '—';
   }
+  // Id de la unidad/departamento de Bitrix24 al que pertenece un usuario
+  // (primer UF_DEPARTMENT), o '' si no tiene. Complementa a getUnidad(), que
+  // devuelve el nombre -- este devuelve el id, necesario para poder buscar
+  // después quién es la jefatura de esa unidad.
+  function getUnidadId(id) {
+    var u = findUser(id);
+    return (u && u.UF_DEPARTMENT && u.UF_DEPARTMENT.length) ? String(u.UF_DEPARTMENT[0]) : '';
+  }
+  function getDeptoPorId(deptoId) {
+    return allDepartments.find(function (d) { return String(d.ID) === String(deptoId); });
+  }
+  function nombreDepto(d) { return d ? (d.NAME || '').replace(/[_\s]+$/, '').trim() : ''; }
+  // Id del primer departamento de Bitrix24 cuyo nombre coincide exactamente
+  // con el texto escrito/elegido en "Área solicitante". Se usa como
+  // respaldo cuando no se hizo clic en una sugerencia del combo (p. ej. al
+  // precargar una solicitud ya existente en Certificación, donde solo se
+  // guardó el nombre del área, no su id).
+  function getDeptoIdPorNombre(nombre) {
+    var d = allDepartments.find(function (x) { return nombreDepto(x) === String(nombre || '').trim(); });
+    return d ? String(d.ID) : '';
+  }
+  // Nombre completo de quien figura como jefatura (UF_HEAD) de una unidad de
+  // Bitrix24, para autocompletar "Jefatura solicitante". Vacío si la unidad
+  // no tiene jefatura asignada en Bitrix24.
+  function getJefaturaDeDepto(deptoId) {
+    var d = getDeptoPorId(deptoId);
+    if (!d || !d.UF_HEAD) return '';
+    var jefe = findUser(d.UF_HEAD);
+    return jefe ? fullName(jefe) : '';
+  }
   function getFondosDe(id) {
     var propios = fondos.filter(function (f) { return (f.usuario_ids || []).some(function (x) { return String(x) === String(id); }); });
     if (!propios.length) return '—';
@@ -1262,8 +1320,12 @@
   // quien está creando la solicitud; el campo sigue siendo editable por si
   // necesita registrarla a nombre de otra área.
   function prellenarAreaSolicitante() {
+    var deptoId = getUnidadId(currentUser.ID);
     var propia = getUnidad(currentUser.ID);
-    document.getElementById('sAreaSolicitante').value = (propia && propia !== '—') ? propia : '';
+    var hayPropia = propia && propia !== '—';
+    document.getElementById('sAreaSolicitante').value = hayPropia ? propia : '';
+    document.getElementById('sAreaId').value = hayPropia ? deptoId : '';
+    document.getElementById('sJefaturaSolicitante').value = hayPropia ? getJefaturaDeDepto(deptoId) : '';
   }
 
   // Lista solo los fondos a los que pertenece quien está creando la solicitud;
@@ -1611,6 +1673,8 @@
   // ---- Combo con buscador para "Área solicitante" (Crear Solicitud) ----
   var sAreaInput = document.getElementById('sAreaSolicitante');
   var sAreaDropdown = document.getElementById('sAreaDropdown');
+  var sAreaIdInput = document.getElementById('sAreaId');
+  var sJefaturaInput = document.getElementById('sJefaturaSolicitante');
 
   function renderAreaDropdown() {
     var filtro = sAreaInput.value.trim().toLowerCase();
@@ -1631,22 +1695,31 @@
   function cerrarAreaDropdown() { sAreaDropdown.classList.remove('open'); }
 
   sAreaInput.addEventListener('focus', abrirAreaDropdown);
-  sAreaInput.addEventListener('input', abrirAreaDropdown);
+  sAreaInput.addEventListener('input', function () {
+    sAreaIdInput.value = '';
+    sJefaturaInput.value = '';
+    abrirAreaDropdown();
+  });
   sAreaDropdown.addEventListener('mousedown', function (ev) {
     var opt = ev.target.closest('[data-area]');
     if (!opt) return;
     ev.preventDefault();
-    sAreaInput.value = opt.getAttribute('data-area');
+    var nombre = opt.getAttribute('data-area');
+    sAreaInput.value = nombre;
+    var deptoId = getDeptoIdPorNombre(nombre);
+    sAreaIdInput.value = deptoId;
+    sJefaturaInput.value = deptoId ? getJefaturaDeDepto(deptoId) : '';
     cerrarAreaDropdown();
   });
   document.addEventListener('click', function (ev) {
     if (ev.target !== sAreaInput && !sAreaDropdown.contains(ev.target)) cerrarAreaDropdown();
   });
 
-  // ---- Combo con buscador para "Gerencia responsable" (usuario Bitrix24) ----
+  // ---- Combo con buscador para "Gerente responsable" (usuario Bitrix24) ----
   var sGerenciaInput = document.getElementById('sGerencia');
   var sGerenciaDropdown = document.getElementById('sGerenciaDropdown');
   var sGerenciaIdInput = document.getElementById('sGerenciaId');
+  var sGerenciaUnidadInput = document.getElementById('sGerenciaUnidad');
 
   function renderGerenciaDropdown() {
     var filtro = sGerenciaInput.value.trim().toLowerCase();
@@ -1659,13 +1732,20 @@
   function cerrarGerenciaDropdown() { sGerenciaDropdown.classList.remove('open'); }
 
   sGerenciaInput.addEventListener('focus', abrirGerenciaDropdown);
-  sGerenciaInput.addEventListener('input', function () { sGerenciaIdInput.value = ''; abrirGerenciaDropdown(); });
+  sGerenciaInput.addEventListener('input', function () {
+    sGerenciaIdInput.value = '';
+    sGerenciaUnidadInput.value = '';
+    abrirGerenciaDropdown();
+  });
   sGerenciaDropdown.addEventListener('mousedown', function (ev) {
     var opt = ev.target.closest('[data-uid]');
     if (!opt) return;
     ev.preventDefault();
+    var uid = opt.getAttribute('data-uid');
     sGerenciaInput.value = opt.getAttribute('data-uname');
-    sGerenciaIdInput.value = opt.getAttribute('data-uid');
+    sGerenciaIdInput.value = uid;
+    var unidad = getUnidad(uid);
+    sGerenciaUnidadInput.value = (unidad && unidad !== '—') ? unidad : '';
     cerrarGerenciaDropdown();
   });
   document.addEventListener('click', function (ev) {
@@ -1828,11 +1908,13 @@
     var solicitud = {
       fondo_id: fondoId,
       area_solicitante: sAreaInput.value.trim(),
+      jefatura_solicitante: sJefaturaInput.value.trim(),
       nombre_proceso: document.getElementById('sNombreProceso').value.trim(),
       descripcion: document.getElementById('sDescripcion').value.trim(),
       justificacion: document.getElementById('sJustificacion').value.trim(),
       gerencia_responsable_id: gerenciaId,
       gerencia_responsable_nombre: sGerenciaInput.value.trim(),
+      gerencia_responsable_unidad: sGerenciaUnidadInput.value.trim(),
       clasificacion: document.getElementById('sClasificacion').value,
       forma_pago: document.getElementById('sFormaPago').value,
       cotizacion_urls: sCotizacionItems.map(function (c) { return { url: c.url, nombre: c.nombre }; }),
@@ -1866,6 +1948,8 @@
   // ---- Combo con buscador para "Área solicitante" (Certificación) ----
   var cAreaInput = document.getElementById('cAreaSolicitante');
   var cAreaDropdown = document.getElementById('cAreaDropdown');
+  var cAreaIdInput = document.getElementById('cAreaId');
+  var cJefaturaInput = document.getElementById('cJefaturaSolicitante');
   function renderCAreaDropdown() {
     var filtro = cAreaInput.value.trim().toLowerCase();
     var opciones = filtro ? areasDisponibles.filter(function (a) { return a.toLowerCase().indexOf(filtro) !== -1; }) : areasDisponibles;
@@ -1881,20 +1965,29 @@
   function abrirCAreaDropdown() { if (cAreaInput.readOnly) return; renderCAreaDropdown(); cAreaDropdown.classList.add('open'); }
   function cerrarCAreaDropdown() { cAreaDropdown.classList.remove('open'); }
   cAreaInput.addEventListener('focus', abrirCAreaDropdown);
-  cAreaInput.addEventListener('input', abrirCAreaDropdown);
+  cAreaInput.addEventListener('input', function () {
+    cAreaIdInput.value = '';
+    cJefaturaInput.value = '';
+    abrirCAreaDropdown();
+  });
   cAreaDropdown.addEventListener('mousedown', function (ev) {
     if (cAreaInput.readOnly) return;
     var opt = ev.target.closest('[data-area]');
     if (!opt) return;
     ev.preventDefault();
-    cAreaInput.value = opt.getAttribute('data-area');
+    var nombre = opt.getAttribute('data-area');
+    cAreaInput.value = nombre;
+    var deptoId = getDeptoIdPorNombre(nombre);
+    cAreaIdInput.value = deptoId;
+    cJefaturaInput.value = deptoId ? getJefaturaDeDepto(deptoId) : '';
     cerrarCAreaDropdown();
   });
 
-  // ---- Combo con buscador para "Gerencia responsable" (Certificación) ----
+  // ---- Combo con buscador para "Gerente responsable" (Certificación) ----
   var cGerenciaInput = document.getElementById('cGerencia');
   var cGerenciaDropdown = document.getElementById('cGerenciaDropdown');
   var cGerenciaIdInput = document.getElementById('cGerenciaId');
+  var cGerenciaUnidadInput = document.getElementById('cGerenciaUnidad');
   function renderCGerenciaDropdown() {
     var filtro = cGerenciaInput.value.trim().toLowerCase();
     var opciones = (filtro ? allUsers.filter(function (u) { return fullName(u).toLowerCase().indexOf(filtro) !== -1; }) : allUsers).slice(0, 40);
@@ -1905,14 +1998,21 @@
   function abrirCGerenciaDropdown() { if (cGerenciaInput.readOnly) return; renderCGerenciaDropdown(); cGerenciaDropdown.classList.add('open'); }
   function cerrarCGerenciaDropdown() { cGerenciaDropdown.classList.remove('open'); }
   cGerenciaInput.addEventListener('focus', abrirCGerenciaDropdown);
-  cGerenciaInput.addEventListener('input', function () { cGerenciaIdInput.value = ''; abrirCGerenciaDropdown(); });
+  cGerenciaInput.addEventListener('input', function () {
+    cGerenciaIdInput.value = '';
+    cGerenciaUnidadInput.value = '';
+    abrirCGerenciaDropdown();
+  });
   cGerenciaDropdown.addEventListener('mousedown', function (ev) {
     if (cGerenciaInput.readOnly) return;
     var opt = ev.target.closest('[data-uid]');
     if (!opt) return;
     ev.preventDefault();
+    var uid = opt.getAttribute('data-uid');
     cGerenciaInput.value = opt.getAttribute('data-uname');
-    cGerenciaIdInput.value = opt.getAttribute('data-uid');
+    cGerenciaIdInput.value = uid;
+    var unidad = getUnidad(uid);
+    cGerenciaUnidadInput.value = (unidad && unidad !== '—') ? unidad : '';
     cerrarCGerenciaDropdown();
   });
 
@@ -2111,8 +2211,14 @@
     poblarFondosTodos('cFondo');
     document.getElementById('cFondo').value = s.fondo_id != null ? String(s.fondo_id) : '';
     cAreaInput.value = s.area_solicitante || '';
+    // area_solicitante se guarda como texto, no con el id del departamento
+    // -- se busca por nombre para poder tener un id y así poder recalcular
+    // la jefatura si el certificador cambia el área con doble clic.
+    cAreaIdInput.value = getDeptoIdPorNombre(s.area_solicitante);
+    cJefaturaInput.value = s.jefatura_solicitante || '';
     cGerenciaInput.value = s.gerencia_responsable_nombre || '';
     cGerenciaIdInput.value = s.gerencia_responsable_id || '';
+    cGerenciaUnidadInput.value = s.gerencia_responsable_unidad || '';
     document.getElementById('cNombreProceso').value = s.nombre_proceso || '';
     document.getElementById('cDescripcion').value = s.descripcion || '';
     document.getElementById('cJustificacion').value = s.justificacion || '';
@@ -2167,7 +2273,9 @@
     document.getElementById('autorizacionTitulo').textContent = 'Solicitud #' + s.id;
     document.getElementById('aFondo').textContent = fondoLabelPorId(s.fondo_id);
     document.getElementById('aArea').textContent = s.area_solicitante || '—';
+    document.getElementById('aJefatura').textContent = s.jefatura_solicitante || '—';
     document.getElementById('aGerencia').textContent = s.gerencia_responsable_nombre || '—';
+    document.getElementById('aGerenciaUnidad').textContent = s.gerencia_responsable_unidad || '—';
     document.getElementById('aNombreProceso').textContent = s.nombre_proceso || '—';
     document.getElementById('aDescripcion').textContent = s.descripcion || '—';
     document.getElementById('aJustificacion').textContent = s.justificacion || '—';
@@ -2330,11 +2438,13 @@
     var solicitud = {
       fondo_id: fondoId,
       area_solicitante: cAreaInput.value.trim(),
+      jefatura_solicitante: cJefaturaInput.value.trim(),
       nombre_proceso: document.getElementById('cNombreProceso').value.trim(),
       descripcion: document.getElementById('cDescripcion').value.trim(),
       justificacion: document.getElementById('cJustificacion').value.trim(),
       gerencia_responsable_id: gerenciaId,
       gerencia_responsable_nombre: cGerenciaInput.value.trim(),
+      gerencia_responsable_unidad: cGerenciaUnidadInput.value.trim(),
       clasificacion: document.getElementById('cClasificacion').value,
       forma_pago: document.getElementById('cFormaPago').value,
       cotizacion_urls: certEditingCotizaciones,
@@ -2396,7 +2506,9 @@
     document.getElementById('desembolsoTitulo').textContent = 'Solicitud #' + s.id;
     document.getElementById('dFondo').textContent = fondoLabelPorId(s.fondo_id);
     document.getElementById('dArea').textContent = s.area_solicitante || '—';
+    document.getElementById('dJefatura').textContent = s.jefatura_solicitante || '—';
     document.getElementById('dGerencia').textContent = s.gerencia_responsable_nombre || '—';
+    document.getElementById('dGerenciaUnidad').textContent = s.gerencia_responsable_unidad || '—';
     document.getElementById('dNombreProceso').textContent = s.nombre_proceso || '—';
     document.getElementById('dDescripcion').textContent = s.descripcion || '—';
     document.getElementById('dJustificacion').textContent = s.justificacion || '—';
@@ -2459,7 +2571,9 @@
       ['Solicitud N°', '#' + s.id],
       ['Fondo', fondoLabelPorId(s.fondo_id)],
       ['Área solicitante', s.area_solicitante || '—'],
-      ['Gerencia responsable', s.gerencia_responsable_nombre || '—'],
+      ['Jefatura solicitante', s.jefatura_solicitante || '—'],
+      ['Gerente responsable', s.gerencia_responsable_nombre || '—'],
+      ['Gerencia responsable', s.gerencia_responsable_unidad || '—'],
       ['Nombre del proceso', s.nombre_proceso || '—'],
       ['Clasificación del gasto', CLASIFICACION_LABEL[s.clasificacion] || s.clasificacion || '—'],
       ['Forma de pago', FORMA_PAGO_LABEL[s.forma_pago] || s.forma_pago || '—'],

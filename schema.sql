@@ -112,6 +112,18 @@ create index if not exists gastos_solicitudes_created_by_idx on gastos_solicitud
 -- Nombre del proceso: se movió de "Registrar gasto" a "Crear Solicitud".
 alter table gastos_solicitudes add column if not exists nombre_proceso text not null default '';
 
+-- "Gerencia responsable" pasó a llamarse "Gerente responsable" (sigue
+-- siendo gerencia_responsable_id/_nombre, el usuario de Bitrix24 elegido en
+-- ese campo). jefatura_solicitante y gerencia_responsable_unidad son
+-- nuevos, autocompletados en el navegador desde datos de Bitrix24 (no se
+-- vuelven a resolver en el servidor) y solo se guardan como texto:
+-- - jefatura_solicitante: nombre de quien figura como jefatura (UF_HEAD)
+--   del departamento elegido como "Área solicitante".
+-- - gerencia_responsable_unidad: nombre del departamento (UF_DEPARTMENT)
+--   al que pertenece el usuario elegido como "Gerente responsable".
+alter table gastos_solicitudes add column if not exists jefatura_solicitante text not null default '';
+alter table gastos_solicitudes add column if not exists gerencia_responsable_unidad text not null default '';
+
 -- Estado de la solicitud: 'pendiente' al crearla, a la espera de que la
 -- gerencia responsable (el usuario elegido en ese campo al crearla) la
 -- autorice o deniegue desde "Autorización de gerencia"; pasa a 'autorizada'
