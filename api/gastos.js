@@ -166,11 +166,15 @@ async function sincronizarEstadoSolicitud(solicitudId) {
   });
 }
 
-async function puedeModificar(id, actorId, isAdmin) {
+async function puedeModificar(id, actorId, isAdmin, esCertificador) {
   if (isAdmin) return true;
   const r = await sb('gastos_registros?id=eq.' + encodeURIComponent(id) + '&select=created_by_id,estado');
   const d = await r.json();
   if (!d || !d[0]) return false;
+  // Un certificador puede corregir cualquier gasto ya "informado" desde
+  // Certificación presupuestaria → "Reintegro o liquidación de fondos"
+  // (revisar la gestión de un fondo antes de generar el comprobante).
+  if (esCertificador && d[0].estado === 'informado') return true;
   if (d[0].estado !== 'registrado') return false;
   return String(d[0].created_by_id) === String(actorId);
 }
@@ -186,7 +190,8 @@ module.exports = async (req, res) => {
       if (action === 'list') {
         const filtroPropio = (q.admin === '1') ? '' : '&created_by_id=eq.' + encodeURIComponent(q.userId || '');
         const filtroEstado = (q.eliminados === '1') ? '&estado=eq.eliminado' : '&estado=neq.eliminado';
-        const r = await sb('gastos_registros?select=*&order=fecha.desc,created_at.desc' + filtroPropio + filtroEstado);
+        const filtroFondo = q.fondoId ? '&fondo_id=eq.' + encodeURIComponent(q.fondoId) : '';
+        const r = await sb('gastos_registros?select=*&order=fecha.desc,created_at.desc' + filtroPropio + filtroEstado + filtroFondo);
         res.status(200).json({ ok: r.ok, gastos: await r.json() });
         return;
       }
@@ -216,7 +221,7 @@ module.exports = async (req, res) => {
 
         let data, r;
         if (body.id) {
-          if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin))) {
+          if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, body.actor_es_certificador))) {
             res.status(403).json({ ok: false, error: 'Solo quien registró el gasto o un administrador puede editarlo.' });
             return;
           }
@@ -261,7 +266,7 @@ module.exports = async (req, res) => {
 
       if (action === 'delete') {
         if (!body.id) { res.status(400).json({ error: 'Falta id.' }); return; }
-        if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin))) {
+        if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, body.actor_es_certificador))) {
           res.status(403).json({ ok: false, error: 'Solo quien registró el gasto o un administrador puede eliminarlo.' });
           return;
         }

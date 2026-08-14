@@ -46,19 +46,33 @@ pertenezcan:
   departamento completo de Bitrix24 (si el departamento del usuario está
   en la lista, tiene acceso aunque no esté asignado individualmente). No
   depende de pertenecer a ningún fondo.
-- **Administrador de fondo** — acceso a **Desembolso de fondos**, pero
-  **solo para las solicitudes del/los fondo(s) que administra**: es un
-  subconjunto de los usuarios asignados a un fondo (no todos los que
+- **Administrador de fondo** — acceso a **Desembolso de fondos** e
+  **Informe de Gastos**, pero **solo para el/los fondo(s) que administra**:
+  es un subconjunto de los usuarios asignados a un fondo (no todos los que
   pueden usarlo para crear solicitudes son también administradores de
   ese fondo). Se elige al **crear el fondo** (y se puede cambiar después
   al **editarlo**); si alguien deja de ser administrador sigue siendo
   usuario normal del fondo (no pierde el acceso a crear solicitudes
-  contra él, solo el de desembolsar). El servidor valida esto también al
-  momento de desembolsar, no solo la pantalla.
+  contra él, solo el de desembolsar/informar). El servidor valida esto
+  también al momento de desembolsar y de gestionar un reembolso o
+  liquidación, no solo la pantalla. **Informe de Gastos ya no es de
+  autoservicio para cualquier solicitante** — desde que existe la
+  gestión de reintegro/liquidación, solo administradores de fondo (y del
+  portal) entran ahí, y cada uno solo ve la información de sus propios
+  fondos (un administrador del portal puede elegir cuál administrador
+  de fondo mirar, desde un selector).
+- **Certificador** también obtiene, además de "Certificar gastos", acceso
+  a la pantalla hermana **"Reintegro o liquidación de fondos"** (mismo
+  grupo de permiso, ver más abajo en "Qué hace").
+- **Tesorería** — nuevo grupo de permiso, **independiente de
+  Certificador**, con el mismo mecanismo de asignación (usuario individual
+  y/o departamento completo de Bitrix24, desde **Configurar usuarios**).
+  Da acceso al menú **"Tesorería"** (Reintegro de fondos / Liquidación de
+  Fondos).
 - **Gerencia responsable de una solicitud** — acceso a **Autorización de
   gerencia**, pero solo para autorizar o denegar las solicitudes donde esa
   persona específica fue elegida como "Gerencia responsable" al crearlas.
-  A diferencia de los otros tres grupos, **no se asigna desde Configurar
+  A diferencia de los otros grupos, **no se asigna desde Configurar
   usuarios** — es automático: en cuanto alguien crea una solicitud
   eligiendo a un usuario de Bitrix24 en ese campo, esa persona ve la
   pestaña y puede decidir sobre ella, sin necesidad de que un
@@ -121,8 +135,10 @@ portal, que da acceso a todo sin excepción).
      sea justo la gerencia responsable asignada a esa solicitud (o un
      administrador), no solo la pantalla.
   3. **Certificación presupuestaria** (acceso: certificadores, ver "Modelo
-     de permisos"): muestra **todas las solicitudes en una
-     tabla** (fecha, fondo, área, descripción, total y **estado**, con
+     de permisos") — desde que existe la gestión de reintegro/liquidación,
+     este menú es un grupo desplegable con dos pantallas:
+     - **Certificar gastos** (la pantalla de siempre) muestra **todas las
+     solicitudes en una tabla** (fecha, fondo, área, descripción, total y **estado**, con
      colores: naranja = Pendiente, cian = Autorizada, verde = Certificado,
      azul = Desembolsado, morado = Facturado, terracota = Denegado, rojo =
      Eliminada) con botones **Editar** y **Eliminar** por fila. Una
@@ -141,6 +157,18 @@ portal, que da acceso a todo sin excepción).
      "Eliminar" es un borrado lógico: la solicitud queda en estado
      Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
      la tabla para trazabilidad.
+     - **Reintegro o liquidación de fondos** muestra las **gestiones**
+     (`gastos_gestiones`) creadas desde "Informe de Gastos" que siguen
+     `pendiente` de revisión, cada una con sus gastos agrupados (mismo
+     fondo, mismo mes, mismo tipo — Reintegro o Liquidación). Cada gasto
+     tiene un botón **"Editar"** (mismo formulario de "Registrar factura",
+     por si hace falta corregir algo antes de cerrar la gestión) y cada
+     gestión tiene un botón **"Confirmar revisado"**: genera un
+     **comprobante en PDF** (con fecha y hora de generación, nombrado con
+     el administrador del fondo, el mes y la fecha), lo sube a una carpeta
+     de **Bitrix24 Disk** y le avisa por Messenger al administrador del
+     fondo que ya puede imprimirlo y pedir el trámite en Tesorería (ver
+     "Notas técnicas" para el detalle técnico de la subida a Disk).
   4. **Desembolso de fondos** (acceso: administradores de fondo, ver "Modelo
      de permisos" — cada uno solo ve/desembolsa las solicitudes de los
      fondos que administra, no las de otros fondos): tabla con las
@@ -205,9 +233,22 @@ portal, que da acceso a todo sin excepción).
   suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
   puede **restablecer** un gasto a su estado anterior (`registrado` o
   `informado`).
-- **Informe de Gastos**: cada usuario filtra sus propios gastos con estado
-  `registrado` por mes, puede editarlos/eliminarlos, y con el botón **"Informar
-  gastos"** los marca todos como `informado` en un solo paso.
+- **Informe de Gastos** (acceso: administradores de fondo y del portal, ver
+  "Modelo de permisos" — ya no es de autoservicio para cualquier
+  solicitante): el campo **"Administrador de fondo"** (solo lo ve un
+  administrador del portal; un administrador de fondo entra directo a lo
+  suyo) elige de qué administrador ver la información, y **"Mes"** filtra
+  por la fecha de las facturas registradas — juntos muestran los gastos en
+  estado `registrado` del/los fondo(s) que esa persona administra para ese
+  mes (sin importar quién los haya registrado, no solo los propios), con
+  la opción de editarlos/eliminarlos igual que antes. El botón
+  **"Gestionar Reembolso o liquidación"** abre un cuadro para elegir si se
+  trata de un **Reintegro** o una **Liquidación** — esa elección queda
+  guardada en la gestión — y al confirmar crea una fila en
+  `gastos_gestiones` con esos gastos agrupados y los pasa todos de
+  `registrado` a `informado` en un solo paso, dejándolos listos para que
+  un certificador la revise en Certificación presupuestaria → "Reintegro o
+  liquidación de fondos" (ver más arriba).
 - **Reportes** (disponible para todo usuario habilitado, no solo administradores):
   filtra todos los gastos por Nombre, Cargo y Unidad del usuario que los
   registró (tomados de Bitrix24: `user.get` / `department.get`), más rango de
@@ -226,6 +267,17 @@ portal, que da acceso a todo sin excepción).
   abre la pestaña o se le da "Actualizar" (no hay un socket de tiempo real;
   refleja el estado más reciente guardado en Supabase al momento de
   cargar/actualizar).
+- **Tesorería** (acceso: grupo de permiso Tesorería, ver "Modelo de
+  permisos"): menú desplegable con dos pantallas, **"Reintegro de
+  fondos"** y **"Liquidación de Fondos"**, cada una mostrando las
+  gestiones ya `revisado`-as por un certificador del tipo correspondiente
+  (Reintegro o Liquidación) — administrador de fondo, mes, monto total,
+  quién y cuándo la revisó, y un enlace **"Ver / imprimir comprobante"**
+  al PDF guardado en Bitrix24 Disk. La idea es confrontar ese PDF impreso
+  contra el físico que trae el administrador del fondo; el botón final
+  (**"Confirmar reintegro emitido"** o **"Aceptar liquidación"**, según la
+  pantalla) **cierra el ciclo** (`estado='cerrado'`), guardando quién y
+  cuándo lo cerró — ya no aparece en ninguna lista después de eso.
 - **Configurar usuarios** (solo administradores): tiene tres partes.
   1. **Crear fondo**: además de tipo/monto/año, tiene un buscador con
      checklist **"Administrador(es) del fondo"** — quienes se marquen aquí
@@ -256,19 +308,26 @@ portal, que da acceso a todo sin excepción).
      Bitrix24) y **departamentos certificadores** (lista de todos los
      departamentos). "Guardar certificadores" reemplaza la lista completa
      de una vez.
+  4. **Tesorería**: mismo mecanismo que "Certificación presupuestaria"
+     (usuarios individuales + departamentos completos), pero es un grupo
+     de permiso **independiente** — alguien puede ser certificador,
+     tesorería, ambos o ninguno. "Guardar tesorería" reemplaza la lista
+     completa de una vez.
   Ya no se usa `app.option` para nada de esto — todo se deriva de
-  `gastos_fondo_usuarios` (con su columna `es_administrador`) y
-  `gastos_certificadores`, guardadas en Supabase.
+  `gastos_fondo_usuarios` (con su columna `es_administrador`),
+  `gastos_certificadores` y `gastos_tesoreria`, guardadas en Supabase.
 
 ## Base de datos (Supabase)
 
 1. Entra al proyecto Supabase que ya usa `amsac-transporte-bitrix24`.
 2. SQL Editor → New query → pega y ejecuta el contenido de [`schema.sql`](schema.sql).
    Crea `gastos_registros`, `gastos_historial`, `gastos_fondos`,
-   `gastos_fondo_usuarios` y `gastos_solicitudes`; no toca ninguna tabla
-   `transporte_*`. El script es seguro de volver a correr aunque las tablas ya
-   existan (usa `if not exists` / migraciones idempotentes), por ejemplo para
-   agregar la columna `estado`, `solicitud_id` o `numero_comprobante_retencion`.
+   `gastos_fondo_usuarios`, `gastos_solicitudes`, `gastos_tesoreria` y
+   `gastos_gestiones`; no toca ninguna tabla `transporte_*`. El script es
+   seguro de volver a correr aunque las tablas ya existan (usa `if not
+   exists` / migraciones idempotentes), por ejemplo para agregar la columna
+   `estado`, `solicitud_id`, `numero_comprobante_retencion`,
+   `jefatura_solicitante`, `gerencia_responsable_unidad` o `gestion_id`.
 3. Las cotizaciones y facturas en PDF se guardan en **Supabase Storage**, en
    un bucket llamado `cotizaciones` (mismo bucket para ambas). No hace falta
    crearlo a mano: `api/upload.js` lo crea automáticamente (público, solo
@@ -282,11 +341,15 @@ Mismas credenciales que ya usa el proyecto de transporte (mismo proyecto Supabas
 
 - `SUPABASE_URL`
 - `SUPABASE_SECRET` (service role key — solo se usa en las funciones `api/*.js`, nunca en el navegador)
-- `BITRIX24_WEBHOOK_URL` (opcional): webhook entrante de Bitrix24 con scope
-  **`im`**, usado solo para avisarle a la gerencia responsable que tiene una
-  solicitud nueva por autorizar (ver "Instalación en Bitrix24" para cómo
-  crearlo). Si no se configura, la app funciona igual — simplemente no se
-  envía ese aviso.
+- `BITRIX24_WEBHOOK_URL`: webhook entrante de Bitrix24 con scopes **`im`** y
+  **`disk`** (ver "Instalación en Bitrix24" para cómo crearlo). Con solo
+  `im` (opcional) la app funciona igual salvo por el aviso a la gerencia
+  responsable, que simplemente no se envía. **`disk` es obligatorio** desde
+  que existe "Confirmar revisado" en Certificación presupuestaria →
+  "Reintegro o liquidación de fondos": esa acción sube el comprobante PDF
+  a Bitrix24 Disk como paso obligatorio (no best-effort, ver "Notas
+  técnicas") — sin ese scope, "Confirmar revisado" falla con un error
+  claro en vez de completarse a medias.
 - `BITRIX24_APP_URL` (opcional): la URL con la que Bitrix24 abre esta app
   embebida dentro del portal — se ve en la barra de direcciones al abrir la
   app desde el menú de aplicaciones, tiene la forma
@@ -331,17 +394,25 @@ entorno anteriores.
    registrar gastos.
 7. Comparte el acceso desde el menú de aplicaciones del portal con el resto de
    usuarios autorizados.
-8. (Opcional, para el aviso automático a la gerencia responsable) Entra de
-   nuevo a **Aplicaciones → Recursos para desarrolladores → Otro → "Cree
+8. Entra a **Aplicaciones → Recursos para desarrolladores → Otro → "Cree
    webhooks entrantes o salientes..."**, elige **"Webhook entrante"**, y en
-   el buscador de permisos escribe `im` y elige la opción cuyo código sea
-   exactamente **`(im)`** (por ejemplo "Chat y Notificaciones (im)") — no
-   `messageservice`, `im.import` ni `imconnector`, que son otra cosa. Guarda.
-   Copia la URL generada (tiene la forma
+   el buscador de permisos agrega **dos** scopes:
+   - `im` (busca "im" y elige la opción cuyo código sea exactamente
+     **`(im)`**, por ejemplo "Chat y Notificaciones (im)" — no
+     `messageservice`, `im.import` ni `imconnector`, que son otra cosa) —
+     opcional, habilita el aviso a la gerencia responsable y al
+     administrador de fondo.
+   - `disk` (busca "disk" o "Bitrix24.Disk" y elige esa opción) —
+     **obligatorio**, es donde se guardan los comprobantes PDF de
+     "Confirmar revisado" (ver "Notas técnicas").
+   Guarda. Copia la URL generada (tiene la forma
    `https://<tu-portal>.bitrix24.es/rest/<id>/<código>/`) y agrégala como
    `BITRIX24_WEBHOOK_URL` en las variables de entorno de Vercel (sección
-   anterior). Las notificaciones le llegarán a cada gerencia responsable
-   como si las enviara el usuario dueño del webhook.
+   anterior). Las notificaciones y los archivos quedan como si los enviara/
+   subiera el usuario dueño del webhook — por eso los comprobantes de
+   todos los administradores de fondo terminan en subcarpetas dentro del
+   Disk de esa misma cuenta (ver "Notas técnicas"), no en el Disk personal
+   de cada uno.
 9. (Opcional, para que los enlaces "Autorizar"/"Denegar" de esa notificación
    reabran la app embebida y autenticada dentro de Bitrix24 en vez de una
    pestaña suelta) Abre la app una vez desde el menú de aplicaciones del
@@ -491,3 +562,45 @@ entorno anteriores.
   timeout de 6 segundos que reemplaza el "Cargando..." por un mensaje
   explicando que hay que entrar desde el menú de aplicaciones de Bitrix24 y
   buscar "Autorización de gerencia" ahí.
+- **Gestión de reintegro/liquidación** (`gastos_gestiones`, `api/gestiones.js`):
+  agrupa los gastos `registrado` de **un fondo, un mes y un tipo**
+  (Reintegro o Liquidación) en una sola fila, y pasa todos esos gastos a
+  `informado` marcados con `gestion_id`. Flujo de estados: `pendiente`
+  (recién creada desde Informe de Gastos) → `revisado` (un certificador
+  confirma en "Reintegro o liquidación de fondos"; genera y sube el PDF) →
+  `cerrado` (Tesorería confirma el reintegro emitido o acepta la
+  liquidación). `action=crear` valida en el servidor que quien la crea sea
+  administrador de ese fondo específico (`gastos_fondo_usuarios.es_administrador`)
+  o un administrador del portal; en este último caso, si el administrador
+  del portal gestionó **en nombre de** otro administrador de fondo (elegido
+  en el selector de Informe de Gastos), `administrador_id`/
+  `administrador_nombre` en la gestión quedan con esa persona, no con quien
+  ejecutó la acción (`actor_id`) — así el comprobante y la notificación
+  llegan a quien realmente administra el fondo. `action=revisar` exige ser
+  certificador o administrador, y **subir el PDF a Bitrix24 Disk es un
+  requisito duro, no best-effort**: si falla (por ejemplo, falta el scope
+  `disk` en el webhook, o los métodos `disk.storage.addfolder`/
+  `disk.folder.addsubfolder` no se comportan como se infirió de la
+  documentación — su forma exacta de parámetros no está 100% confirmada,
+  a diferencia de `disk.folder.uploadfile` que sí se verificó), la gestión
+  se queda en `pendiente` y el certificador ve el error tal cual en
+  pantalla, sin registrar nada a medias. `action=cerrar` exige ser
+  Tesorería o administrador, y que la gestión ya esté `revisado`.
+- **Carpeta de Bitrix24 Disk**: por decisión explícita, los comprobantes
+  **no** se guardan en el Disk personal ("Mi unidad") de cada
+  administrador de fondo — acceder al Disk personal de otro usuario desde
+  un webhook no está garantizado por la API de Bitrix24. En su lugar,
+  `subirPdfADisk()` en `api/gestiones.js` usa el primer almacenamiento que
+  devuelve `disk.storage.getlist` (el del usuario dueño del webhook) y
+  crea ahí, la primera vez, una carpeta raíz **"Gastos de Baja Cuantía"**
+  con una subcarpeta por administrador de fondo (nombrada igual que la
+  persona); los PDF posteriores de ese mismo administrador se acumulan en
+  su subcarpeta ya existente. `disk.folder.uploadfile` (la única llamada
+  cuya forma de parámetros está confirmada en la documentación) sube el
+  archivo en base64 con `generateUniqueName: true`, así que dos
+  comprobantes con el mismo nombre no se pisan.
+- **PDF del comprobante**: se genera en el navegador con `jsPDF` +
+  `jspdf-autotable` (mismo patrón que el comprobante de Desembolso),
+  nombrado `<Administrador>_<Reintegro|Liquidación>_<Mes>_<Año>_<fecha>.pdf`
+  e incluye fecha y hora de generación. El servidor nunca genera PDF —
+  solo recibe el base64 ya armado y lo sube a Disk.
