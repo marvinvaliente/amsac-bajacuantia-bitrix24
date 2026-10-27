@@ -3,6 +3,7 @@
 // identidad llega en el cuerpo/consulta.
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
+const presupuesto = require('./presupuesto');
 
 function sb(path, options) {
   options = options || {};
@@ -295,6 +296,17 @@ module.exports = async (req, res) => {
         const row = built.row;
         delete row.created_by_id;
         delete row.created_by_nombre;
+        // La certificación depende de lo aprobado por el Departamento de
+        // Presupuesto (sistema Presupuesto, mismo Supabase). Si no se puede
+        // consultar, no se certifica a ciegas.
+        try {
+          const errPresupuesto = await presupuesto.validarCertificacion(
+            row.fondo_id, row.area_solicitante, (body.solicitud || {}).area_id, row.items, body.id);
+          if (errPresupuesto) { res.status(400).json({ ok: false, error: errPresupuesto }); return; }
+        } catch (ePres) {
+          res.status(502).json({ ok: false, error: 'No se pudo consultar el presupuesto aprobado: ' + String((ePres && ePres.message) || ePres) });
+          return;
+        }
         // Guardar cambios aquí ya exige Específico Presupuestario/CEP en
         // todos los ítems, así que el guardado en sí certifica la solicitud.
         row.estado = 'certificado';

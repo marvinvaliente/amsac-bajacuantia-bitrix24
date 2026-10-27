@@ -604,3 +604,39 @@ entorno anteriores.
   nombrado `<Administrador>_<Reintegro|Liquidación>_<Mes>_<Año>_<fecha>.pdf`
   e incluye fecha y hora de generación. El servidor nunca genera PDF —
   solo recibe el base64 ya armado y lo sube a Disk.
+
+## Certificación presupuestaria ligada al presupuesto aprobado (Presupuesto 2027)
+
+Desde esta versión, **certificar una solicitud depende de lo aprobado por el
+Departamento de Presupuesto** para baja cuantía en el sistema *Presupuesto
+2027* (`D:\Presupuesto inventario 2027\sistema`). Ambos sistemas usan el
+**mismo proyecto Supabase**; esta app solo **lee** el esquema `presupuesto`
+(`bc_presupuestos` / `bc_items`) a través de `api/presupuesto.js` — no copia
+ni duplica montos, no necesita variables de entorno nuevas ni migraciones.
+Todo aumento, disminución, específico agregado o quitado lo hace Presupuesto
+desde su sistema y se refleja aquí al instante.
+
+Reglas (las aplica el **servidor** en `action=update` de `api/solicitudes.js`,
+no solo la pantalla):
+
+- Solo cuenta lo que está **aprobado** y no quitado. Si el presupuesto de la
+  unidad sigue en borrador/enviado, no se puede certificar.
+- **Año**: el del fondo de la solicitud (`gastos_fondos.anio`). Para usar 2028
+  basta crear el fondo 2028 aquí y que Presupuesto cargue/apruebe el 2028
+  allá. Si Presupuesto **todavía no tiene ningún** presupuesto de baja
+  cuantía de ese año (hoy el fondo 2026), no se aplica control.
+- **Unidad**: departamento de Bitrix24 del "Área solicitante" (por id si hay,
+  si no por nombre sin distinguir mayúsculas/tildes).
+- **Fondo**: Caja chica → `caja_chica`; Fondo circulante → `fondo_circulante`
+  más `fondo_flotas` si esa unidad lo tiene (Monitoreo y Mantenimiento de
+  Flotas).
+- Por **específico**: lo pedido en la solicitud no puede superar
+  *aprobado − comprometido*. Comprometido = ítems de solicitudes ya
+  certificadas, desembolsadas o facturadas (mismo tipo de fondo, año y
+  unidad); denegar o eliminar una solicitud libera su monto. Un específico
+  sin monto aprobado para esa unidad tampoco se puede certificar.
+- Si no se puede consultar Presupuesto, **no se certifica a ciegas** (error).
+
+En el formulario de Certificación aparece el panel **"Disponibilidad
+presupuestaria"** (aprobado, ya comprometido, disponible y lo que pide esta
+solicitud, resaltando en rojo lo que excede).

@@ -1,0 +1,157 @@
+// Disponibilidad presupuestaria para la Certificación presupuestaria.
+//
+// Lo aprobado vive en el sistema "Presupuesto 2027" (esquema `presupuesto` del
+// MISMO proyecto Supabase: presupuesto.bc_presupuestos / bc_items). Esta app
+// solo LEE ese esquema: todo aumento, disminución o cambio de específicos lo
+// hace el Departamento de Presupuesto desde allá y se refleja aquí al
+// instante, sin copiar datos.
+//
+// Reglas:
+//  - Solo cuenta lo que está en estado 'aprobado' y no 'quitado'.
+//  - El año del presupuesto es el año del fondo de la solicitud
+//    (gastos_fondos.anio): cuando se cree el fondo 2028 y Presupuesto cargue
+//    el 2028, esta app pasa a usarlo sola.
+//  - Si para ese año Presupuesto todavía NO tiene ningún presupuesto de baja
+//    cuantía cargado (p. ej. el fondo 2026), el control no se aplica.
+//  - Unidad = departamento de Bitrix24 del "Área solicitante" (se busca por
+//    nombre, sin distinguir mayúsculas ni tildes).
+//  - Fondo: caja_chica -> 'caja_chica'; circulante -> 'fondo_circulante' (+
+//    'fondo_flotas' si esa unidad lo tiene).
+//  - Comprometido = ítems de solicitudes ya certificadas, desembolsadas o
+//    facturadas, del mismo tipo de fondo, año y unidad.
+const URL = process.env.SUPABASE_URL;
+const KEY = process.env.SUPABASE_SECRET;
+
+const ESTADOS_COMPROMETEN = ['certificado', 'desembolsado', 'facturado'];
+const CLAVES_BC = { caja_chica: ['caja_chica'], circulante: ['fondo_circulante', 'fondo_flotas'] };
+
+function sb(path, schema) {
+  const headers = { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' };
+  if (schema) headers['Accept-Profile'] = schema;
+  return fetch(URL + '/rest/v1/' + path, { headers });
+}
+
+function norm(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+    .replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+
+async function leer(path, schema) {
+  const r = await sb(path, schema);
+  const d = await r.json();
+  if (!r.ok) throw new Error((d && (d.message || d.error)) || ('Error al leer ' + path));
+  return d;
+}
+
+// Devuelve { activo, motivo, anio, unidad, fondo_tipo, especificos: [{codigo,
+// aprobado, comprometido, disponible}] }. `solicitud` (opcional) excluye a esa
+// solicitud del comprometido, para poder recertificarla sin contarla dos veces.
+async function disponibilidad(fondoId, area, areaId, excluirSolicitudId) {
+  const fondos = await leer('gastos_fondos?id=eq.' + encodeURIComponent(fondoId) + '&select=id,tipo,anio');
+  if (!fondos[0]) return { activo: false, motivo: 'fondo_inexistente' };
+  const fondo = fondos[0];
+  const base = { anio: fondo.anio, fondo_tipo: fondo.tipo };
+
+  const claves = CLAVES_BC[fondo.tipo] || [];
+  if (!claves.length) return Object.assign(base, { activo: false, motivo: 'tipo_sin_equivalencia' });
+
+  const hay = await leer('bc_presupuestos?anio=eq.' + fondo.anio + '&select=id&limit=1', 'presupuesto');
+  if (!hay.length) return Object.assign(base, { activo: false, motivo: 'sin_presupuesto_cargado' });
+
+  const unidades = await leer('unidades?select=id,nombre,bitrix_departamento_id', 'presupuesto');
+  const nArea = norm(area);
+  const unidad = (areaId && unidades.find((u) => String(u.bitrix_departamento_id) === String(areaId))) ||
+    unidades.find((u) => norm(u.nombre) === nArea);
+  if (!unidad) return Object.assign(base, { activo: true, motivo: 'unidad_sin_presupuesto', especificos: [] });
+  base.unidad = unidad.nombre;
+
+  const pres = await leer(
+    'bc_presupuestos?unidad_id=eq.' + unidad.id + '&anio=eq.' + fondo.anio +
+    '&fondo=in.(' + claves.join(',') + ')&select=id,fondo,estado', 'presupuesto');
+  const aprobados = pres.filter((p) => p.estado === 'aprobado');
+  if (!aprobados.length) {
+    return Object.assign(base, { activo: true, motivo: pres.length ? 'no_aprobado' : 'unidad_sin_presupuesto', especificos: [] });
+  }
+
+  const items = await leer(
+    'bc_items?presupuesto_id=in.(' + aprobados.map((p) => p.id).join(',') + ')&quitado=eq.false&select=especifico,monto', 'presupuesto');
+  const aprobado = {};
+  items.forEach((i) => { aprobado[i.especifico] = round2((aprobado[i.especifico] || 0) + Number(i.monto || 0)); });
+
+  // Comprometido: solicitudes del mismo tipo de fondo y año, misma unidad.
+  const fondosMismos = await leer('gastos_fondos?tipo=eq.' + fondo.tipo + '&anio=eq.' + fondo.anio + '&select=id');
+  const ids = fondosMismos.map((f) => f.id);
+  const comprometido = {};
+  if (ids.length) {
+    const sols = await leer(
+      'gastos_solicitudes?fondo_id=in.(' + ids.join(',') + ')&estado=in.(' + ESTADOS_COMPROMETEN.join(',') +
+      ')&select=id,area_solicitante,items');
+    sols.forEach((s) => {
+      if (excluirSolicitudId && String(s.id) === String(excluirSolicitudId)) return;
+      if (norm(s.area_solicitante) !== norm(unidad.nombre) && norm(s.area_solicitante) !== nArea) return;
+      (Array.isArray(s.items) ? s.items : []).forEach((it) => {
+        const e = String(it.especifico_presupuestario || '').trim();
+        if (e) comprometido[e] = round2((comprometido[e] || 0) + Number(it.total || 0));
+      });
+    });
+  }
+
+  const codigos = Object.keys(aprobado).concat(Object.keys(comprometido).filter((c) => !(c in aprobado)));
+  const especificos = codigos.sort().map((c) => ({
+    codigo: c, aprobado: aprobado[c] || 0, comprometido: comprometido[c] || 0,
+    disponible: round2((aprobado[c] || 0) - (comprometido[c] || 0))
+  }));
+  return Object.assign(base, { activo: true, motivo: 'ok', especificos: especificos });
+}
+
+// Valida los ítems de una solicitud contra la disponibilidad. Devuelve null si
+// está bien o un texto de error legible.
+async function validarCertificacion(fondoId, area, areaId, items, solicitudId) {
+  const d = await disponibilidad(fondoId, area, areaId, solicitudId);
+  if (!d.activo) return null;
+  const etiqueta = 'la unidad "' + (d.unidad || area) + '"';
+  if (d.motivo === 'unidad_sin_presupuesto') {
+    return 'No hay presupuesto de baja cuantía ' + d.anio + ' para ' + etiqueta + ' en el sistema Presupuesto.';
+  }
+  if (d.motivo === 'no_aprobado') {
+    return 'El presupuesto de baja cuantía ' + d.anio + ' de ' + etiqueta + ' todavía no está aprobado por el Departamento de Presupuesto.';
+  }
+  const pedido = {};
+  items.forEach((it) => {
+    const e = String(it.especifico_presupuestario || '').trim();
+    pedido[e] = round2((pedido[e] || 0) + Number(it.total || 0));
+  });
+  const problemas = [];
+  Object.keys(pedido).forEach((e) => {
+    const fila = d.especificos.find((x) => x.codigo === e);
+    if (!fila || fila.aprobado <= 0) {
+      problemas.push('El específico ' + e + ' no tiene monto aprobado para ' + etiqueta + ' en ' + d.anio + '.');
+    } else if (pedido[e] > fila.disponible + 0.001) {
+      problemas.push('Específico ' + e + ': se piden $' + pedido[e].toFixed(2) + ' pero solo hay $' +
+        Math.max(fila.disponible, 0).toFixed(2) + ' disponibles (aprobado $' + fila.aprobado.toFixed(2) +
+        ', ya comprometido $' + fila.comprometido.toFixed(2) + ').');
+    }
+  });
+  return problemas.length ? 'No se puede certificar, supera lo aprobado por Presupuesto. ' + problemas.join(' ') : null;
+}
+
+module.exports = async (req, res) => {
+  if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
+  try {
+    const q = req.query || {};
+    if (req.method !== 'GET' || (q.action || 'disponible') !== 'disponible') {
+      res.status(400).json({ error: 'Acción no reconocida.' });
+      return;
+    }
+    if (!q.fondoId) { res.status(400).json({ ok: false, error: 'Falta el fondo.' }); return; }
+    const d = await disponibilidad(q.fondoId, q.area || '', q.areaId || '', q.solicitudId || '');
+    res.status(200).json(Object.assign({ ok: true }, d));
+  } catch (e) {
+    // Si no se puede leer el esquema presupuesto no se inventa un "sin
+    // control": se informa para que no se certifique a ciegas.
+    res.status(500).json({ ok: false, error: 'No se pudo consultar el presupuesto aprobado: ' + String((e && e.message) || e) });
+  }
+};
+module.exports.disponibilidad = disponibilidad;
+module.exports.validarCertificacion = validarCertificacion;

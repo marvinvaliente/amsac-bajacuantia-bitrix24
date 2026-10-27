@@ -649,6 +649,9 @@
         <button type="button" id="btnAgregarItemCert" class="secondary">+ Agregar ítem</button>
         <div class="items-total-row">Total de la solicitud: <b id="cItemsTotal">$0.00</b></div>
 
+        <div class="section-title" style="margin-top:18px">Disponibilidad presupuestaria</div>
+        <div id="cDisponibilidad" class="gasto-line">Cargando...</div>
+
         <div class="btn-row">
           <button type="submit" id="btnGuardarCertificacion">Guardar cambios</button>
           <button type="button" id="btnCerrarCertificacion" class="secondary">Cerrar</button>
@@ -2193,6 +2196,73 @@
     document.getElementById('cItemsTotal').textContent = '$' + money(total);
     return total;
   }
+  // ---- Disponibilidad presupuestaria (aprobada por el Departamento de
+  // Presupuesto en el sistema "Presupuesto 2027"; el servidor la lee en vivo
+  // del mismo Supabase y la vuelve a validar al certificar) ----
+  var dispDatos = null;
+  var dispTimer = null;
+  var dispSeq = 0;
+  var DISP_MOTIVOS = {
+    sin_presupuesto_cargado: 'Presupuesto todavía no cargó el presupuesto de baja cuantía de este año: no se aplica control.',
+    unidad_sin_presupuesto: 'Presupuesto no tiene presupuesto de baja cuantía para esta unidad en este año. No se puede certificar.',
+    no_aprobado: 'El presupuesto de esta unidad todavía no está aprobado por el Departamento de Presupuesto. No se puede certificar.',
+    tipo_sin_equivalencia: 'Este tipo de fondo no tiene equivalente en Presupuesto: no se aplica control.',
+    fondo_inexistente: 'Selecciona un fondo.'
+  };
+  function pedidoPorEspecificoCert() {
+    var pedido = {};
+    document.querySelectorAll('#cItemsBody tr').forEach(function (tr) {
+      var e = tr.querySelector('.it-especifico').value.trim();
+      if (!e) return;
+      var t = (parseFloat(tr.querySelector('.it-cantidad').value) || 0) * (parseFloat(tr.querySelector('.it-precio').value) || 0);
+      pedido[e] = (pedido[e] || 0) + t;
+    });
+    return pedido;
+  }
+  function renderDisponibilidadCert() {
+    var el = document.getElementById('cDisponibilidad');
+    var d = dispDatos;
+    if (!d) { el.textContent = ''; return; }
+    if (d.error) { el.innerHTML = '<span style="color:#c0392b">' + esc(d.error) + '</span>'; return; }
+    var cab = '<div style="margin-bottom:6px"><b>' + esc(d.unidad || cAreaInput.value || 'Unidad') + '</b> · presupuesto ' + esc(d.anio || '') + '</div>';
+    if (!d.activo || d.motivo !== 'ok') {
+      var bloquea = d.activo && d.motivo !== 'ok';
+      el.innerHTML = cab + '<span style="color:' + (bloquea ? '#c0392b' : '#7f8c8d') + '">' + esc(DISP_MOTIVOS[d.motivo] || '') + '</span>';
+      return;
+    }
+    var pedido = pedidoPorEspecificoCert();
+    var codigos = (d.especificos || []).map(function (x) { return x.codigo; });
+    Object.keys(pedido).forEach(function (c) { if (codigos.indexOf(c) === -1) codigos.push(c); });
+    el.innerHTML = cab + '<div class="table-wrap"><table class="data-table"><thead><tr><th>Específico</th><th>Aprobado</th><th>Ya comprometido</th><th>Disponible</th><th>Esta solicitud</th><th></th></tr></thead><tbody>' +
+      codigos.map(function (c) {
+        var f = (d.especificos || []).find(function (x) { return x.codigo === c; }) || { aprobado: 0, comprometido: 0, disponible: 0 };
+        var p = pedido[c] || 0;
+        var excede = p > 0 && (f.aprobado <= 0 || p > f.disponible + 0.001);
+        return '<tr' + (excede ? ' style="color:#c0392b"' : '') + '><td>' + esc(c) + '</td><td>$' + money(f.aprobado) + '</td><td>$' + money(f.comprometido) + '</td><td>$' + money(f.disponible) + '</td><td>' + (p ? '$' + money(p) : '—') + '</td><td>' +
+          (excede ? (f.aprobado <= 0 ? 'Sin monto aprobado' : 'Excede lo disponible') : (p ? 'OK' : '')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  function cargarDisponibilidadCert() {
+    var fondoId = document.getElementById('cFondo').value;
+    if (!fondoId) { dispDatos = { activo: false, motivo: 'fondo_inexistente' }; renderDisponibilidadCert(); return; }
+    var seq = ++dispSeq;
+    apiCall('presupuesto?action=disponible&fondoId=' + encodeURIComponent(fondoId) +
+      '&area=' + encodeURIComponent(cAreaInput.value.trim()) + '&areaId=' + encodeURIComponent(cAreaIdInput.value || '') +
+      '&solicitudId=' + encodeURIComponent(certEditingId || '')).then(function (r) {
+      if (seq !== dispSeq) return;
+      dispDatos = r.ok ? r : { error: r.error || 'No se pudo consultar el presupuesto aprobado.' };
+      renderDisponibilidadCert();
+    }).catch(function () {
+      if (seq !== dispSeq) return;
+      dispDatos = { error: 'Error de conexión al consultar el presupuesto aprobado.' };
+      renderDisponibilidadCert();
+    });
+  }
+  function programarDisponibilidadCert() { clearTimeout(dispTimer); dispTimer = setTimeout(cargarDisponibilidadCert, 250); }
+  document.getElementById('cFondo').addEventListener('change', cargarDisponibilidadCert);
+  cAreaInput.addEventListener('change', programarDisponibilidadCert);
+  document.getElementById('cAreaDropdown').addEventListener('click', programarDisponibilidadCert);
+
   document.getElementById('btnAgregarItemCert').addEventListener('click', function () {
     crearFilaItemCert();
     recalcularItemsTotalCert();
@@ -2201,6 +2271,7 @@
     if (ev.target.classList.contains('it-especifico')) ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 5);
     if (ev.target.classList.contains('it-cep')) ev.target.value = ev.target.value.replace(/\D/g, '').slice(0, 2);
     if (ev.target.classList.contains('it-cantidad') || ev.target.classList.contains('it-precio')) recalcularItemsTotalCert();
+    if (ev.target.classList.contains('it-especifico') || ev.target.classList.contains('it-cantidad') || ev.target.classList.contains('it-precio')) renderDisponibilidadCert();
   });
   document.getElementById('cItemsBody').addEventListener('click', function (ev) {
     var btn = ev.target.closest('.it-remove');
@@ -2326,6 +2397,9 @@
     document.getElementById('cItemsBody').innerHTML = '';
     (Array.isArray(s.items) ? s.items : []).forEach(function (it) { crearFilaItemCert(it, true); });
     recalcularItemsTotalCert();
+    dispDatos = null;
+    document.getElementById('cDisponibilidad').textContent = 'Cargando...';
+    cargarDisponibilidadCert();
 
     // Toda la información cargada queda bloqueada; solo Específico
     // Presupuestario y CEP (ya activos por diseño) quedan editables.
@@ -2537,6 +2611,7 @@
     var solicitud = {
       fondo_id: fondoId,
       area_solicitante: cAreaInput.value.trim(),
+      area_id: cAreaIdInput.value || '',
       jefatura_solicitante: cJefaturaInput.value.trim(),
       nombre_proceso: document.getElementById('cNombreProceso').value.trim(),
       descripcion: document.getElementById('cDescripcion').value.trim(),
