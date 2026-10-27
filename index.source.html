@@ -159,6 +159,13 @@
   .items-table th, .items-table td { white-space: normal; vertical-align: middle; }
   .items-table input, .items-table select { padding: 7px 6px; font-size: 13px; min-width: 64px; }
   .items-table td:nth-child(4) input { min-width: 150px; }
+  /* Crear Solicitud / Certificación: Cantidad y Precio unitario compactos,
+     Descripción toma el espacio sobrante. */
+  #sItemsTable th:nth-child(1), #cItemsTable th:nth-child(1) { width: 44px; }
+  #sItemsTable th:nth-child(2), #cItemsTable th:nth-child(2) { width: 110px; }
+  #sItemsTable th:nth-child(3), #cItemsTable th:nth-child(3) { width: 90px; }
+  #sItemsTable th:nth-child(5), #cItemsTable th:nth-child(5) { width: 110px; }
+  #sItemsTable td:nth-child(4) input, #cItemsTable td:nth-child(4) input { width: 100%; min-width: 260px; }
   .items-table .item-n { text-align: center; font-weight: 700; color: #6b7a86; }
   .items-table .it-total { font-weight: 700; white-space: nowrap; }
   .items-table button.secondary { width: auto; margin: 0; padding: 7px 10px; }
