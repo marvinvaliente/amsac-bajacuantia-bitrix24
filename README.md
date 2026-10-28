@@ -443,14 +443,18 @@ entorno anteriores.
   calculan en el navegador (`resolverResponsables`) con los departamentos y
   el jefe (`UF_HEAD`) de cada uno, en Crear Solicitud:
   - **Jefatura solicitante**: jefe del departamento elegido como área.
-  - **Gerencia y gerente responsable**: la *Gerencia* (departamento cuyo
-    nombre empieza por "Gerencia") que contiene al área, suba los niveles que
-    suba (Subgerencia, Departamento, Unidad...), y su jefe. No se toma el
-    superior inmediato. Si el área cuelga directo de la *Dirección de
-    Distrito* sin una Gerencia en medio, responde la Dirección.
-  - **Dependencias sobre la Dirección** (Sindicatura, Auditoría, Secretaría,
-    UAIP, Despacho y sus unidades...): el gerente es el **Alcalde
-    Municipal**, jefe del departamento "Despacho alcalde municipal".
+  - **Gerencia y gerente responsable** (la gerencia responsable es siempre
+    la Gerencia que está por encima del área, no el superior inmediato):
+    - Subgerencias, departamentos y unidades que dependen de una *Gerencia*
+      (departamento cuyo nombre empieza por "Gerencia"), aunque haya niveles
+      en medio (p. ej. Almacén y Proveeduría, que depende de Inventario):
+      responde esa Gerencia y su jefe.
+    - Las propias Gerencias y las dependencias que cuelgan directo de la
+      *Dirección de Distrito*: responde la **Dirección de Distrito** y su jefe.
+    - La Dirección de Distrito y las dependencias del Despacho y del Concejo
+      Municipal (Sindicatura, Auditoría, Secretaría, UAIP...): responde el
+      **Despacho alcalde municipal**, y el gerente es el Alcalde Municipal
+      (jefe de ese departamento).
   - Si algún jefe falta (o está inactivo en Bitrix24) se muestra qué usuario
     hay que asignar y se bloquea el envío. El servidor guarda los valores tal
     cual (mismo modelo de confianza que `gerencia_responsable_nombre`).

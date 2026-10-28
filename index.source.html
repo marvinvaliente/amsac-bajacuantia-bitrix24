@@ -1323,12 +1323,18 @@
     var iDir = -1, i;
     for (i = 0; i < cadena.length; i++) { if (/^direccion\b/.test(normTxt(cadena[i].NAME))) { iDir = i; break; } }
     var limite = iDir === -1 ? cadena.length : iDir;
+    var iGer = -1;
     for (i = 0; i < limite; i++) {
-      if (/^gerencia\b/.test(normTxt(cadena[i].NAME))) { r.gerenciaDepto = cadena[i]; break; }
+      if (/^gerencia\b/.test(normTxt(cadena[i].NAME))) { iGer = i; break; }
     }
-    if (!r.gerenciaDepto && iDir !== -1) r.gerenciaDepto = cadena[iDir];
+    // Un área que está por debajo de una Gerencia responde a esa Gerencia.
+    // Las propias Gerencias y las dependencias de la Dirección (sin Gerencia
+    // en medio) responden a la Dirección de Distrito.
+    if (iGer > 0) r.gerenciaDepto = cadena[iGer];
+    else if (iDir > 0) r.gerenciaDepto = cadena[iDir];
     if (!r.gerenciaDepto) {
-      // Sobre la Dirección: el Alcalde Municipal hace de gerente.
+      // La Dirección misma y todo lo que está sobre ella: Despacho alcalde
+      // municipal (el Alcalde hace de gerente).
       r.esAlcalde = true;
       r.gerenciaDepto = cadena.find(function (d) { return /^despacho\b.*alcalde/.test(normTxt(d.NAME)); }) ||
         allDepartments.find(function (d) { return /^despacho\b.*alcalde/.test(normTxt(d.NAME)); }) || null;
