@@ -156,6 +156,23 @@
   .solicitud-info { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin: 10px 0 4px; font-size: 13px; line-height: 1.65; }
   .solicitud-info div { margin: 2px 0; }
 
+  /* Ficha de la dependencia solicitante (Crear Solicitud) */
+  .ficha { background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 6px; margin: 0 0 16px; box-shadow: 0 1px 2px rgba(14, 24, 48, .06); }
+  .ficha-head { background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 9px 16px; border-radius: 3px 3px 0 0; }
+  .ficha-grid { display: grid; grid-template-columns: 1fr 1fr; }
+  .ficha-item { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .ficha-item:nth-child(odd) { border-right: 1px solid var(--border); }
+  .ficha-item:nth-last-child(-n+2) { border-bottom: none; }
+  .ficha-label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7a86; }
+  .ficha-val { font-size: 14.5px; font-weight: 600; color: var(--primary-dark); overflow-wrap: anywhere; }
+  .ficha-puesto { display: block; font-size: 12.5px; font-weight: 400; color: #6b7a86; margin-top: 1px; }
+  @media (max-width: 620px) {
+    .ficha-grid { grid-template-columns: 1fr; }
+    .ficha-item:nth-child(odd) { border-right: none; }
+    .ficha-item:nth-last-child(-n+2) { border-bottom: 1px solid var(--border); }
+    .ficha-item:last-child { border-bottom: none; }
+  }
+
   .items-table th, .items-table td { white-space: normal; vertical-align: middle; }
   .items-table input, .items-table select { padding: 7px 6px; font-size: 13px; min-width: 64px; }
   .items-table td:nth-child(4) input { min-width: 150px; }
@@ -407,6 +424,25 @@
     <div id="viewCrearSolicitud" class="card" style="display:none">
       <div class="section-title">Crear Solicitud</div>
       <form id="formSolicitud">
+        <!-- Datos que salen de la estructura de Bitrix24: se muestran como
+             información de la solicitud, no se pueden editar. -->
+        <div class="ficha" id="sInfoSolicitud">
+          <div class="ficha-head">Datos de la dependencia solicitante</div>
+          <div class="ficha-grid">
+            <div class="ficha-item"><span class="ficha-label">Área solicitante</span><span class="ficha-val" id="sAreaTxt">—</span></div>
+            <div class="ficha-item"><span class="ficha-label">Jefatura solicitante</span><span class="ficha-val" id="sJefaturaTxt">—</span></div>
+            <div class="ficha-item"><span class="ficha-label">Gerencia responsable</span><span class="ficha-val" id="sGerenciaUnidadTxt">—</span></div>
+            <div class="ficha-item"><span class="ficha-label">Gerente responsable</span><span class="ficha-val" id="sGerenteTxt">—</span></div>
+          </div>
+        </div>
+        <input type="hidden" id="sAreaSolicitante" />
+        <input type="hidden" id="sAreaId" />
+        <input type="hidden" id="sJefaturaSolicitante" />
+        <input type="hidden" id="sGerenciaUnidad" />
+        <input type="hidden" id="sGerencia" />
+        <input type="hidden" id="sGerenciaId" />
+        <div id="sResponsablesAviso" class="msg" style="margin-top:0;margin-bottom:14px"></div>
+
         <div class="row">
           <div>
             <label for="sFondo">Fondo *</label>
@@ -417,22 +453,6 @@
             <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
           </div>
         </div>
-
-        <!-- Datos que salen de la estructura de Bitrix24: se muestran como
-             información de la solicitud, no se pueden editar. -->
-        <div class="solicitud-info" id="sInfoSolicitud">
-          <div><b>Área solicitante:</b> <span id="sAreaTxt">—</span></div>
-          <div><b>Jefatura solicitante:</b> <span id="sJefaturaTxt">—</span></div>
-          <div><b>Gerencia responsable:</b> <span id="sGerenciaUnidadTxt">—</span></div>
-          <div><b>Gerente responsable:</b> <span id="sGerenteTxt">—</span></div>
-        </div>
-        <input type="hidden" id="sAreaSolicitante" />
-        <input type="hidden" id="sAreaId" />
-        <input type="hidden" id="sJefaturaSolicitante" />
-        <input type="hidden" id="sGerenciaUnidad" />
-        <input type="hidden" id="sGerencia" />
-        <input type="hidden" id="sGerenciaId" />
-        <div id="sResponsablesAviso" class="msg"></div>
 
         <div class="row">
           <div>
@@ -1359,7 +1379,7 @@
     var aviso = $('sResponsablesAviso');
     var raya = '\u2014';
     function persona(u) {
-      return esc(fullName(u)) + (u.WORK_POSITION ? ' <span style="color:#6b7a86">(' + esc(String(u.WORK_POSITION).trim()) + ')</span>' : '');
+      return esc(fullName(u)) + (u.WORK_POSITION ? '<span class="ficha-puesto">' + esc(String(u.WORK_POSITION).trim()) + '</span>' : '');
     }
     responsablesActuales = null;
     ['sAreaSolicitante', 'sAreaId', 'sJefaturaSolicitante', 'sGerenciaUnidad', 'sGerencia', 'sGerenciaId'].forEach(function (id) { $(id).value = ''; });
