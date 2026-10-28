@@ -682,7 +682,7 @@
     <!-- ---- Reintegro o liquidación de fondos (Certificación) ---- -->
     <div id="viewReintegroLiquidacion" class="card" style="display:none">
       <div class="section-title">Reintegro o liquidación de fondos</div>
-      <div class="gasto-line" style="margin-bottom:14px">Gestiones enviadas desde "Informe de Gastos", agrupadas por mes. Revisa los gastos y, si es necesario, edítalos (doble clic en "Editar") antes de confirmar.</div>
+      <div class="gasto-line" style="margin-bottom:14px">Gestiones enviadas por los administradores de fondo desde "Informe de Gastos" (gastos que ellos eligieron). Revisa los gastos, modifícalos con "Editar" si es necesario y autoriza: luego pasa a Tesorería.</div>
 
       <div id="reintegroLiqLoading" class="loading">Cargando...</div>
       <div id="reintegroLiqContent" style="display:none"></div>
@@ -752,7 +752,7 @@
     <!-- ---- Tesorería: Reintegro de fondos ---- -->
     <div id="viewTesoreriaReintegro" class="card" style="display:none">
       <div class="section-title">Reintegro de fondos</div>
-      <div class="gasto-line" style="margin-bottom:14px">Gestiones de reintegro ya revisadas y certificadas, listas para confrontar contra el comprobante físico y emitir el cheque.</div>
+      <div class="gasto-line" style="margin-bottom:14px">Reintegros ya autorizados por Presupuesto. Sube el acuerdo municipal y el comprobante (transferencia en fondo circulante; voucher o cheque en caja chica).</div>
       <div id="tesReintegroLoading" class="loading">Cargando...</div>
       <div id="tesReintegroContent" style="display:none"></div>
       <div id="tesReintegroVacio" class="empty-state" style="display:none">No hay gestiones de reintegro revisadas todavía.</div>
@@ -941,29 +941,34 @@
     <!-- ---- Informe de Gastos ---- -->
     <div id="viewInforme" class="card" style="display:none">
       <div class="section-title">Informe de Gastos</div>
+      <div id="infPendientes" style="display:none"></div>
       <div id="infUsuarioWrap" style="display:none">
         <label for="infUsuario">Administrador de fondo</label>
         <select id="infUsuario"></select>
       </div>
-      <label for="infMes">Mes</label>
-      <select id="infMes">
-        <option value="">Selecciona un mes</option>
-        <option value="1">1 - Enero</option>
-        <option value="2">2 - Febrero</option>
-        <option value="3">3 - Marzo</option>
-        <option value="4">4 - Abril</option>
-        <option value="5">5 - Mayo</option>
-        <option value="6">6 - Junio</option>
-        <option value="7">7 - Julio</option>
-        <option value="8">8 - Agosto</option>
-        <option value="9">9 - Septiembre</option>
-        <option value="10">10 - Octubre</option>
-        <option value="11">11 - Noviembre</option>
-        <option value="12">12 - Diciembre</option>
-      </select>
+      <label for="infFondo">Fondo</label>
+      <select id="infFondo"></select>
+      <div class="row">
+        <div>
+          <label for="infDesde">Desde</label>
+          <input type="date" id="infDesde" />
+        </div>
+        <div>
+          <label for="infHasta">Hasta</label>
+          <input type="date" id="infHasta" />
+        </div>
+      </div>
+      <div class="gasto-line" style="margin-top:4px">Se listan los gastos con factura o documento equivalente registrado en ese rango. Marca los que quieres reintegrar o liquidar.</div>
 
       <div id="informeLoading" class="loading" style="display:none">Cargando...</div>
-      <div id="informeContent" style="margin-top:14px"></div>
+      <div id="informeResumen" class="gasto-line" style="display:none; margin-top:12px; font-weight:600"></div>
+      <div id="informeContent" style="margin-top:10px"></div>
+
+      <div id="informeCuentaWrap" style="display:none">
+        <label for="infCuenta">Cuenta bancaria del administrador (banco y número) *</label>
+        <input type="text" id="infCuenta" maxlength="120" placeholder="Ej. Banco Agrícola, cuenta de ahorros 0123456789" />
+        <div class="gasto-line">Tesorería la usa para la transferencia cuando se trata de un reintegro del fondo circulante.</div>
+      </div>
 
       <div id="informeAcciones" class="btn-row" style="display:none">
         <button type="button" id="btnGestionarGastos">Gestionar Reembolso o liquidación</button>
@@ -1322,7 +1327,15 @@
       method: options.method || 'GET',
       headers: { 'Content-Type': 'application/json' },
       body: options.body ? JSON.stringify(options.body) : undefined
-    }).then(function (r) { return r.json(); });
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.bloqueo_gestion && !options._reintento) {
+        return confirmarRecepcionGestion(data.bloqueo_gestion).then(function (ok) {
+          if (!ok) return data;
+          return apiCall(path, Object.assign({}, options, { _reintento: true }));
+        });
+      }
+      return data;
+    });
   }
 
   function showMsg(el, type, html) { el.className = 'msg ' + type; el.innerHTML = html; el.style.display = 'block'; }
@@ -2655,6 +2668,12 @@
   // ==================================================================
   var MESES_LABEL = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   var TIPO_GESTION_LABEL = { reintegro: 'Reintegro', liquidacion: 'Liquidación' };
+  // Periodo de una gestión: rango de fechas elegido o, en las anteriores, mes y año.
+  function periodoGestion(g) {
+    function f(d) { return String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4); }
+    if (g.fecha_desde && g.fecha_hasta) return f(g.fecha_desde) + ' al ' + f(g.fecha_hasta);
+    return (MESES_LABEL[g.mes] || g.mes) + ' ' + g.anio;
+  }
   var gastosPorGestion = {}; // gestion_id -> [gastos]
 
   function initReintegroLiquidacion() {
@@ -2697,8 +2716,8 @@
       var items = gastosPorGestion[g.id] || [];
       return '<div class="gasto-item" style="margin-bottom:16px">' +
         '<div class="gasto-top">' +
-          '<span><b>' + esc(TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '</b> · ' + esc(MESES_LABEL[g.mes] || g.mes) + ' ' + esc(g.anio) + ' · ' + esc(g.administrador_nombre || nombreDe(g.administrador_id)) + '</span>' +
-          '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
+          '<span><b>' + esc(TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '</b> · ' + esc(periodoGestion(g)) + ' · ' + esc(g.administrador_nombre || nombreDe(g.administrador_id)) + '</span>' +
+          '<span class="gasto-total">$' + money(items.reduce(function (a, it) { return a + (Number(it.monto_total) || 0); }, 0)) + '</span>' +
         '</div>' +
         '<div class="gasto-line">Fondo: ' + esc(fondoLabelPorId(g.fondo_id)) + ' · ' + items.length + ' gasto(s)</div>' +
         '<div class="table-wrap" style="margin:8px 0">' +
@@ -2710,7 +2729,7 @@
           '</tbody></table>' +
         '</div>' +
         '<div class="gasto-actions">' +
-          '<button type="button" data-revisar-gestion="' + g.id + '">Confirmar revisado</button>' +
+          '<button type="button" data-revisar-gestion="' + g.id + '">Autorizar y enviar a Tesorería</button>' +
         '</div>' +
       '</div>';
     }).join('');
@@ -2751,7 +2770,7 @@
     var lineas = [
       ['Administrador de fondo', g.administrador_nombre || nombreDe(g.administrador_id)],
       ['Fondo', fondoLabelPorId(g.fondo_id)],
-      ['Mes', (MESES_LABEL[g.mes] || g.mes) + ' ' + g.anio],
+      ['Periodo', periodoGestion(g)],
       ['Tipo de gestión', TIPO_GESTION_LABEL[g.tipo] || g.tipo],
       ['Cantidad de gastos', String(items.length)]
     ];
@@ -2776,7 +2795,7 @@
     var finalY = doc.lastAutoTable.finalY + 10;
     doc.setFontSize(13);
     doc.setFont(undefined, 'bold');
-    doc.text('MONTO TOTAL: $' + money(g.monto_total), 14, finalY);
+    doc.text('MONTO TOTAL: $' + money(items.reduce(function (a, it) { return a + (Number(it.monto_total) || 0); }, 0)), 14, finalY);
     doc.setFont(undefined, 'normal');
 
     var ahora = new Date();
@@ -2785,7 +2804,7 @@
     doc.text('Fecha y hora de generación: ' + ahora.toLocaleDateString('es-HN') + ' ' + ahora.toLocaleTimeString('es-HN'), 14, finalY + 15);
 
     var nombreArchivo = sanitizarNombreArchivoCliente(
-      (g.administrador_nombre || nombreDe(g.administrador_id)) + '_' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '_' + (MESES_LABEL[g.mes] || g.mes) + '_' + g.anio + '_' + todayStr()
+      (g.administrador_nombre || nombreDe(g.administrador_id)) + '_' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '_' + periodoGestion(g) + '_' + todayStr()
     ) + '.pdf';
 
     var datauri = doc.output('datauristring');
@@ -2795,7 +2814,7 @@
 
   function confirmarRevisadoGestion(g) {
     var items = gastosPorGestion[g.id] || [];
-    customConfirm('¿Confirmar revisado de esta gestión de ' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '? Se generará el comprobante en PDF, se guardará en Bitrix24 Disk y se notificará al administrador del fondo.', { okText: 'Confirmar revisado' }).then(function (ok) {
+    customConfirm('¿Autorizar esta gestión de ' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + '? Se generará el comprobante en PDF, se guardará en Bitrix24 Disk, se notificará al administrador del fondo y pasará a Tesorería.', { okText: 'Autorizar' }).then(function (ok) {
       if (!ok) return;
       var pdf = generarPdfGestion(g, items);
       apiCall('gestiones', {
@@ -2803,7 +2822,7 @@
         body: { action: 'revisar', id: g.id, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin, actor_es_certificador: puedeCertificar, pdf: pdf }
       }).then(function (r) {
         if (r.ok) {
-          customAlert('Gestión revisada y comprobante generado correctamente.');
+          customAlert('Gestión autorizada y enviada a Tesorería. El comprobante quedó guardado.');
           cargarReintegroLiquidacion();
         } else {
           customAlert(r.error || 'No se pudo confirmar el revisado.');
@@ -3070,27 +3089,74 @@
   // ==================================================================
   // Tesorería (Reintegro de fondos / Liquidación de Fondos)
   // ==================================================================
+  // Reintegro: Presupuesto ya autorizó. Tesorería sube el acuerdo municipal y
+  // el comprobante (transferencia en fondo circulante; voucher o cheque en
+  // caja chica). Circulante -> se cierra. Caja chica -> "entregado" y el
+  // administrador confirma la recepción (mientras tanto no puede usar el
+  // fondo). Liquidación: Tesorería solo la acepta.
   function initTesoreriaVista(tipo) {
     cargarTesoreriaVista(tipo);
   }
 
+  function prefijoTes(tipo) { return tipo === 'liquidacion' ? 'tesLiquidacion' : 'tesReintegro'; }
+
   function cargarTesoreriaVista(tipo) {
-    var prefix = tipo === 'liquidacion' ? 'tesLiquidacion' : 'tesReintegro';
+    var prefix = prefijoTes(tipo);
     document.getElementById(prefix + 'Loading').style.display = 'block';
     document.getElementById(prefix + 'Content').style.display = 'none';
     document.getElementById(prefix + 'Vacio').style.display = 'none';
-    apiCall('gestiones?action=list&estado=revisado&tipo=' + encodeURIComponent(tipo)).then(function (r) {
+    var estados = tipo === 'reintegro' ? 'revisado,entregado' : 'revisado';
+    apiCall('gestiones?action=list&estado=' + estados + '&tipo=' + encodeURIComponent(tipo)).then(function (r) {
       document.getElementById(prefix + 'Loading').style.display = 'none';
       gestiones = r.gestiones || [];
       renderTesoreriaVista(tipo);
     });
   }
 
+  function tipoFondoDe(fondoId) {
+    var f = fondos.find(function (x) { return String(x.id) === String(fondoId); });
+    return f ? f.tipo : '';
+  }
+
+  // Lee un archivo; si es una imagen grande la reduce (las fotos de celular
+  // suelen pasar de 3 MB, que es el límite de subida).
+  function prepararArchivoComprobante(file) {
+    var LIM = 3 * 1024 * 1024;
+    if (file.type.indexOf('image/') === 0 && file.size > 1.5 * 1024 * 1024) {
+      return new Promise(function (resolve, reject) {
+        var img = new Image();
+        var url = URL.createObjectURL(file);
+        img.onload = function () {
+          var max = 1800, w = img.width, h = img.height, k = Math.min(1, max / Math.max(w, h));
+          var c = document.createElement('canvas');
+          c.width = Math.round(w * k); c.height = Math.round(h * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          var data = c.toDataURL('image/jpeg', 0.8).split(',')[1];
+          resolve({ base64: data, contentType: 'image/jpeg', nombre: file.name.replace(/\.[^.]+$/, '') + '.jpg' });
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen.')); };
+        img.src = url;
+      });
+    }
+    if (file.size > LIM) return Promise.reject(new Error('"' + file.name + '" pesa más de 3 MB.'));
+    return leerArchivoBase64(file).then(function (b64) { return { base64: b64, contentType: file.type, nombre: file.name }; });
+  }
+
+  function subirComprobanteTes(file) {
+    return prepararArchivoComprobante(file).then(function (p) {
+      return apiCall('upload', { method: 'POST', body: { bucket: 'comprobantes', filename: p.nombre, contentType: p.contentType, dataBase64: p.base64 } }).then(function (r) {
+        if (!r.ok) throw new Error('No se pudo subir "' + p.nombre + '": ' + (r.error || 'error desconocido'));
+        return { url: r.url, nombre: r.nombre };
+      });
+    });
+  }
+
   function renderTesoreriaVista(tipo) {
-    var prefix = tipo === 'liquidacion' ? 'tesLiquidacion' : 'tesReintegro';
+    var prefix = prefijoTes(tipo);
     var el = document.getElementById(prefix + 'Content');
     var vacio = document.getElementById(prefix + 'Vacio');
-    var lista = gestiones.filter(function (g) { return g.tipo === tipo && g.estado === 'revisado'; })
+    var lista = gestiones.filter(function (g) { return g.tipo === tipo && (g.estado === 'revisado' || (tipo === 'reintegro' && g.estado === 'entregado')); })
       .sort(function (a, b) { return String(b.revisado_at || '').localeCompare(String(a.revisado_at || '')); });
     if (!lista.length) {
       el.style.display = 'none';
@@ -3100,34 +3166,84 @@
     vacio.style.display = 'none';
     el.style.display = 'block';
     el.innerHTML = lista.map(function (g) {
-      return '<div class="gasto-item" style="margin-bottom:14px">' +
-        '<div class="gasto-top">' +
-          '<span><b>' + esc(g.administrador_nombre || nombreDe(g.administrador_id)) + '</b> · ' + esc(MESES_LABEL[g.mes] || g.mes) + ' ' + esc(g.anio) + '</span>' +
+      var cajaChica = tipoFondoDe(g.fondo_id) === 'caja_chica';
+      var cab = '<div class="gasto-top">' +
+          '<span><b>' + esc(g.administrador_nombre || nombreDe(g.administrador_id)) + '</b> · ' + esc(periodoGestion(g)) + '</span>' +
           '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
         '</div>' +
         '<div class="gasto-line">Fondo: ' + esc(fondoLabelPorId(g.fondo_id)) + '</div>' +
-        '<div class="gasto-line">Revisado por: ' + esc(g.revisado_por_nombre || '—') + (g.revisado_at ? (' · ' + new Date(g.revisado_at).toLocaleString('es-HN')) : '') + '</div>' +
-        (g.pdf_url ? '<div class="gasto-line"><a href="' + esc(g.pdf_url) + '" target="_blank" rel="noopener">📄 Ver / imprimir comprobante</a></div>' : '<div class="gasto-line">Comprobante no disponible.</div>') +
-        '<div class="gasto-actions">' +
-          '<button type="button" data-cerrar-gestion="' + g.id + '">' + (tipo === 'liquidacion' ? 'Aceptar liquidación' : 'Confirmar reintegro emitido') + '</button>' +
-        '</div>' +
-      '</div>';
+        '<div class="gasto-line">Autorizado por Presupuesto: ' + esc(g.revisado_por_nombre || '—') + (g.revisado_at ? (' · ' + new Date(g.revisado_at).toLocaleString('es-HN')) : '') + '</div>' +
+        (g.pdf_url ? '<div class="gasto-line"><a href="' + esc(g.pdf_url) + '" target="_blank" rel="noopener">📄 Ver / imprimir comprobante de la gestión</a></div>' : '<div class="gasto-line">Comprobante no disponible.</div>');
+      var cuerpo;
+      if (tipo === 'liquidacion') {
+        cuerpo = '<div class="gasto-actions"><button type="button" data-cerrar-gestion="' + g.id + '">Aceptar liquidación</button></div>';
+      } else if (g.estado === 'entregado') {
+        cuerpo = '<div class="gasto-line"><a href="' + esc(g.acuerdo_url) + '" target="_blank" rel="noopener">📄 Acuerdo municipal</a> · <a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 Voucher / cheque</a></div>' +
+          '<div class="gasto-line"><b>Esperando que el administrador confirme que lo recibió.</b> Mientras no lo confirme no puede usar la caja chica.</div>';
+      } else {
+        cuerpo = (cajaChica ? '' : '<div class="gasto-line"><b>Transferir a:</b> ' + esc(g.cuenta_bancaria || '(el administrador no indicó cuenta)') + '</div>') +
+          '<label>Acuerdo municipal (PDF) *</label><input type="file" accept="application/pdf" id="tesAcuerdo_' + g.id + '" />' +
+          '<label>' + (cajaChica ? 'Voucher o cheque de desembolso al administrador (imagen o PDF) *' : 'Comprobante de transferencia (imagen o PDF) *') + '</label>' +
+          '<input type="file" accept="application/pdf,image/*" id="tesComp_' + g.id + '" />' +
+          '<div class="btn-row" style="margin-top:10px"><button type="button" data-registrar-tes="' + g.id + '">' +
+          (cajaChica ? 'Registrar entrega al administrador' : 'Registrar transferencia y cerrar') + '</button></div>' +
+          '<div id="tesMsg_' + g.id + '" class="msg"></div>';
+      }
+      return '<div class="gasto-item" style="margin-bottom:14px">' + cab + cuerpo + '</div>';
     }).join('');
 
     el.querySelectorAll('[data-cerrar-gestion]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var id = btn.getAttribute('data-cerrar-gestion');
-        var g = lista.find(function (x) { return String(x.id) === id; });
+        var g = lista.find(function (x) { return String(x.id) === btn.getAttribute('data-cerrar-gestion'); });
         if (g) cerrarGestion(g, tipo);
+      });
+    });
+    el.querySelectorAll('[data-registrar-tes]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var g = lista.find(function (x) { return String(x.id) === btn.getAttribute('data-registrar-tes'); });
+        if (g) registrarTesoreria(g, btn);
+      });
+    });
+  }
+
+  function registrarTesoreria(g, btn) {
+    var msgEl = document.getElementById('tesMsg_' + g.id);
+    hideMsg(msgEl);
+    var fAcuerdo = document.getElementById('tesAcuerdo_' + g.id).files[0];
+    var fComp = document.getElementById('tesComp_' + g.id).files[0];
+    if (!fAcuerdo) { showMsg(msgEl, 'error', 'Sube el acuerdo municipal (PDF).'); return; }
+    if (fAcuerdo.type !== 'application/pdf') { showMsg(msgEl, 'error', 'El acuerdo municipal debe ser un PDF.'); return; }
+    if (!fComp) { showMsg(msgEl, 'error', 'Sube el comprobante (transferencia, voucher o cheque).'); return; }
+    if (fComp.type !== 'application/pdf' && fComp.type.indexOf('image/') !== 0) { showMsg(msgEl, 'error', 'El comprobante debe ser una imagen o un PDF.'); return; }
+    var cajaChica = tipoFondoDe(g.fondo_id) === 'caja_chica';
+    customConfirm(cajaChica
+      ? '¿Registrar la entrega al administrador? Se le notificará para que confirme que lo recibió; hasta entonces no podrá usar la caja chica.'
+      : '¿Registrar la transferencia y cerrar este reintegro?', { okText: 'Registrar' }).then(function (ok) {
+      if (!ok) return;
+      btn.disabled = true;
+      showMsg(msgEl, 'success', 'Subiendo documentos...');
+      Promise.all([subirComprobanteTes(fAcuerdo), subirComprobanteTes(fComp)]).then(function (res) {
+        return apiCall('gestiones', {
+          method: 'POST',
+          body: { action: 'registrar_tesoreria', id: g.id, acuerdo: res[0], comprobante: res[1], actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin, actor_es_tesoreria: puedeTesoreria }
+        });
+      }).then(function (r) {
+        btn.disabled = false;
+        if (r.ok) {
+          customAlert(cajaChica ? 'Entrega registrada. El administrador fue notificado para confirmar la recepción.' : 'Transferencia registrada y reintegro cerrado.');
+          cargarTesoreriaVista('reintegro');
+        } else {
+          showMsg(msgEl, 'error', r.error || 'No se pudo registrar.');
+        }
+      }).catch(function (err) {
+        btn.disabled = false;
+        showMsg(msgEl, 'error', (err && err.message) || 'Error de conexión al registrar.');
       });
     });
   }
 
   function cerrarGestion(g, tipo) {
-    var mensaje = tipo === 'liquidacion'
-      ? '¿Aceptar esta liquidación? Se cerrará el ciclo y quedará registrado quién y cuándo la cerró.'
-      : '¿Confirmar que el cheque de reintegro fue emitido? Se cerrará el ciclo y quedará registrado quién y cuándo lo cerró.';
-    customConfirm(mensaje, { okText: 'Cerrar ciclo' }).then(function (ok) {
+    customConfirm('¿Aceptar esta liquidación? Se cerrará el ciclo y quedará registrado quién y cuándo la cerró.', { okText: 'Cerrar ciclo' }).then(function (ok) {
       if (!ok) return;
       apiCall('gestiones', {
         method: 'POST',
@@ -3306,7 +3422,8 @@
   // ==================================================================
   // Informe de Gastos
   // ==================================================================
-  var informeGastosMes = [];
+  var informeGastos = [];   // gastos elegibles en el rango (registrado, del fondo elegido)
+  var informeSel = {};      // id -> true si está marcado
 
   // ids de fondo administrados por un usuario (puede administrar más de uno).
   function fondosDeAdministrador(id) {
@@ -3316,6 +3433,29 @@
 
   function infUsuarioObjetivo() {
     return isAdmin ? (document.getElementById('infUsuario').value || String(currentUser.ID)) : String(currentUser.ID);
+  }
+
+  function poblarInfFondos() {
+    var sel = document.getElementById('infFondo');
+    var actual = sel.value;
+    var ids = fondosDeAdministrador(infUsuarioObjetivo());
+    sel.innerHTML = ids.map(function (id) { return '<option value="' + esc(id) + '">' + esc(fondoLabelPorId(id)) + '</option>'; }).join('');
+    if (actual && ids.map(String).indexOf(actual) !== -1) sel.value = actual;
+  }
+
+  function infFondoTipo() {
+    var f = fondos.find(function (x) { return String(x.id) === String(document.getElementById('infFondo').value); });
+    return f ? f.tipo : '';
+  }
+
+  function limpiarInforme() {
+    informeGastos = [];
+    informeSel = {};
+    document.getElementById('informeContent').innerHTML = '';
+    document.getElementById('informeResumen').style.display = 'none';
+    document.getElementById('informeAcciones').style.display = 'none';
+    document.getElementById('informeCuentaWrap').style.display = 'none';
+    hideMsg(document.getElementById('informeMsg'));
   }
 
   function initInforme() {
@@ -3339,68 +3479,148 @@
     } else {
       wrap.style.display = 'none';
     }
-    document.getElementById('infMes').value = '';
-    document.getElementById('informeContent').innerHTML = '';
-    document.getElementById('informeAcciones').style.display = 'none';
-    hideMsg(document.getElementById('informeMsg'));
+    poblarInfFondos();
+    limpiarInforme();
+    cargarPendientesConfirmar();
   }
 
   document.getElementById('infUsuario').addEventListener('change', function () {
-    document.getElementById('infMes').value = '';
-    document.getElementById('informeContent').innerHTML = '';
-    document.getElementById('informeAcciones').style.display = 'none';
-    hideMsg(document.getElementById('informeMsg'));
+    poblarInfFondos();
+    limpiarInforme();
+    cargarPendientesConfirmar();
   });
-  document.getElementById('infMes').addEventListener('change', cargarInforme);
+  ['infFondo', 'infDesde', 'infHasta'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () { cargarInforme(); });
+  });
+
+  // ---- Reintegros de caja chica entregados por Tesorería, pendientes de
+  // que el administrador confirme que los recibió. Mientras estén pendientes
+  // no puede usar ese fondo (el servidor lo bloquea y la app avisa). ----
+  function cargarPendientesConfirmar() {
+    var el = document.getElementById('infPendientes');
+    el.style.display = 'none';
+    el.innerHTML = '';
+    apiCall('gestiones?action=list&estado=entregado&administradorId=' + encodeURIComponent(infUsuarioObjetivo())).then(function (r) {
+      var lista = (r && r.gestiones) || [];
+      if (!lista.length) return;
+      el.style.display = 'block';
+      el.innerHTML = lista.map(function (g) {
+        return '<div class="info-box" style="display:block">' +
+          '<b>Confirma que recibiste tu ' + esc(TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' de caja chica</b> (' + esc(periodoGestion(g)) + ' · $' + money(g.monto_total) + ').<br>' +
+          'Tesorería ya entregó el acuerdo municipal y el voucher/cheque. Hasta que lo confirmes no puedes usar ' + esc(fondoLabelPorId(g.fondo_id)) + '.<br>' +
+          (g.acuerdo_url ? '<a href="' + esc(g.acuerdo_url) + '" target="_blank" rel="noopener">📄 Acuerdo municipal</a> · ' : '') +
+          (g.comprobante_url ? '<a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 Voucher / cheque</a>' : '') +
+          '<div class="btn-row" style="margin-top:8px"><button type="button" data-confirmar-recepcion="' + g.id + '">Confirmar que lo recibí</button></div>' +
+        '</div>';
+      }).join('');
+      el.querySelectorAll('[data-confirmar-recepcion]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var g = lista.find(function (x) { return String(x.id) === btn.getAttribute('data-confirmar-recepcion'); });
+          if (g) confirmarRecepcionGestion(g).then(function (ok) { if (ok) cargarPendientesConfirmar(); });
+        });
+      });
+    }).catch(function () {});
+  }
+
+  // Devuelve una promesa con true si el administrador confirmó y el servidor
+  // lo aceptó. Se reutiliza desde el aviso emergente de bloqueo.
+  function confirmarRecepcionGestion(g) {
+    return customConfirm('¿Confirmas que ya recibiste el ' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' de caja chica (' + periodoGestion(g) + ', $' + money(g.monto_total) + ') con su acuerdo municipal y voucher/cheque?', {
+      title: 'Confirmación de recepción', okText: 'Sí, lo recibí'
+    }).then(function (ok) {
+      if (!ok) return false;
+      return apiCall('gestiones', { method: 'POST', body: { action: 'confirmar', id: g.id, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin } }).then(function (r) {
+        if (r.ok) return true;
+        return customAlert(r.error || 'No se pudo confirmar la recepción.').then(function () { return false; });
+      }).catch(function () {
+        return customAlert('Error de conexión al confirmar la recepción.').then(function () { return false; });
+      });
+    });
+  }
 
   function cargarInforme(preservarMsg) {
-    var mes = document.getElementById('infMes').value;
+    var fondoId = document.getElementById('infFondo').value;
+    var desde = document.getElementById('infDesde').value;
+    var hasta = document.getElementById('infHasta').value;
     if (!preservarMsg) hideMsg(document.getElementById('informeMsg'));
     document.getElementById('informeAcciones').style.display = 'none';
-    if (!mes) { document.getElementById('informeContent').innerHTML = ''; return Promise.resolve(); }
+    document.getElementById('informeCuentaWrap').style.display = 'none';
+    document.getElementById('informeResumen').style.display = 'none';
+    if (!fondoId || !desde || !hasta) { document.getElementById('informeContent').innerHTML = ''; return Promise.resolve(); }
+    if (desde > hasta) {
+      document.getElementById('informeContent').innerHTML = '<div class="empty-state">La fecha "Desde" no puede ser posterior a "Hasta".</div>';
+      return Promise.resolve();
+    }
     document.getElementById('informeLoading').style.display = 'block';
     document.getElementById('informeContent').innerHTML = '';
-    // El Informe ya no filtra por "quién registró el gasto" (created_by_id):
-    // un administrador de fondo debe ver TODOS los gastos de su fondo, sin
-    // importar quién los haya registrado. Por eso se pide todo (admin=1) y
-    // se filtra en el cliente por los fondos que administra el objetivo.
-    var fondosIds = fondosDeAdministrador(infUsuarioObjetivo()).map(String);
+    // Un administrador de fondo ve TODOS los gastos de su fondo, sin importar
+    // quién los registró: se pide todo (admin=1) y se filtra en el cliente.
     return apiCall('gastos?action=list&admin=1').then(function (r) {
       document.getElementById('informeLoading').style.display = 'none';
-      informeGastosMes = (r.gastos || []).filter(function (g) {
-        return String(g.mes) === mes && g.estado === 'registrado' && fondosIds.indexOf(String(g.fondo_id)) !== -1;
-      });
+      informeGastos = (r.gastos || []).filter(function (g) {
+        return g.estado === 'registrado' && String(g.fondo_id) === String(fondoId) && g.fecha >= desde && g.fecha <= hasta;
+      }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+      informeSel = {};
+      informeGastos.forEach(function (g) { informeSel[g.id] = true; });
       renderInforme();
     });
   }
 
+  function actualizarResumenInforme() {
+    var el = document.getElementById('informeResumen');
+    var sel = informeGastos.filter(function (g) { return informeSel[g.id]; });
+    var total = sel.reduce(function (a, g) { return a + (Number(g.monto_total) || 0); }, 0);
+    el.textContent = sel.length + ' de ' + informeGastos.length + ' gasto(s) seleccionado(s) · Total $' + money(total);
+    var todos = document.getElementById('infSelTodos');
+    if (todos) todos.checked = sel.length === informeGastos.length;
+    document.getElementById('btnGestionarGastos').disabled = !sel.length;
+  }
+
   function renderInforme() {
     var el = document.getElementById('informeContent');
-    if (!informeGastosMes.length) {
-      el.innerHTML = '<div class="empty-state">No hay gastos con estado "registrado" para el mes seleccionado.</div>';
+    if (!informeGastos.length) {
+      el.innerHTML = '<div class="empty-state">No hay gastos con factura registrada, pendientes de reintegrar, en ese fondo y rango de fechas.</div>';
       document.getElementById('informeAcciones').style.display = 'none';
+      document.getElementById('informeResumen').style.display = 'none';
       return;
     }
-    el.innerHTML = informeGastosMes.map(function (g) {
-      return '<div class="gasto-item">' +
-        '<div class="gasto-top">' +
-          '<span>' + esc(g.fecha) + ' · ' + esc(g.numero_documento) + '</span>' +
-          '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
-        '</div>' +
-        '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
-        '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
-        '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
-        '<div class="gasto-actions">' +
-          '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
-          '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    el.innerHTML = '<label class="user-row" style="font-weight:600;cursor:pointer"><input type="checkbox" id="infSelTodos" checked /><span>Seleccionar todos</span></label>' +
+      informeGastos.map(function (g) {
+        return '<div class="gasto-item">' +
+          '<div class="gasto-top">' +
+            '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin:0"><input type="checkbox" data-sel-inf="' + g.id + '" checked style="width:auto;margin:0" />' +
+            '<span>' + esc(g.fecha) + ' · ' + esc(g.numero_documento) + '</span></label>' +
+            '<span class="gasto-total">$' + money(g.monto_total) + '</span>' +
+          '</div>' +
+          '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
+          '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
+          '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
+          '<div class="gasto-actions">' +
+            '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
+            '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    document.getElementById('informeResumen').style.display = 'block';
     document.getElementById('informeAcciones').style.display = 'flex';
+    document.getElementById('informeCuentaWrap').style.display = infFondoTipo() === 'circulante' ? 'block' : 'none';
+    actualizarResumenInforme();
 
+    document.getElementById('infSelTodos').addEventListener('change', function () {
+      var marcar = this.checked;
+      informeGastos.forEach(function (g) { informeSel[g.id] = marcar; });
+      el.querySelectorAll('[data-sel-inf]').forEach(function (cb) { cb.checked = marcar; });
+      actualizarResumenInforme();
+    });
+    el.querySelectorAll('[data-sel-inf]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        informeSel[cb.getAttribute('data-sel-inf')] = cb.checked;
+        actualizarResumenInforme();
+      });
+    });
     el.querySelectorAll('[data-editar-inf]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var g = informeGastosMes.find(function (x) { return String(x.id) === btn.getAttribute('data-editar-inf'); });
+        var g = informeGastos.find(function (x) { return String(x.id) === btn.getAttribute('data-editar-inf'); });
         if (g) cargarGastoEnFormulario(g);
       });
     });
@@ -3445,27 +3665,32 @@
   document.getElementById('btnGestionarGastos').addEventListener('click', function () {
     var msgEl = document.getElementById('informeMsg');
     hideMsg(msgEl);
-    if (!informeGastosMes.length) return;
+    var ids = informeGastos.filter(function (g) { return informeSel[g.id]; }).map(function (g) { return g.id; });
+    if (!ids.length) { showMsg(msgEl, 'error', 'Selecciona al menos un gasto.'); return; }
     var btn = this;
-    var mesSel = document.getElementById('infMes');
-    var mesNum = mesSel.value;
-    var mesTexto = mesSel.selectedOptions[0].textContent.split(' - ')[1] || mesSel.selectedOptions[0].textContent;
     var objetivoId = infUsuarioObjetivo();
-    // Todos los gastos filtrados ya pertenecen a un fondo administrado por
-    // objetivoId (ver cargarInforme); se agrupan por ese fondo para que la
-    // gestión quede asociada al fondo correcto aunque administre varios.
-    var fondoId = informeGastosMes[0].fondo_id;
-    var anio = parseInt((informeGastosMes[0].fecha || '').slice(0, 4), 10) || new Date().getFullYear();
+    var fondoId = document.getElementById('infFondo').value;
+    var desde = document.getElementById('infDesde').value;
+    var hasta = document.getElementById('infHasta').value;
+    var cuenta = document.getElementById('infCuenta').value.trim();
+    var esCirculante = infFondoTipo() === 'circulante';
     pedirTipoGestion().then(function (tipo) {
       if (!tipo) return;
+      if (tipo === 'reintegro' && esCirculante && !cuenta) {
+        showMsg(msgEl, 'error', 'Para un reintegro del fondo circulante indica la cuenta bancaria del administrador (banco y número).');
+        document.getElementById('infCuenta').focus();
+        return;
+      }
       btn.disabled = true;
       apiCall('gestiones', {
         method: 'POST',
         body: {
           action: 'crear',
           fondo_id: fondoId,
-          mes: parseInt(mesNum, 10),
-          anio: anio,
+          fecha_desde: desde,
+          fecha_hasta: hasta,
+          gasto_ids: ids,
+          cuenta_bancaria: cuenta,
           tipo: tipo,
           actor_id: currentUser.ID,
           actor_nombre: fullName(currentUser),
@@ -3476,10 +3701,11 @@
       }).then(function (r) {
         btn.disabled = false;
         if (r.ok) {
-          showMsg(msgEl, 'success', (r.actualizados || informeGastosMes.length) + ' gasto(s) de ' + mesTexto + ' pasaron a "Informado". El certificador ya puede revisar la gestión en Certificación presupuestaria → Reintegro o liquidación de fondos.');
+          showMsg(msgEl, 'success', (r.actualizados || ids.length) + ' gasto(s) enviados a Presupuesto para su revisión y autorización (Certificación presupuestaria → Reintegro o liquidación de fondos). Luego pasan a Tesorería.');
           cargarInforme(true);
         } else {
           showMsg(msgEl, 'error', r.error || 'No se pudo gestionar el reembolso/liquidación.');
+          actualizarResumenInforme();
         }
       }).catch(function () {
         btn.disabled = false;

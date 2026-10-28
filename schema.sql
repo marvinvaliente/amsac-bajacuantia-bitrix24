@@ -272,3 +272,24 @@ do $$ begin
   end if;
 end $$;
 create index if not exists gastos_registros_gestion_idx on gastos_registros (gestion_id);
+
+-- Reintegro v2: el administrador elige un rango de fechas y marca qué gastos
+-- reintegrar; Presupuesto (certificadores) los revisa/modifica y autoriza
+-- ('revisado'); Tesorería sube el acuerdo municipal y el comprobante
+-- (transferencia en fondo circulante; voucher/cheque en caja chica). En
+-- fondo circulante eso cierra la gestión; en caja chica pasa a 'entregado' y
+-- el administrador confirma que lo recibió (-> 'cerrado'); mientras no lo
+-- confirme no puede usar ese fondo.
+alter table gastos_gestiones add column if not exists fecha_desde date;
+alter table gastos_gestiones add column if not exists fecha_hasta date;
+alter table gastos_gestiones add column if not exists cuenta_bancaria text;
+alter table gastos_gestiones add column if not exists acuerdo_url text;
+alter table gastos_gestiones add column if not exists acuerdo_nombre text;
+alter table gastos_gestiones add column if not exists comprobante_url text;
+alter table gastos_gestiones add column if not exists comprobante_nombre text;
+alter table gastos_gestiones add column if not exists tesoreria_at timestamptz;
+alter table gastos_gestiones add column if not exists tesoreria_por_id text;
+alter table gastos_gestiones add column if not exists tesoreria_por_nombre text;
+alter table gastos_gestiones drop constraint if exists gastos_gestiones_estado_check;
+alter table gastos_gestiones add constraint gastos_gestiones_estado_check
+  check (estado in ('pendiente','revisado','entregado','cerrado'));

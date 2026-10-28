@@ -114,6 +114,28 @@ function sanitizarNombreArchivo(s) {
   return String(s || '').replace(/[\/\\:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim();
 }
 
+function etiquetaPeriodo(g) {
+  if (g.fecha_desde && g.fecha_hasta) {
+    const f = (d) => String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4);
+    return 'del ' + f(g.fecha_desde) + ' al ' + f(g.fecha_hasta);
+  }
+  return 'de ' + (MESES[g.mes] || g.mes) + ' ' + g.anio;
+}
+
+// Caja chica: si el administrador de ese fondo tiene un reintegro ya
+// entregado por Tesorería y todavía no confirmó que lo recibió, no puede usar
+// el fondo. Devuelve esa gestión (o null). Lo usan solicitudes.js y gastos.js.
+async function bloqueoCajaChica(fondoId, actorId) {
+  if (!fondoId || !actorId) return null;
+  const rF = await sb('gastos_fondos?id=eq.' + encodeURIComponent(fondoId) + '&select=tipo');
+  const f = await rF.json();
+  if (!rF.ok || !f[0] || f[0].tipo !== 'caja_chica') return null;
+  const rG = await sb('gastos_gestiones?fondo_id=eq.' + encodeURIComponent(fondoId) + '&administrador_id=eq.' + encodeURIComponent(actorId) +
+    '&estado=eq.entregado&select=id,tipo,mes,anio,fecha_desde,fecha_hasta,monto_total,acuerdo_url,acuerdo_nombre,comprobante_url,comprobante_nombre&order=created_at.asc&limit=1');
+  const g = await rG.json();
+  return (rG.ok && g[0]) || null;
+}
+
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
 
@@ -125,7 +147,9 @@ module.exports = async (req, res) => {
       if (action === 'list') {
         let path = 'gastos_gestiones?select=*&order=created_at.desc';
         if (q.fondoId) path += '&fondo_id=eq.' + encodeURIComponent(q.fondoId);
-        if (q.estado) path += '&estado=eq.' + encodeURIComponent(q.estado);
+        if (q.estado) path += String(q.estado).indexOf(',') !== -1
+          ? '&estado=in.(' + String(q.estado).split(',').map(encodeURIComponent).join(',') + ')'
+          : '&estado=eq.' + encodeURIComponent(q.estado);
         if (q.tipo) path += '&tipo=eq.' + encodeURIComponent(q.tipo);
         if (q.administradorId) path += '&administrador_id=eq.' + encodeURIComponent(q.administradorId);
         const r = await sb(path);
@@ -143,13 +167,25 @@ module.exports = async (req, res) => {
 
       if (action === 'crear') {
         const fondoId = parseInt(body.fondo_id, 10);
-        const mes = parseInt(body.mes, 10);
-        const anio = parseInt(body.anio, 10);
         const tipo = TIPOS_GESTION.indexOf(body.tipo) !== -1 ? body.tipo : null;
+        const desde = String(body.fecha_desde || ''), hasta = String(body.fecha_hasta || '');
+        const ids = (Array.isArray(body.gasto_ids) ? body.gasto_ids : []).map((x) => parseInt(x, 10)).filter(Number.isInteger);
         if (!Number.isInteger(fondoId)) { res.status(400).json({ ok: false, error: 'Falta el fondo.' }); return; }
-        if (!Number.isInteger(mes) || mes < 1 || mes > 12) { res.status(400).json({ ok: false, error: 'Mes inválido.' }); return; }
-        if (!Number.isInteger(anio)) { res.status(400).json({ ok: false, error: 'Año inválido.' }); return; }
         if (!tipo) { res.status(400).json({ ok: false, error: 'Selecciona si es Reintegro o Liquidación.' }); return; }
+        const reFecha = /^\d{4}-\d{2}-\d{2}$/;
+        if (!reFecha.test(desde) || !reFecha.test(hasta) || desde > hasta) {
+          res.status(400).json({ ok: false, error: 'El rango de fechas no es válido.' }); return;
+        }
+        if (!ids.length) { res.status(400).json({ ok: false, error: 'Selecciona al menos un gasto.' }); return; }
+
+        const rFondo = await sb('gastos_fondos?id=eq.' + fondoId + '&select=tipo');
+        const fondoData = await rFondo.json();
+        if (!rFondo.ok || !fondoData[0]) { res.status(400).json({ ok: false, error: 'El fondo no existe.' }); return; }
+        const cuenta = String(body.cuenta_bancaria || '').trim();
+        if (tipo === 'reintegro' && fondoData[0].tipo === 'circulante' && !cuenta) {
+          res.status(400).json({ ok: false, error: 'Indica la cuenta bancaria del administrador (banco y número) para la transferencia del reintegro.' });
+          return;
+        }
 
         // Normalmente quien gestiona es el propio administrador del fondo
         // (actor_id). Un administrador de Bitrix24 puede hacerlo en nombre
@@ -171,19 +207,14 @@ module.exports = async (req, res) => {
           }
         }
 
-        const desde = anio + '-' + String(mes).padStart(2, '0') + '-01';
-        const mesSiguiente = mes === 12 ? 1 : mes + 1;
-        const anioSiguiente = mes === 12 ? anio + 1 : anio;
-        const hasta = anioSiguiente + '-' + String(mesSiguiente).padStart(2, '0') + '-01';
-
         const rGastos = await sb(
-          'gastos_registros?fondo_id=eq.' + encodeURIComponent(fondoId) +
-          '&estado=eq.registrado&fecha=gte.' + desde + '&fecha=lt.' + hasta + '&select=*'
+          'gastos_registros?id=in.(' + ids.join(',') + ')&fondo_id=eq.' + fondoId +
+          '&estado=eq.registrado&fecha=gte.' + desde + '&fecha=lte.' + hasta + '&select=*'
         );
         const gastosData = await rGastos.json();
         if (!rGastos.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(gastosData) }); return; }
-        if (!Array.isArray(gastosData) || !gastosData.length) {
-          res.status(400).json({ ok: false, error: 'No hay gastos registrados para ese fondo y mes.' });
+        if (!Array.isArray(gastosData) || gastosData.length !== ids.length) {
+          res.status(400).json({ ok: false, error: 'Algunos gastos seleccionados ya no están disponibles (otra gestión, otro fondo, otra fecha o ya informados). Actualiza la lista e inténtalo de nuevo.' });
           return;
         }
 
@@ -192,7 +223,9 @@ module.exports = async (req, res) => {
           method: 'POST', headers: { Prefer: 'return=representation' },
           body: JSON.stringify({
             fondo_id: fondoId, administrador_id: administradorId, administrador_nombre: administradorNombre,
-            tipo: tipo, mes: mes, anio: anio, monto_total: Math.round(montoTotal * 100) / 100,
+            tipo: tipo, mes: parseInt(desde.slice(5, 7), 10), anio: parseInt(desde.slice(0, 4), 10),
+            fecha_desde: desde, fecha_hasta: hasta, cuenta_bancaria: cuenta || null,
+            monto_total: Math.round(montoTotal * 100) / 100,
             estado: 'pendiente', created_by_id: String(body.actor_id || ''), created_by_nombre: body.actor_nombre || ''
           })
         });
@@ -200,7 +233,6 @@ module.exports = async (req, res) => {
         if (!rGestion.ok || !gestionData[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(gestionData) }); return; }
         const gestion = gestionData[0];
 
-        const ids = gastosData.map((g) => g.id);
         const rUpdate = await sb('gastos_registros?id=in.(' + ids.join(',') + ')', {
           method: 'PATCH', headers: { Prefer: 'return=minimal' },
           body: JSON.stringify({ estado: 'informado', gestion_id: gestion.id, updated_at: new Date().toISOString() })
@@ -226,6 +258,16 @@ module.exports = async (req, res) => {
         const pdf = body.pdf || {};
         if (!pdf.dataBase64 || !pdf.filename) { res.status(400).json({ ok: false, error: 'Falta el PDF generado.' }); return; }
 
+        // Presupuesto puede haber editado montos de los gastos: el total de la
+        // gestión se recalcula con lo que realmente quedó.
+        const rSuma = await sb('gastos_registros?gestion_id=eq.' + encodeURIComponent(body.id) + '&estado=eq.informado&select=monto_total');
+        const sumaData = await rSuma.json();
+        if (!rSuma.ok || !Array.isArray(sumaData) || !sumaData.length) {
+          res.status(400).json({ ok: false, error: 'La gestión no tiene gastos para autorizar.' });
+          return;
+        }
+        const montoRevisado = Math.round(sumaData.reduce((a, x) => a + (Number(x.monto_total) || 0), 0) * 100) / 100;
+
         let subido;
         try {
           subido = await subirPdfADisk(sanitizarNombreArchivo(actualData[0].administrador_nombre), pdf.filename, pdf.dataBase64);
@@ -238,7 +280,7 @@ module.exports = async (req, res) => {
         const r = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },
           body: JSON.stringify({
-            estado: 'revisado', pdf_url: subido.url, pdf_nombre: subido.nombre,
+            estado: 'revisado', monto_total: montoRevisado, pdf_url: subido.url, pdf_nombre: subido.nombre,
             revisado_at: new Date().toISOString(), revisado_por_id: String(body.actor_id || ''), revisado_por_nombre: body.actor_nombre || ''
           })
         });
@@ -246,16 +288,102 @@ module.exports = async (req, res) => {
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data) }); return; }
 
         const g = data[0];
-        const mesNombre = MESES[g.mes] || g.mes;
+        const etiq = (TIPO_LABEL[g.tipo] || g.tipo) + ' ' + etiquetaPeriodo(g);
         await notificar(
           g.administrador_id,
-          'Tu gestión de ' + (TIPO_LABEL[g.tipo] || g.tipo) + ' de ' + mesNombre + ' ' + g.anio + ' ya fue revisada. Ya puedes imprimir el comprobante y solicitarlo en Tesorería.\n' +
+          'Presupuesto revisó y autorizó tu gestión de ' + etiq + '. Imprime el comprobante para tu archivo físico; Tesorería realizará el trámite.\n' +
           (subido.url ? '[URL=' + subido.url + ']📄 Ver comprobante[/URL]' : ''),
-          'Tu gestión de ' + (TIPO_LABEL[g.tipo] || g.tipo) + ' de ' + mesNombre + ' ' + g.anio + ' ya fue revisada.',
+          'Tu gestión de ' + etiq + ' fue autorizada por Presupuesto.',
           'GASTOS_GESTION_REVISADA_' + g.id
         );
+        // Avisa a Tesorería (solo usuarios asignados individualmente: los
+        // departamentos completos no se pueden expandir con este webhook).
+        try {
+          const rT = await sb('gastos_tesoreria?tipo=eq.usuario&select=valor');
+          const tUsers = await rT.json();
+          for (const t of (rT.ok && Array.isArray(tUsers) ? tUsers : [])) {
+            await notificar(t.valor,
+              'Gestión de ' + etiq + ' de ' + (g.administrador_nombre || 'un administrador de fondo') + ' autorizada por Presupuesto: ya puede registrarse en Tesorería.',
+              'Gestión autorizada por Presupuesto, pendiente de Tesorería.', 'GASTOS_GESTION_TESORERIA_' + g.id);
+          }
+        } catch (eT) { /* best-effort */ }
 
         res.status(200).json({ ok: true, gestion: g });
+        return;
+      }
+
+      if (action === 'registrar_tesoreria') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        if (!body.actor_is_admin && !body.actor_es_tesoreria) {
+          res.status(403).json({ ok: false, error: 'Solo Tesorería o un administrador puede registrar el reintegro.' });
+          return;
+        }
+        const rA = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=*');
+        const aData = await rA.json();
+        if (!rA.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(aData) }); return; }
+        const ges = aData && aData[0];
+        if (!ges) { res.status(404).json({ ok: false, error: 'La gestión no existe.' }); return; }
+        if (ges.tipo !== 'reintegro') { res.status(400).json({ ok: false, error: 'Esto aplica solo a reintegros.' }); return; }
+        if (ges.estado !== 'revisado') { res.status(400).json({ ok: false, error: 'Esta gestión todavía no fue autorizada por Presupuesto, o Tesorería ya la registró.' }); return; }
+
+        const prefijo = URL + '/storage/v1/object/public/comprobantes/';
+        const acuerdo = body.acuerdo || {}, comp = body.comprobante || {};
+        if (!String(acuerdo.url || '').startsWith(prefijo)) { res.status(400).json({ ok: false, error: 'Falta subir el acuerdo municipal (PDF).' }); return; }
+        if (!String(comp.url || '').startsWith(prefijo)) { res.status(400).json({ ok: false, error: 'Falta subir el comprobante (transferencia, voucher o cheque).' }); return; }
+
+        const rF = await sb('gastos_fondos?id=eq.' + encodeURIComponent(ges.fondo_id) + '&select=tipo');
+        const fData = await rF.json();
+        const esCajaChica = !!(fData && fData[0] && fData[0].tipo === 'caja_chica');
+        const ahora = new Date().toISOString();
+        const patch = {
+          acuerdo_url: acuerdo.url, acuerdo_nombre: acuerdo.nombre || 'Acuerdo municipal',
+          comprobante_url: comp.url, comprobante_nombre: comp.nombre || 'Comprobante',
+          tesoreria_at: ahora, tesoreria_por_id: String(body.actor_id || ''), tesoreria_por_nombre: body.actor_nombre || ''
+        };
+        // Fondo circulante: la transferencia ya se hizo, se cierra. Caja
+        // chica: queda pendiente de que el administrador confirme que recibió.
+        if (esCajaChica) {
+          patch.estado = 'entregado';
+        } else {
+          patch.estado = 'cerrado'; patch.cerrado_at = ahora;
+          patch.cerrado_por_id = String(body.actor_id || ''); patch.cerrado_por_nombre = body.actor_nombre || '';
+        }
+        const r = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch)
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data) }); return; }
+        const etiq = (TIPO_LABEL[ges.tipo] || ges.tipo) + ' ' + etiquetaPeriodo(ges);
+        await notificar(
+          ges.administrador_id,
+          esCajaChica
+            ? 'Tesorería entregó tu ' + etiq + ' (acuerdo municipal y voucher/cheque). Entra a la app y confirma que lo recibiste: mientras no lo hagas no podrás usar la caja chica.'
+            : 'Tesorería realizó la transferencia de tu ' + etiq + ' (acuerdo municipal y comprobante cargados).',
+          esCajaChica ? 'Confirma que recibiste tu reintegro de caja chica.' : 'Tu reintegro fue transferido.',
+          'GASTOS_GESTION_TESORERIA_OK_' + ges.id
+        );
+        res.status(200).json({ ok: true, gestion: data[0] });
+        return;
+      }
+
+      if (action === 'confirmar') {
+        if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        const rC = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=estado,administrador_id');
+        const cData = await rC.json();
+        if (!rC.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(cData) }); return; }
+        if (!cData || !cData[0]) { res.status(404).json({ ok: false, error: 'La gestión no existe.' }); return; }
+        if (!body.actor_is_admin && String(cData[0].administrador_id) !== String(body.actor_id || '')) {
+          res.status(403).json({ ok: false, error: 'Solo el administrador del fondo (o un administrador del portal) puede confirmar la recepción.' });
+          return;
+        }
+        if (cData[0].estado !== 'entregado') { res.status(400).json({ ok: false, error: 'Esta gestión no está pendiente de confirmar.' }); return; }
+        const r = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id), {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ estado: 'cerrado', cerrado_at: new Date().toISOString(), cerrado_por_id: String(body.actor_id || ''), cerrado_por_nombre: body.actor_nombre || '' })
+        });
+        const data = await r.json();
+        if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data) }); return; }
+        res.status(200).json({ ok: true, gestion: data[0] });
         return;
       }
 
@@ -265,10 +393,11 @@ module.exports = async (req, res) => {
           res.status(403).json({ ok: false, error: 'Solo Tesorería o un administrador puede cerrar una gestión.' });
           return;
         }
-        const actual = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actual = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=estado,tipo');
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData) }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La gestión no existe.' }); return; }
+        if (actualData[0].tipo !== 'liquidacion') { res.status(400).json({ ok: false, error: 'Los reintegros se cierran registrando el acuerdo municipal y el comprobante.' }); return; }
         if (actualData[0].estado !== 'revisado') { res.status(400).json({ ok: false, error: 'Esta gestión todavía no fue revisada, o ya está cerrada.' }); return; }
 
         const r = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id), {
@@ -293,3 +422,5 @@ module.exports = async (req, res) => {
     res.status(500).json({ error: String((e && e.message) || e) });
   }
 };
+
+module.exports.bloqueoCajaChica = bloqueoCajaChica;

@@ -234,21 +234,19 @@ portal, que da acceso a todo sin excepción).
   puede **restablecer** un gasto a su estado anterior (`registrado` o
   `informado`).
 - **Informe de Gastos** (acceso: administradores de fondo y del portal, ver
-  "Modelo de permisos" — ya no es de autoservicio para cualquier
-  solicitante): el campo **"Administrador de fondo"** (solo lo ve un
-  administrador del portal; un administrador de fondo entra directo a lo
-  suyo) elige de qué administrador ver la información, y **"Mes"** filtra
-  por la fecha de las facturas registradas — juntos muestran los gastos en
-  estado `registrado` del/los fondo(s) que esa persona administra para ese
-  mes (sin importar quién los haya registrado, no solo los propios), con
-  la opción de editarlos/eliminarlos igual que antes. El botón
-  **"Gestionar Reembolso o liquidación"** abre un cuadro para elegir si se
-  trata de un **Reintegro** o una **Liquidación** — esa elección queda
-  guardada en la gestión — y al confirmar crea una fila en
-  `gastos_gestiones` con esos gastos agrupados y los pasa todos de
-  `registrado` a `informado` en un solo paso, dejándolos listos para que
-  un certificador la revise en Certificación presupuestaria → "Reintegro o
-  liquidación de fondos" (ver más arriba).
+  "Modelo de permisos"): el administrador elige **Fondo** y un rango de
+  fechas **Desde / Hasta**, y ve los gastos con factura o documento
+  equivalente registrado en ese rango (estado `registrado`, de ese fondo,
+  sin importar quién los registró). Todos vienen marcados: **marca o
+  desmarca los que quiere reintegrar o liquidar** (hay "Seleccionar todos"
+  y un resumen con la cantidad y el total). En el fondo circulante además
+  indica la **cuenta bancaria** (banco y número) donde Tesorería hará la
+  transferencia. **"Gestionar Reembolso o liquidación"** pregunta si es
+  **Reintegro** o **Liquidación** (queda guardado) y crea la gestión con
+  *solo los gastos marcados*, que pasan a `informado`. Un administrador
+  del portal puede elegir de qué administrador de fondo ver la
+  información. Arriba aparece un aviso si tiene un reintegro de caja chica
+  por confirmar (ver "Reintegro de fondos").
 - **Reportes** (disponible para todo usuario habilitado, no solo administradores):
   filtra todos los gastos por Nombre, Cargo y Unidad del usuario que los
   registró (tomados de Bitrix24: `user.get` / `department.get`), más rango de
@@ -268,16 +266,24 @@ portal, que da acceso a todo sin excepción).
   refleja el estado más reciente guardado en Supabase al momento de
   cargar/actualizar).
 - **Tesorería** (acceso: grupo de permiso Tesorería, ver "Modelo de
-  permisos"): menú desplegable con dos pantallas, **"Reintegro de
-  fondos"** y **"Liquidación de Fondos"**, cada una mostrando las
-  gestiones ya `revisado`-as por un certificador del tipo correspondiente
-  (Reintegro o Liquidación) — administrador de fondo, mes, monto total,
-  quién y cuándo la revisó, y un enlace **"Ver / imprimir comprobante"**
-  al PDF guardado en Bitrix24 Disk. La idea es confrontar ese PDF impreso
-  contra el físico que trae el administrador del fondo; el botón final
-  (**"Confirmar reintegro emitido"** o **"Aceptar liquidación"**, según la
-  pantalla) **cierra el ciclo** (`estado='cerrado'`), guardando quién y
-  cuándo lo cerró — ya no aparece en ninguna lista después de eso.
+  permisos"): menú con **"Reintegro de fondos"** y **"Liquidación de
+  Fondos"**. Solo aparece lo que Presupuesto ya autorizó.
+  - **Reintegro, fondo circulante**: Tesorería ve la cuenta bancaria del
+    administrador, hace la transferencia, y sube el **acuerdo municipal
+    (PDF)** y el **comprobante de transferencia (imagen o PDF)**. Al
+    registrar, la gestión se **cierra** y se notifica al administrador.
+  - **Reintegro, caja chica**: Tesorería sube el **acuerdo municipal (PDF)**
+    y el **voucher o cheque de desembolso (imagen o PDF)**; la gestión queda
+    **entregada** y el administrador del fondo recibe un aviso. Él debe
+    **confirmar que lo recibió** (desde el aviso en Informe de Gastos) y
+    ahí se cierra. **Mientras no lo confirme no puede usar ese fondo**:
+    crear solicitudes, desembolsar o registrar facturas contra la caja
+    chica muestra una ventana emergente para confirmarlo en el momento y
+    la acción continúa sola; el servidor también lo bloquea (error 409).
+  - **Liquidación**: Tesorería solo la acepta (cierra), como antes.
+  Imágenes de más de 1,5 MB se reducen en el navegador antes de subirlas
+  (límite de 3 MB por archivo); se guardan en el bucket `comprobantes` de
+  Supabase Storage (se crea solo, PDF + JPG/PNG/WEBP).
 - **Configurar usuarios** (solo administradores): tiene tres partes.
   1. **Crear fondo**: además de tipo/monto/año, tiene un buscador con
      checklist **"Administrador(es) del fondo"** — quienes se marquen aquí
@@ -640,3 +646,24 @@ no solo la pantalla):
 En el formulario de Certificación aparece el panel **"Disponibilidad
 presupuestaria"** (aprobado, ya comprometido, disponible y lo que pide esta
 solicitud, resaltando en rojo lo que excede).
+
+## Flujo de reintegro (v2)
+
+1. **Administrador de fondo** (Informe de Gastos): elige fondo y rango de
+   fechas, marca los gastos y los envía → gestión `pendiente`.
+2. **Presupuesto** (certificadores; Certificación presupuestaria →
+   "Reintegro o liquidación de fondos"): revisa, **modifica con "Editar" si
+   es necesario** y pulsa **"Autorizar y enviar a Tesorería"** → se genera el
+   PDF (fecha y hora), se guarda en Bitrix24 Disk, el total se **recalcula**
+   con lo que quedó tras las ediciones y se notifica al administrador y a
+   los usuarios de Tesorería asignados individualmente → `revisado`.
+3. **Tesorería**: sube acuerdo municipal y comprobante → circulante
+   `cerrado`; caja chica `entregado`.
+4. **Caja chica**: el administrador confirma la recepción → `cerrado`.
+
+Estados de `gastos_gestiones`: `pendiente` → `revisado` → (`entregado`) →
+`cerrado`. Columnas nuevas (migración `migracion-reintegro-v2.sql`):
+`fecha_desde`, `fecha_hasta`, `cuenta_bancaria`, `acuerdo_*`,
+`comprobante_*`, `tesoreria_*`. Acciones de `api/gestiones.js`: `crear`,
+`revisar`, `registrar_tesoreria`, `confirmar` y `cerrar` (esta última solo
+para liquidaciones).

@@ -4,6 +4,7 @@
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 const presupuesto = require('./presupuesto');
+const gestiones = require('./gestiones');
 
 function sb(path, options) {
   options = options || {};
@@ -238,6 +239,9 @@ module.exports = async (req, res) => {
       if (action === 'create') {
         const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        // Caja chica: sin confirmar el reintegro recibido no se puede usar el fondo.
+        const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
+        if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
         });
@@ -358,6 +362,8 @@ module.exports = async (req, res) => {
             return;
           }
         }
+        const bloqueoDes = await gestiones.bloqueoCajaChica(actualEData[0].fondo_id, body.actor_id);
+        if (bloqueoDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },
           body: JSON.stringify({

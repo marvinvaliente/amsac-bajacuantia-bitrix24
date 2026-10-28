@@ -6,7 +6,13 @@
 // público en general).
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
-const BUCKET = 'cotizaciones';
+// 'cotizaciones' (solo PDF) es el de siempre; 'comprobantes' guarda los
+// documentos de Tesorería (acuerdo municipal PDF; transferencia/voucher/cheque
+// en PDF o imagen).
+const BUCKETS = {
+  cotizaciones: ['application/pdf'],
+  comprobantes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp']
+};
 const MAX_BYTES = 3 * 1024 * 1024; // ~3MB: límite práctico del payload de una function de Vercel
 
 async function readBody(req) {
@@ -22,15 +28,15 @@ async function readBody(req) {
   });
 }
 
-let bucketListo = false;
-async function asegurarBucket() {
-  if (bucketListo) return;
+const bucketsListos = {};
+async function asegurarBucket(BUCKET) {
+  if (bucketsListos[BUCKET]) return;
   const r = await fetch(URL + '/storage/v1/bucket', {
     method: 'POST',
     headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true, file_size_limit: MAX_BYTES, allowed_mime_types: ['application/pdf'] })
+    body: JSON.stringify({ id: BUCKET, name: BUCKET, public: true, file_size_limit: MAX_BYTES, allowed_mime_types: BUCKETS[BUCKET] })
   });
-  if (r.ok || r.status === 400 || r.status === 409) { bucketListo = true; return; }
+  if (r.ok || r.status === 400 || r.status === 409) { bucketsListos[BUCKET] = true; return; }
   const errData = await r.json().catch(() => ({}));
   throw new Error(errData.message || 'No se pudo preparar el almacenamiento de cotizaciones.');
 }
@@ -41,17 +47,21 @@ module.exports = async (req, res) => {
 
   try {
     const body = await readBody(req);
+    const BUCKET = BUCKETS[body.bucket] ? body.bucket : 'cotizaciones';
     const filename = String(body.filename || '').trim();
     const contentType = String(body.contentType || '');
     const dataBase64 = String(body.dataBase64 || '');
     if (!filename || !dataBase64) { res.status(400).json({ ok: false, error: 'Falta el archivo.' }); return; }
-    if (contentType !== 'application/pdf') { res.status(400).json({ ok: false, error: 'Solo se aceptan archivos PDF.' }); return; }
+    if (BUCKETS[BUCKET].indexOf(contentType) === -1) {
+      res.status(400).json({ ok: false, error: BUCKET === 'comprobantes' ? 'Solo se aceptan archivos PDF o imágenes (JPG, PNG, WEBP).' : 'Solo se aceptan archivos PDF.' });
+      return;
+    }
 
     const buffer = Buffer.from(dataBase64, 'base64');
     if (!buffer.length) { res.status(400).json({ ok: false, error: 'El archivo está vacío o no se pudo leer.' }); return; }
     if (buffer.length > MAX_BYTES) { res.status(400).json({ ok: false, error: 'El archivo no puede pesar más de 3 MB.' }); return; }
 
-    await asegurarBucket();
+    await asegurarBucket(BUCKET);
 
     const nombreSeguro = filename.replace(/[^a-zA-Z0-9._-]/g, '_').slice(-120);
     const path = Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + nombreSeguro;

@@ -3,6 +3,7 @@
 // usuario (Bitrix) llega en el cuerpo/consulta, sin sesión propia en el servidor.
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
+const gestiones = require('./gestiones');
 
 function sb(path, options) {
   options = options || {};
@@ -235,6 +236,9 @@ module.exports = async (req, res) => {
           if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
           await insertHistorial({ gasto_id: data[0].id, accion: 'editado', actor_id: body.actor_id, actor_nombre: body.actor_nombre, detalle: row });
         } else {
+          // Caja chica: sin confirmar el reintegro recibido no se puede usar el fondo.
+          const bloqueoGasto = await gestiones.bloqueoCajaChica(row.fondo_id, body.actor_id);
+          if (bloqueoGasto) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoGasto }); return; }
           row.estado = 'registrado';
           r = await sb('gastos_registros', {
             method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
