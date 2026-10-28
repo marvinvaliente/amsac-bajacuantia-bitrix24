@@ -292,6 +292,17 @@ module.exports = async (req, res) => {
 
       if (action === 'update') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
+        // Certificar solo lo puede hacer personal del Departamento de Presupuesto
+        // (incluido su jefe); se verifica contra Bitrix24, no contra el navegador.
+        try {
+          if (!(await presupuesto.esPersonalPresupuesto(body.actor_id))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) puede certificar solicitudes.' });
+            return;
+          }
+        } catch (ePers) {
+          res.status(502).json({ ok: false, error: 'No se pudo verificar tu pertenencia al Departamento de Presupuesto: ' + String((ePers && ePers.message) || ePers) });
+          return;
+        }
         const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }

@@ -6,6 +6,7 @@
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 const BITRIX24_WEBHOOK_URL = process.env.BITRIX24_WEBHOOK_URL;
+const presupuesto = require('./presupuesto');
 
 const TIPOS_GESTION = ['reintegro', 'liquidacion'];
 const TIPO_LABEL = { reintegro: 'Reintegro', liquidacion: 'Liquidación' };
@@ -245,8 +246,15 @@ module.exports = async (req, res) => {
 
       if (action === 'revisar') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        if (!body.actor_is_admin && !body.actor_es_certificador) {
-          res.status(403).json({ ok: false, error: 'Solo un certificador o un administrador puede revisar una gestión.' });
+        // Revisar/autorizar una gestión: solo personal del Departamento de
+        // Presupuesto (incluido su jefe), verificado contra Bitrix24.
+        try {
+          if (!(await presupuesto.esPersonalPresupuesto(body.actor_id))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) puede revisar y autorizar una gestión.' });
+            return;
+          }
+        } catch (ePers) {
+          res.status(502).json({ ok: false, error: 'No se pudo verificar tu pertenencia al Departamento de Presupuesto: ' + String((ePers && ePers.message) || ePers) });
           return;
         }
         const actual = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=*');

@@ -41,11 +41,15 @@ pertenezcan:
   **Crear Solicitud, Registrar factura o documento equivalente, Historial
   e Informe de Gastos**. Es la misma persona quien crea la solicitud,
   registra su factura, revisa su historial y genera su informe.
-- **Certificador** — acceso a **Certificación presupuestaria**. Se asigna
-  desde **Configurar usuarios**, por usuario individual y/o por
-  departamento completo de Bitrix24 (si el departamento del usuario está
-  en la lista, tiene acceso aunque no esté asignado individualmente). No
-  depende de pertenecer a ningún fondo.
+- **Certificador (personal de Presupuesto)** — acceso a **Certificación
+  presupuestaria**. Solo lo tienen los **miembros del "Departamento de
+  Presupuesto" de Bitrix24, incluido su jefe** (activos). Ya no se asigna
+  en Configurar usuarios: se deriva de la estructura de Bitrix24 y ahí
+  solo se muestra la lista informativa. Ni siquiera un administrador del
+  portal certifica si no es de ese departamento. El servidor lo verifica
+  contra Bitrix24 (webhook) al certificar, al revisar/autorizar un reintegro
+  y al corregir gastos informados (403 si no pertenece; 502 si no puede
+  consultar Bitrix24, sin asumir permiso). No depende de ningún fondo.
 - **Administrador de fondo** — acceso a **Desembolso de fondos** e
   **Informe de Gastos**, pero **solo para el/los fondo(s) que administra**:
   es un subconjunto de los usuarios asignados a un fondo (no todos los que
@@ -316,11 +320,10 @@ portal, que da acceso a todo sin excepción).
      administrador del portal. **Crear Solicitud** solo ofrece los fondos a
      los que el usuario está asignado aquí, y el servidor lo exige (403 si
      intenta crear una solicitud contra un fondo no asignado).
-  3. **Certificación presupuestaria**: dos listas de checkboxes —
-     **usuarios certificadores** (buscador + lista de todos los usuarios de
-     Bitrix24) y **departamentos certificadores** (lista de todos los
-     departamentos). "Guardar certificadores" reemplaza la lista completa
-     de una vez.
+  3. **Certificación presupuestaria**: solo informativa; muestra al
+     personal del Departamento de Presupuesto (miembros + jefe), que son
+     quienes certifican. Se cambia en Bitrix24, no aquí (la tabla
+     `gastos_certificadores` quedó sin uso).
   4. **Tesorería**: mismo mecanismo que "Certificación presupuestaria"
      (usuarios individuales + departamentos completos), pero es un grupo
      de permiso **independiente** — alguien puede ser certificador,
@@ -595,7 +598,7 @@ entorno anteriores.
   `administrador_nombre` en la gestión quedan con esa persona, no con quien
   ejecutó la acción (`actor_id`) — así el comprobante y la notificación
   llegan a quien realmente administra el fondo. `action=revisar` exige ser
-  certificador o administrador, y **subir el PDF a Bitrix24 Disk es un
+  personal del Departamento de Presupuesto (verificado contra Bitrix24), y **subir el PDF a Bitrix24 Disk es un
   requisito duro, no best-effort**: si falla (por ejemplo, falta el scope
   `disk` en el webhook, o los métodos `disk.storage.addfolder`/
   `disk.folder.addsubfolder` no se comportan como se infirió de la

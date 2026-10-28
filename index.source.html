@@ -1129,18 +1129,8 @@
       <div id="fondosContent" style="display:none"></div>
 
       <div class="section-title" style="margin-top:22px">Certificación presupuestaria</div>
-      <div class="gasto-line" style="margin-bottom:10px">Usuarios individuales y/o departamentos completos de Bitrix24 autorizados para certificar solicitudes.</div>
-      <label>Usuarios certificadores</label>
-      <div class="search-box">
-        <input type="text" id="certUserSearch" placeholder="Buscar usuario..." />
-      </div>
-      <div id="certUserList" class="user-list" style="margin-bottom:16px"></div>
-      <label>Departamentos certificadores</label>
-      <div id="certDeptList" class="user-list"></div>
-      <div class="btn-row" style="margin-top:14px">
-        <button type="button" id="btnGuardarCertificadores">Guardar certificadores</button>
-      </div>
-      <div id="certificadoresMsg" class="msg"></div>
+      <div class="gasto-line" style="margin-bottom:10px">La certificación presupuestaria y la autorización de reintegros las hace <b>únicamente el personal del Departamento de Presupuesto</b>, incluido su jefe. Se toma de la estructura de Bitrix24 (no se configura aquí): para agregar o quitar a alguien, cámbialo en Bitrix24.</div>
+      <div id="presupuestoPersonal" class="chip-row"></div>
 
       <div class="section-title" style="margin-top:22px">Tesorería</div>
       <div class="gasto-line" style="margin-bottom:10px">Usuarios individuales y/o departamentos completos de Bitrix24 autorizados para ver "Tesorería" (Reintegro de fondos / Liquidación de Fondos) y cerrar el ciclo de una gestión ya revisada.</div>
@@ -1266,6 +1256,20 @@
   function getUnidadId(id) {
     var u = findUser(id);
     return (u && u.UF_DEPARTMENT && u.UF_DEPARTMENT.length) ? String(u.UF_DEPARTMENT[0]) : '';
+  }
+  // Departamento de Presupuesto en Bitrix24 y su personal (miembros + jefe).
+  function deptoPresupuesto() {
+    return allDepartments.find(function (d) { return normTxt(d.NAME) === 'departamento de presupuesto'; }) || null;
+  }
+  function personalPresupuesto() {
+    var d = deptoPresupuesto();
+    if (!d) return [];
+    return allUsers.filter(function (u) {
+      return String(u.ID) === String(d.UF_HEAD) || (u.UF_DEPARTMENT || []).map(String).indexOf(String(d.ID)) !== -1;
+    });
+  }
+  function esPersonalPresupuestoId(userId) {
+    return personalPresupuesto().some(function (u) { return String(u.ID) === String(userId); });
   }
   // Departamento "real" de un usuario: Bitrix24 permite varios, y en este
   // portal casi todos están además en "Solicitantes de Insumos de Oficina"
@@ -4099,11 +4103,10 @@
     canLoad = isAdmin || autorizadosIds.indexOf(String(currentUser.ID)) !== -1;
 
     var misDeptos = ((currentUser && currentUser.UF_DEPARTMENT) || []).map(String);
-    var certUsuarios = certificadores.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
-    var certDeptos = certificadores.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
-    puedeCertificar = isAdmin ||
-      certUsuarios.indexOf(String(currentUser.ID)) !== -1 ||
-      misDeptos.some(function (d) { return certDeptos.indexOf(d) !== -1; });
+    // Certificar (y autorizar reintegros) solo lo hace el personal del
+    // Departamento de Presupuesto de Bitrix24, incluido su jefe. El servidor lo
+    // vuelve a verificar contra Bitrix24.
+    puedeCertificar = esPersonalPresupuestoId(currentUser.ID);
 
     fondosAdministrados = fondos
       .filter(function (f) { return (f.administrador_ids || []).some(function (id) { return String(id) === String(currentUser.ID); }); })
@@ -4438,85 +4441,16 @@
     });
   });
 
-  // ---- Certificadores (usuarios y/o departamentos) ----
-  var pendingCertUsuarios = [];
-  var pendingCertDeptos = [];
-
-  function cargarCertificadoresUI() {
-    pendingCertUsuarios = certificadores.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
-    pendingCertDeptos = certificadores.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
-    document.getElementById('certUserSearch').value = '';
-    hideMsg(document.getElementById('certificadoresMsg'));
-    renderCertUserList();
-    renderCertDeptList();
+  // ---- Personal de Presupuesto (solo informativo) ----
+  function renderPersonalPresupuesto() {
+    var el = document.getElementById('presupuestoPersonal');
+    var d = deptoPresupuesto();
+    if (!d) { el.innerHTML = '<div class="empty-state">No se encontró el departamento "Departamento de Presupuesto" en Bitrix24.</div>'; return; }
+    var lista = personalPresupuesto();
+    el.innerHTML = lista.length ? lista.map(function (u) {
+      return '<span class="chip">' + esc(fullName(u)) + (String(u.ID) === String(d.UF_HEAD) ? ' <b>(jefe)</b>' : '') + '</span>';
+    }).join('') : '<div class="empty-state">El departamento no tiene personal activo.</div>';
   }
-
-  function renderCertUserList() {
-    var listEl = document.getElementById('certUserList');
-    var filter = (document.getElementById('certUserSearch').value || '').toLowerCase();
-    listEl.innerHTML = '';
-    allUsers
-      .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
-      .forEach(function (u) {
-        var row = document.createElement('label');
-        row.className = 'user-row';
-        var checked = pendingCertUsuarios.indexOf(String(u.ID)) !== -1;
-        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
-        listEl.appendChild(row);
-      });
-  }
-  document.getElementById('certUserSearch').addEventListener('input', renderCertUserList);
-  document.getElementById('certUserList').addEventListener('change', function (ev) {
-    var cb = ev.target;
-    if (cb.tagName !== 'INPUT') return;
-    var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingCertUsuarios.indexOf(id) === -1) pendingCertUsuarios.push(id); }
-    else { pendingCertUsuarios = pendingCertUsuarios.filter(function (x) { return x !== id; }); }
-  });
-
-  function renderCertDeptList() {
-    var listEl = document.getElementById('certDeptList');
-    if (!allDepartments.length) { listEl.innerHTML = '<div class="empty-state">No se pudieron cargar los departamentos de Bitrix24.</div>'; return; }
-    listEl.innerHTML = '';
-    allDepartments.forEach(function (d) {
-      var row = document.createElement('label');
-      row.className = 'user-row';
-      var checked = pendingCertDeptos.indexOf(String(d.ID)) !== -1;
-      row.innerHTML = '<input type="checkbox" data-id="' + d.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc((d.NAME || '').replace(/[_\s]+$/, '').trim()) + '</span>';
-      listEl.appendChild(row);
-    });
-  }
-  document.getElementById('certDeptList').addEventListener('change', function (ev) {
-    var cb = ev.target;
-    if (cb.tagName !== 'INPUT') return;
-    var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingCertDeptos.indexOf(id) === -1) pendingCertDeptos.push(id); }
-    else { pendingCertDeptos = pendingCertDeptos.filter(function (x) { return x !== id; }); }
-  });
-
-  document.getElementById('btnGuardarCertificadores').addEventListener('click', function () {
-    var msgEl = document.getElementById('certificadoresMsg');
-    hideMsg(msgEl);
-    var items = pendingCertUsuarios.map(function (id) { return { tipo: 'usuario', valor: id }; })
-      .concat(pendingCertDeptos.map(function (id) { return { tipo: 'departamento', valor: id }; }));
-    var btn = this;
-    btn.disabled = true;
-    apiCall('certificadores', { method: 'POST', body: { action: 'guardar', items: items } }).then(function (r) {
-      btn.disabled = false;
-      if (r.ok) {
-        showMsg(msgEl, 'success', 'Certificadores actualizados correctamente.');
-        apiCall('certificadores?action=list').then(function (r2) {
-          certificadores = r2.certificadores || [];
-          recalcularAutorizacion();
-        });
-      } else {
-        showMsg(msgEl, 'error', r.error || 'No se pudo guardar la lista de certificadores.');
-      }
-    }).catch(function () {
-      btn.disabled = false;
-      showMsg(msgEl, 'error', 'Error de conexión al guardar.');
-    });
-  });
 
   // ---- Tesorería (usuarios y/o departamentos) ----
   var pendingTesUsuarios = [];
@@ -4601,7 +4535,7 @@
   function initConfigTab() {
     poblarAnios();
     cargarFondos();
-    cargarCertificadoresUI();
+    renderPersonalPresupuesto();
     cargarTesoreriaUI();
     renderFondoAdminList();
   }

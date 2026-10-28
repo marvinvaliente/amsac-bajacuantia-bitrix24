@@ -4,6 +4,14 @@
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 const gestiones = require('./gestiones');
+const presupuesto = require('./presupuesto');
+
+// Personal de Presupuesto (verificado contra Bitrix24): puede corregir gastos
+// ya informados. Si no se puede verificar, no se concede.
+async function esCertificadorVerificado(body) {
+  if (!body.actor_es_certificador) return false;
+  try { return await presupuesto.esPersonalPresupuesto(body.actor_id); } catch (e) { return false; }
+}
 
 function sb(path, options) {
   options = options || {};
@@ -222,7 +230,7 @@ module.exports = async (req, res) => {
 
         let data, r;
         if (body.id) {
-          if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, body.actor_es_certificador))) {
+          if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, await esCertificadorVerificado(body)))) {
             res.status(403).json({ ok: false, error: 'Solo quien registró el gasto o un administrador puede editarlo.' });
             return;
           }
@@ -270,7 +278,7 @@ module.exports = async (req, res) => {
 
       if (action === 'delete') {
         if (!body.id) { res.status(400).json({ error: 'Falta id.' }); return; }
-        if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, body.actor_es_certificador))) {
+        if (!(await puedeModificar(body.id, body.actor_id, body.actor_is_admin, await esCertificadorVerificado(body)))) {
           res.status(403).json({ ok: false, error: 'Solo quien registró el gasto o un administrador puede eliminarlo.' });
           return;
         }

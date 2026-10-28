@@ -136,6 +136,47 @@ async function validarCertificacion(fondoId, area, areaId, items, solicitudId) {
   return problemas.length ? 'No se puede certificar, supera lo aprobado por Presupuesto. ' + problemas.join(' ') : null;
 }
 
+// ---- Quién pertenece al Departamento de Presupuesto (Bitrix24) ----
+// La certificación presupuestaria (y la autorización de reintegros) solo la
+// pueden hacer miembros de ese departamento, incluido su jefe. Se verifica en
+// el servidor con el webhook de Bitrix24 (BITRIX24_WEBHOOK_URL), no con lo que
+// diga el navegador.
+async function bx(method, params) {
+  const hook = process.env.BITRIX24_WEBHOOK_URL;
+  if (!hook) throw new Error('Falta configurar BITRIX24_WEBHOOK_URL en el servidor.');
+  const base = hook.endsWith('/') ? hook : hook + '/';
+  const r = await fetch(base + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params || {}) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error('Bitrix24 (' + method + '): ' + (j.error_description || j.error || r.status));
+  return j;
+}
+let cacheDeptoPresupuesto = null;
+async function deptoPresupuesto() {
+  if (cacheDeptoPresupuesto && Date.now() - cacheDeptoPresupuesto.t < 5 * 60 * 1000) return cacheDeptoPresupuesto.d;
+  let start = 0, found = null;
+  for (let i = 0; i < 20 && !found; i++) {
+    const j = await bx('department.get', { start });
+    found = (j.result || []).find((d) => norm(d.NAME) === 'departamento de presupuesto') || null;
+    if (j.next == null) break;
+    start = j.next;
+  }
+  if (!found) throw new Error('No se encontró el departamento "Departamento de Presupuesto" en Bitrix24.');
+  const d = { id: String(found.ID), head: found.UF_HEAD && String(found.UF_HEAD) !== '0' ? String(found.UF_HEAD) : '' };
+  cacheDeptoPresupuesto = { t: Date.now(), d };
+  return d;
+}
+// true si el usuario (activo) es miembro del Departamento de Presupuesto o su
+// jefe. Lanza error si no se puede consultar Bitrix24 (no se asume permiso).
+async function esPersonalPresupuesto(userId) {
+  userId = String(userId || '').trim();
+  if (!userId) return false;
+  const d = await deptoPresupuesto();
+  const j = await bx('user.get', { FILTER: { ID: userId } });
+  const u = (j.result || [])[0];
+  if (!u || u.ACTIVE === false) return false;
+  return userId === d.head || (u.UF_DEPARTMENT || []).map(String).indexOf(d.id) !== -1;
+}
+
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
   try {
@@ -155,3 +196,4 @@ module.exports = async (req, res) => {
 };
 module.exports.disponibilidad = disponibilidad;
 module.exports.validarCertificacion = validarCertificacion;
+module.exports.esPersonalPresupuesto = esPersonalPresupuesto;
