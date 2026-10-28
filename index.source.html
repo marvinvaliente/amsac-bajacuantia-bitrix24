@@ -150,6 +150,8 @@
   .combo-option { padding: 9px 12px; font-size: 14px; cursor: pointer; }
   .combo-option:hover, .combo-option.active { background: var(--bg); }
   .combo-empty { padding: 9px 12px; font-size: 13px; color: #6b7a86; }
+  .asoc-sub { display: block; font-size: 12px; font-weight: 400; color: #6b7a86; }
+  .asoc-sub.aviso { color: #a92626; }
 
   .section-title { font-size: 14px; font-weight: 700; margin: 6px 0 10px; color: var(--primary-dark); }
 
@@ -1110,7 +1112,7 @@
       </div>
 
       <label style="margin-top:14px;display:block">Administrador(es) del fondo</label>
-      <div class="gasto-line" style="margin-bottom:8px">Podrán desembolsar las solicitudes de este fondo. Si aún no son usuarios del fondo, se agregan automáticamente al guardar.</div>
+      <div class="gasto-line" style="margin-bottom:8px">Podrán desembolsar las solicitudes de este fondo. Si aún no son usuarios del fondo, se agregan automáticamente al guardar. Solo se pueden elegir jefaturas del organigrama de Bitrix24 (quienes figuran como jefe de un departamento), no colaboradores.</div>
       <div class="search-box">
         <input type="text" id="fAdminSearch" placeholder="Buscar usuario..." />
       </div>
@@ -1161,16 +1163,13 @@
         <div class="map-modal-header">
           <b id="asignarModalTitle">Asignar usuarios</b>
         </div>
-        <div class="gasto-line" style="margin-bottom:10px">Da acceso al fondo (Crear Solicitud, Registrar factura, Historial e Informe). Para asignar quién puede desembolsarlo, hazlo desde "Crear fondo" / "Editar".</div>
+        <div class="gasto-line" style="margin-bottom:10px">Da acceso al fondo (Crear Solicitud, Registrar factura, Historial e Informe). Solo se pueden asignar <b>jefaturas del organigrama de Bitrix24</b> (quienes figuran como jefe de un departamento), no colaboradores. Para asignar quién puede desembolsarlo, hazlo desde "Crear fondo" / "Editar".</div>
 
         <label class="user-row" style="font-weight:600;cursor:pointer">
-          <input type="checkbox" id="asignarTodosCheck" /><span>Seleccionar todos los usuarios</span>
+          <input type="checkbox" id="asignarTodosCheck" /><span>Seleccionar todas las jefaturas</span>
         </label>
 
-        <label style="margin-top:12px;display:block">Asignar por departamento</label>
-        <div id="asignarDeptList" class="user-list" style="margin-bottom:12px"></div>
-
-        <label style="display:block">Asignar por usuario individual</label>
+        <label style="margin-top:12px;display:block">Jefaturas</label>
         <div class="search-box">
           <input type="text" id="asignarUserSearch" placeholder="Buscar usuario..." />
         </div>
@@ -1279,6 +1278,32 @@
     var reales = ids.filter(function (id) { return !/^solicitantes\b/.test(normTxt(getDeptoPorId(id).NAME)); });
     var noRaiz = reales.filter(function (id) { var d = getDeptoPorId(id); return d.PARENT && String(d.PARENT) !== '0'; });
     return (noRaiz[0] || reales[0] || '');
+  }
+  // Jefaturas del organigrama: usuarios activos que figuran como jefe (UF_HEAD)
+  // de algún departamento de Bitrix24. { userId: [nombres de departamentos] }.
+  function mapaJefaturas() {
+    var m = {};
+    allDepartments.forEach(function (d) {
+      if (!d.UF_HEAD || String(d.UF_HEAD) === '0') return;
+      var id = String(d.UF_HEAD);
+      if (!findUser(id)) return;
+      (m[id] = m[id] || []).push(nombreDepto(d));
+    });
+    return m;
+  }
+  // Usuarios que se pueden asociar a un fondo: las jefaturas, más (solo para
+  // poder quitarlos) quienes ya estaban asociados aunque no sean jefatura.
+  function usuariosAsociables(previosIds) {
+    var jef = mapaJefaturas();
+    var previos = (previosIds || []).map(String);
+    return allUsers.filter(function (u) { return jef[String(u.ID)] || previos.indexOf(String(u.ID)) !== -1; })
+      .sort(function (a, b) { return fullName(a).localeCompare(fullName(b), 'es'); });
+  }
+  function etiquetaAsociable(u, jef) {
+    var deps = jef[String(u.ID)];
+    return esc(fullName(u)) + (deps
+      ? '<span class="asoc-sub">Jefatura de ' + esc(deps.join(', ')) + '</span>'
+      : '<span class="asoc-sub aviso">No es jefatura (asociado antes): desmárcalo para quitarlo</span>');
   }
   function getDeptoPorId(deptoId) {
     return allDepartments.find(function (d) { return String(d.ID) === String(deptoId); });
@@ -4217,14 +4242,17 @@
   function renderFondoAdminList() {
     var listEl = document.getElementById('fAdminList');
     var filter = (document.getElementById('fAdminSearch').value || '').toLowerCase();
+    var jef = mapaJefaturas();
+    var fondoEd = editingFondoId ? fondos.find(function (x) { return String(x.id) === String(editingFondoId); }) : null;
+    var previos = fondoEd ? (fondoEd.administrador_ids || []).concat(fondoEd.usuario_ids || []) : [];
     listEl.innerHTML = '';
-    allUsers
+    usuariosAsociables(previos.concat(pendingFondoAdminIds))
       .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
       .forEach(function (u) {
         var row = document.createElement('label');
         row.className = 'user-row';
         var checked = pendingFondoAdminIds.some(function (id) { return String(id) === String(u.ID); });
-        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
+        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + etiquetaAsociable(u, jef) + '</span>';
         listEl.appendChild(row);
       });
   }
@@ -4344,50 +4372,21 @@
 
   function renderAsignarTodo() {
     renderAsignarTodosCheckbox();
-    renderAsignarDeptList();
     renderAsignarUserList();
   }
 
   function renderAsignarTodosCheckbox() {
+    var ids = Object.keys(mapaJefaturas());
     document.getElementById('asignarTodosCheck').checked =
-      allUsers.length > 0 && allUsers.every(function (u) { return pendingAsignadosIds.indexOf(String(u.ID)) !== -1; });
+      ids.length > 0 && ids.every(function (id) { return pendingAsignadosIds.indexOf(id) !== -1; });
   }
   document.getElementById('asignarTodosCheck').addEventListener('change', function (ev) {
     if (ev.target.checked) {
-      allUsers.forEach(function (u) { var id = String(u.ID); if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); });
+      Object.keys(mapaJefaturas()).forEach(function (id) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); });
     } else {
       // No se toca pendingAdminIds: al guardar solo se conserva el flag de
-      // administrador para quien siga en pendingAsignadosIds, así que si se
-      // vuelve a marcar a alguien (por depto o individual) antes de guardar,
-      // no pierde su estado de administrador por haber pasado por aquí.
+      // administrador para quien siga en pendingAsignadosIds.
       pendingAsignadosIds = [];
-    }
-    renderAsignarTodo();
-  });
-
-  function renderAsignarDeptList() {
-    var listEl = document.getElementById('asignarDeptList');
-    if (!allDepartments.length) { listEl.innerHTML = '<div class="empty-state">No se pudieron cargar los departamentos de Bitrix24.</div>'; return; }
-    listEl.innerHTML = '';
-    allDepartments.forEach(function (d) {
-      var miembros = allUsers.filter(function (u) { return (u.UF_DEPARTMENT || []).map(String).indexOf(String(d.ID)) !== -1; }).map(function (u) { return String(u.ID); });
-      var todosAsignados = miembros.length > 0 && miembros.every(function (id) { return pendingAsignadosIds.indexOf(id) !== -1; });
-      var row = document.createElement('label');
-      row.className = 'user-row';
-      row.innerHTML = '<input type="checkbox" data-dept="' + d.ID + '" ' + (todosAsignados ? 'checked' : '') + ' /><span>' +
-        esc((d.NAME || '').replace(/[_\s]+$/, '').trim()) + ' (' + miembros.length + ' usuario' + (miembros.length === 1 ? '' : 's') + ')</span>';
-      listEl.appendChild(row);
-    });
-  }
-  document.getElementById('asignarDeptList').addEventListener('change', function (ev) {
-    var cb = ev.target;
-    if (cb.tagName !== 'INPUT') return;
-    var deptId = cb.getAttribute('data-dept');
-    var miembros = allUsers.filter(function (u) { return (u.UF_DEPARTMENT || []).map(String).indexOf(String(deptId)) !== -1; }).map(function (u) { return String(u.ID); });
-    if (cb.checked) {
-      miembros.forEach(function (id) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); });
-    } else {
-      pendingAsignadosIds = pendingAsignadosIds.filter(function (id) { return miembros.indexOf(id) === -1; });
     }
     renderAsignarTodo();
   });
@@ -4395,14 +4394,15 @@
   function renderAsignarUserList() {
     var listEl = document.getElementById('asignarUserList');
     var filter = (document.getElementById('asignarUserSearch').value || '').toLowerCase();
+    var jef = mapaJefaturas();
     listEl.innerHTML = '';
-    allUsers
+    usuariosAsociables(fondoAsignando ? (fondoAsignando.usuario_ids || []) : [])
       .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
       .forEach(function (u) {
         var row = document.createElement('label');
         row.className = 'user-row';
         var checked = pendingAsignadosIds.some(function (id) { return String(id) === String(u.ID); });
-        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
+        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + etiquetaAsociable(u, jef) + '</span>';
         listEl.appendChild(row);
       });
   }
@@ -4414,7 +4414,6 @@
     if (cb.checked) { if (pendingAsignadosIds.indexOf(id) === -1) pendingAsignadosIds.push(id); }
     else { pendingAsignadosIds = pendingAsignadosIds.filter(function (x) { return x !== id; }); }
     renderAsignarTodosCheckbox();
-    renderAsignarDeptList();
   });
 
   document.getElementById('asignarModalGuardar').addEventListener('click', function () {

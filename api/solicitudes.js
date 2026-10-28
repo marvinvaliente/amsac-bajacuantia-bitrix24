@@ -239,6 +239,15 @@ module.exports = async (req, res) => {
       if (action === 'create') {
         const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        // Solo se puede crear una solicitud contra un fondo al que el usuario
+        // fue asignado en "Configurar usuarios".
+        const asig = await sb(
+          'gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(built.row.fondo_id) +
+          '&usuario_id=eq.' + encodeURIComponent(String(body.actor_id || '')) + '&select=id&limit=1'
+        );
+        const asigData = await asig.json();
+        if (!asig.ok || !Array.isArray(asigData)) { res.status(502).json({ ok: false, error: 'No se pudo verificar tu asignación al fondo.' }); return; }
+        if (!asigData.length) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
         // Caja chica: sin confirmar el reintegro recibido no se puede usar el fondo.
         const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
         if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }

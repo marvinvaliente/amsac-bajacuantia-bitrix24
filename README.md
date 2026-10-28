@@ -302,16 +302,20 @@ portal, que da acceso a todo sin excepción).
      como administrador si lo era; quitar un chip de "administradores"
      solo le retira ese rol, sigue siendo usuario normal del fondo). El
      botón **"Asignar usuarios"** abre un modal para dar acceso al fondo
-     (Crear Solicitud, Registrar factura, Historial e Informe) con tres
-     formas de elegir, combinables entre sí: **"Seleccionar todos los
-     usuarios"** (un solo checkbox), **"Asignar por departamento"**
-     (checklist de departamentos de Bitrix24 — marcar uno agrega a todos
-     sus miembros) y **"Asignar por usuario individual"** (buscador +
-     checklist, como antes). Este modal ya no gestiona administradores —
+     (Crear Solicitud, Registrar factura, Historial e Informe). **Solo se
+     pueden asociar jefaturas del organigrama de Bitrix24** (usuarios activos
+     que figuran como jefe de algún departamento; hoy son 55), no
+     colaboradores: el modal lista únicamente jefaturas, cada una con el
+     departamento que dirige, y tiene "Seleccionar todas las jefaturas" y un
+     buscador. Quien ya estaba asociado sin ser jefatura sigue apareciendo
+     (marcado "No es jefatura") solo para poder desmarcarlo. La lista de
+     administradores de "Crear fondo" / "Editar" sigue la misma regla. Este modal ya no gestiona administradores —
      eso se hace desde "Crear fondo" / "Editar". Un usuario queda
      habilitado para usar la app únicamente si está asignado a al menos un
      fondo, es certificador, es administrador de algún fondo, o es
-     administrador del portal.
+     administrador del portal. **Crear Solicitud** solo ofrece los fondos a
+     los que el usuario está asignado aquí, y el servidor lo exige (403 si
+     intenta crear una solicitud contra un fondo no asignado).
   3. **Certificación presupuestaria**: dos listas de checkboxes —
      **usuarios certificadores** (buscador + lista de todos los usuarios de
      Bitrix24) y **departamentos certificadores** (lista de todos los
