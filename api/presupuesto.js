@@ -136,11 +136,12 @@ async function validarCertificacion(fondoId, area, areaId, items, solicitudId) {
   return problemas.length ? 'No se puede certificar, supera lo aprobado por Presupuesto. ' + problemas.join(' ') : null;
 }
 
-// ---- Quién pertenece al Departamento de Presupuesto (Bitrix24) ----
-// La certificación presupuestaria (y la autorización de reintegros) solo la
-// pueden hacer miembros de ese departamento, incluido su jefe. Se verifica en
-// el servidor con el webhook de Bitrix24 (BITRIX24_WEBHOOK_URL), no con lo que
-// diga el navegador.
+// ---- Quién pertenece a un departamento de Bitrix24 ----
+// La certificación presupuestaria y la autorización de reintegros las hace el
+// personal del Departamento de Presupuesto; Tesorería (liberar fondos, subir
+// acuerdo y comprobante) es el personal del Departamento de Tesorería. En
+// ambos casos incluye al jefe del departamento. Se verifica en el servidor con
+// el webhook de Bitrix24 (BITRIX24_WEBHOOK_URL), no con lo que diga el navegador.
 async function bx(method, params) {
   const hook = process.env.BITRIX24_WEBHOOK_URL;
   if (!hook) throw new Error('Falta configurar BITRIX24_WEBHOOK_URL en el servidor.');
@@ -150,32 +151,51 @@ async function bx(method, params) {
   if (!r.ok || j.error) throw new Error('Bitrix24 (' + method + '): ' + (j.error_description || j.error || r.status));
   return j;
 }
-let cacheDeptoPresupuesto = null;
-async function deptoPresupuesto() {
-  if (cacheDeptoPresupuesto && Date.now() - cacheDeptoPresupuesto.t < 5 * 60 * 1000) return cacheDeptoPresupuesto.d;
+const cacheDeptos = {};
+// Departamento de Bitrix24 por nombre (normalizado, sin tildes). Cache de 5 min.
+async function deptoPorNombre(nombreNorm) {
+  const c = cacheDeptos[nombreNorm];
+  if (c && Date.now() - c.t < 5 * 60 * 1000) return c.d;
   let start = 0, found = null;
   for (let i = 0; i < 20 && !found; i++) {
     const j = await bx('department.get', { start });
-    found = (j.result || []).find((d) => norm(d.NAME) === 'departamento de presupuesto') || null;
+    found = (j.result || []).find((d) => norm(d.NAME) === nombreNorm) || null;
     if (j.next == null) break;
     start = j.next;
   }
-  if (!found) throw new Error('No se encontró el departamento "Departamento de Presupuesto" en Bitrix24.');
+  if (!found) throw new Error('No se encontró en Bitrix24 el departamento "' + nombreNorm + '".');
   const d = { id: String(found.ID), head: found.UF_HEAD && String(found.UF_HEAD) !== '0' ? String(found.UF_HEAD) : '' };
-  cacheDeptoPresupuesto = { t: Date.now(), d };
+  cacheDeptos[nombreNorm] = { t: Date.now(), d };
   return d;
 }
-// true si el usuario (activo) es miembro del Departamento de Presupuesto o su
-// jefe. Lanza error si no se puede consultar Bitrix24 (no se asume permiso).
-async function esPersonalPresupuesto(userId) {
+// true si el usuario (activo) es miembro del departamento o su jefe. Lanza
+// error si no se puede consultar Bitrix24 (no se asume permiso).
+async function esPersonalDepto(userId, nombreNorm) {
   userId = String(userId || '').trim();
   if (!userId) return false;
-  const d = await deptoPresupuesto();
+  const d = await deptoPorNombre(nombreNorm);
   const j = await bx('user.get', { FILTER: { ID: userId } });
   const u = (j.result || [])[0];
   if (!u || u.ACTIVE === false) return false;
   return userId === d.head || (u.UF_DEPARTMENT || []).map(String).indexOf(d.id) !== -1;
 }
+// Ids de los usuarios activos del departamento (miembros + jefe), para avisarles.
+async function usuariosDepto(nombreNorm) {
+  const d = await deptoPorNombre(nombreNorm);
+  const ids = new Set();
+  if (d.head) ids.add(d.head);
+  let start = 0;
+  for (let i = 0; i < 20; i++) {
+    const j = await bx('user.get', { FILTER: { UF_DEPARTMENT: d.id, ACTIVE: true }, start });
+    (j.result || []).forEach((u) => ids.add(String(u.ID)));
+    if (j.next == null) break;
+    start = j.next;
+  }
+  return Array.from(ids);
+}
+const esPersonalPresupuesto = (userId) => esPersonalDepto(userId, 'departamento de presupuesto');
+const esPersonalTesoreria = (userId) => esPersonalDepto(userId, 'departamento de tesoreria');
+const usuariosTesoreria = () => usuariosDepto('departamento de tesoreria');
 
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
@@ -197,3 +217,5 @@ module.exports = async (req, res) => {
 module.exports.disponibilidad = disponibilidad;
 module.exports.validarCertificacion = validarCertificacion;
 module.exports.esPersonalPresupuesto = esPersonalPresupuesto;
+module.exports.esPersonalTesoreria = esPersonalTesoreria;
+module.exports.usuariosTesoreria = usuariosTesoreria;

@@ -68,11 +68,19 @@ pertenezcan:
 - **Certificador** también obtiene, además de "Certificar gastos", acceso
   a la pantalla hermana **"Reintegro o liquidación de fondos"** (mismo
   grupo de permiso, ver más abajo en "Qué hace").
-- **Tesorería** — nuevo grupo de permiso, **independiente de
-  Certificador**, con el mismo mecanismo de asignación (usuario individual
-  y/o departamento completo de Bitrix24, desde **Configurar usuarios**).
-  Da acceso al menú **"Tesorería"** (Reintegro de fondos / Liquidación de
-  Fondos).
+- **Tesorería (personal del Departamento de Tesorería)** — acceso al menú
+  **"Tesorería"** (Reintegro de fondos / Liquidación de Fondos). Solo lo
+  tienen los **miembros del "Departamento de Tesorería" de Bitrix24,
+  incluido su jefe**, que son quienes liberan los fondos: suben el acuerdo
+  municipal y el comprobante de transferencia (fondo circulante) o el
+  voucher/cheque (caja chica). Está **separado de los administradores de
+  fondo**, que son quienes *piden* el reintegro o la liquidación desde
+  Informe de Gastos y no usan este menú (salvo que además sean de Tesorería).
+  Ya no se asigna en Configurar usuarios: se deriva de Bitrix24 y ahí solo
+  se muestra la lista informativa. Ni un administrador del portal entra si
+  no es de ese departamento. El servidor lo verifica contra Bitrix24 al
+  registrar un reintegro y al cerrar una liquidación (403 si no pertenece;
+  502 si no puede consultar Bitrix24).
 - **Gerencia responsable de una solicitud** — acceso a **Autorización de
   gerencia**, pero solo para autorizar o denegar las solicitudes donde esa
   persona específica fue elegida como "Gerencia responsable" al crearlas.
@@ -272,8 +280,8 @@ portal, que da acceso a todo sin excepción).
   abre la pestaña o se le da "Actualizar" (no hay un socket de tiempo real;
   refleja el estado más reciente guardado en Supabase al momento de
   cargar/actualizar).
-- **Tesorería** (acceso: grupo de permiso Tesorería, ver "Modelo de
-  permisos"): menú con **"Reintegro de fondos"** y **"Liquidación de
+- **Tesorería** (acceso: personal del Departamento de Tesorería, ver
+  "Modelo de permisos"): menú con **"Reintegro de fondos"** y **"Liquidación de
   Fondos"**. Solo aparece lo que Presupuesto ya autorizó.
   - **Reintegro, fondo circulante**: Tesorería ve la cuenta bancaria del
     administrador, hace la transferencia, y sube el **acuerdo municipal
@@ -324,11 +332,9 @@ portal, que da acceso a todo sin excepción).
      personal del Departamento de Presupuesto (miembros + jefe), que son
      quienes certifican. Se cambia en Bitrix24, no aquí (la tabla
      `gastos_certificadores` quedó sin uso).
-  4. **Tesorería**: mismo mecanismo que "Certificación presupuestaria"
-     (usuarios individuales + departamentos completos), pero es un grupo
-     de permiso **independiente** — alguien puede ser certificador,
-     tesorería, ambos o ninguno. "Guardar tesorería" reemplaza la lista
-     completa de una vez.
+  4. **Tesorería**: solo informativa; muestra al personal del Departamento
+     de Tesorería (miembros + jefe). Se cambia en Bitrix24, no aquí (la
+     tabla `gastos_tesoreria` quedó sin uso).
   Ya no se usa `app.option` para nada de esto — todo se deriva de
   `gastos_fondo_usuarios` (con su columna `es_administrador`),
   `gastos_certificadores` y `gastos_tesoreria`, guardadas en Supabase.
@@ -671,7 +677,7 @@ solicitud, resaltando en rojo lo que excede).
    es necesario** y pulsa **"Autorizar y enviar a Tesorería"** → se genera el
    PDF (fecha y hora), se guarda en Bitrix24 Disk, el total se **recalcula**
    con lo que quedó tras las ediciones y se notifica al administrador y a
-   los usuarios de Tesorería asignados individualmente → `revisado`.
+   todo el personal del Departamento de Tesorería (miembros + jefe) → `revisado`.
 3. **Tesorería**: sube acuerdo municipal y comprobante → circulante
    `cerrado`; caja chica `entregado`.
 4. **Caja chica**: el administrador confirma la recepción → `cerrado`.

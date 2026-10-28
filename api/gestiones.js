@@ -304,13 +304,11 @@ module.exports = async (req, res) => {
           'Tu gestión de ' + etiq + ' fue autorizada por Presupuesto.',
           'GASTOS_GESTION_REVISADA_' + g.id
         );
-        // Avisa a Tesorería (solo usuarios asignados individualmente: los
-        // departamentos completos no se pueden expandir con este webhook).
+        // Avisa al personal del Departamento de Tesorería (miembros + jefe).
         try {
-          const rT = await sb('gastos_tesoreria?tipo=eq.usuario&select=valor');
-          const tUsers = await rT.json();
-          for (const t of (rT.ok && Array.isArray(tUsers) ? tUsers : [])) {
-            await notificar(t.valor,
+          const tUsers = await presupuesto.usuariosTesoreria();
+          for (const tId of tUsers) {
+            await notificar(tId,
               'Gestión de ' + etiq + ' de ' + (g.administrador_nombre || 'un administrador de fondo') + ' autorizada por Presupuesto: ya puede registrarse en Tesorería.',
               'Gestión autorizada por Presupuesto, pendiente de Tesorería.', 'GASTOS_GESTION_TESORERIA_' + g.id);
           }
@@ -322,8 +320,15 @@ module.exports = async (req, res) => {
 
       if (action === 'registrar_tesoreria') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        if (!body.actor_is_admin && !body.actor_es_tesoreria) {
-          res.status(403).json({ ok: false, error: 'Solo Tesorería o un administrador puede registrar el reintegro.' });
+        // Liberar el reintegro (acuerdo + comprobante/voucher) solo lo hace el
+        // personal del Departamento de Tesorería, verificado contra Bitrix24.
+        try {
+          if (!(await presupuesto.esPersonalTesoreria(body.actor_id))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería puede registrar el reintegro.' });
+            return;
+          }
+        } catch (ePers) {
+          res.status(502).json({ ok: false, error: 'No se pudo verificar tu pertenencia al Departamento de Tesorería: ' + String((ePers && ePers.message) || ePers) });
           return;
         }
         const rA = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=*');
@@ -397,8 +402,13 @@ module.exports = async (req, res) => {
 
       if (action === 'cerrar') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        if (!body.actor_is_admin && !body.actor_es_tesoreria) {
-          res.status(403).json({ ok: false, error: 'Solo Tesorería o un administrador puede cerrar una gestión.' });
+        try {
+          if (!(await presupuesto.esPersonalTesoreria(body.actor_id))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería puede cerrar una liquidación.' });
+            return;
+          }
+        } catch (ePers) {
+          res.status(502).json({ ok: false, error: 'No se pudo verificar tu pertenencia al Departamento de Tesorería: ' + String((ePers && ePers.message) || ePers) });
           return;
         }
         const actual = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id) + '&select=estado,tipo');

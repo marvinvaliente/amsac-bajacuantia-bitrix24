@@ -1133,18 +1133,8 @@
       <div id="presupuestoPersonal" class="chip-row"></div>
 
       <div class="section-title" style="margin-top:22px">Tesorería</div>
-      <div class="gasto-line" style="margin-bottom:10px">Usuarios individuales y/o departamentos completos de Bitrix24 autorizados para ver "Tesorería" (Reintegro de fondos / Liquidación de Fondos) y cerrar el ciclo de una gestión ya revisada.</div>
-      <label>Usuarios de tesorería</label>
-      <div class="search-box">
-        <input type="text" id="tesUserSearch" placeholder="Buscar usuario..." />
-      </div>
-      <div id="tesUserList" class="user-list" style="margin-bottom:16px"></div>
-      <label>Departamentos de tesorería</label>
-      <div id="tesDeptList" class="user-list"></div>
-      <div class="btn-row" style="margin-top:14px">
-        <button type="button" id="btnGuardarTesoreria">Guardar tesorería</button>
-      </div>
-      <div id="tesoreriaMsg" class="msg"></div>
+      <div class="gasto-line" style="margin-bottom:10px">El menú "Tesorería" (Reintegro de fondos / Liquidación de Fondos) lo usa <b>únicamente el personal del Departamento de Tesorería</b>, incluido su jefe: libera los fondos y sube el acuerdo municipal y el comprobante de transferencia (fondo circulante) o el voucher/cheque (caja chica). Es aparte de los administradores de fondo, que son quienes piden el reintegro o la liquidación. Se toma de la estructura de Bitrix24 (no se configura aquí).</div>
+      <div id="tesoreriaPersonal" class="chip-row"></div>
     </div>
 
     <!-- Modal: asignar usuarios a un fondo -->
@@ -1258,19 +1248,23 @@
     return (u && u.UF_DEPARTMENT && u.UF_DEPARTMENT.length) ? String(u.UF_DEPARTMENT[0]) : '';
   }
   // Departamento de Presupuesto en Bitrix24 y su personal (miembros + jefe).
-  function deptoPresupuesto() {
-    return allDepartments.find(function (d) { return normTxt(d.NAME) === 'departamento de presupuesto'; }) || null;
+  function deptoPorNombreNorm(n) {
+    return allDepartments.find(function (d) { return normTxt(d.NAME) === n; }) || null;
   }
-  function personalPresupuesto() {
-    var d = deptoPresupuesto();
+  function personalDeDepto(n) {
+    var d = deptoPorNombreNorm(n);
     if (!d) return [];
     return allUsers.filter(function (u) {
       return String(u.ID) === String(d.UF_HEAD) || (u.UF_DEPARTMENT || []).map(String).indexOf(String(d.ID)) !== -1;
     });
   }
-  function esPersonalPresupuestoId(userId) {
-    return personalPresupuesto().some(function (u) { return String(u.ID) === String(userId); });
+  function esPersonalDeptoId(n, userId) {
+    return personalDeDepto(n).some(function (u) { return String(u.ID) === String(userId); });
   }
+  var DEPTO_PRESUPUESTO = 'departamento de presupuesto';
+  var DEPTO_TESORERIA = 'departamento de tesoreria';
+  function esPersonalPresupuestoId(userId) { return esPersonalDeptoId(DEPTO_PRESUPUESTO, userId); }
+  function esPersonalTesoreriaId(userId) { return esPersonalDeptoId(DEPTO_TESORERIA, userId); }
   // Departamento "real" de un usuario: Bitrix24 permite varios, y en este
   // portal casi todos están además en "Solicitantes de Insumos de Oficina"
   // (un grupo, no un área). Se descartan esos grupos y, si hay otra opción,
@@ -4117,11 +4111,11 @@
     // puede desembolsar, por eso comparte fórmula.
     puedeVerInforme = puedeDesembolsar;
 
-    var tesUsuarios = tesoreria.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
-    var tesDeptos = tesoreria.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
-    puedeTesoreria = isAdmin ||
-      tesUsuarios.indexOf(String(currentUser.ID)) !== -1 ||
-      misDeptos.some(function (d) { return tesDeptos.indexOf(d) !== -1; });
+    // Tesorería (liberar fondos: acuerdo municipal + comprobante/voucher) solo
+    // el personal del Departamento de Tesorería de Bitrix24, jefe incluido.
+    // Los administradores de fondo piden los reintegros/liquidaciones desde
+    // Informe de Gastos; no usan este menú. El servidor lo vuelve a verificar.
+    puedeTesoreria = esPersonalTesoreriaId(currentUser.ID);
 
     // Autorizar/denegar una solicitud lo puede hacer específicamente quien
     // fue elegido como "Gerencia responsable" al crearla (no un grupo fijo
@@ -4444,99 +4438,30 @@
   // ---- Personal de Presupuesto (solo informativo) ----
   function renderPersonalPresupuesto() {
     var el = document.getElementById('presupuestoPersonal');
-    var d = deptoPresupuesto();
+    var d = deptoPorNombreNorm(DEPTO_PRESUPUESTO);
     if (!d) { el.innerHTML = '<div class="empty-state">No se encontró el departamento "Departamento de Presupuesto" en Bitrix24.</div>'; return; }
-    var lista = personalPresupuesto();
+    var lista = personalDeDepto(DEPTO_PRESUPUESTO);
     el.innerHTML = lista.length ? lista.map(function (u) {
       return '<span class="chip">' + esc(fullName(u)) + (String(u.ID) === String(d.UF_HEAD) ? ' <b>(jefe)</b>' : '') + '</span>';
     }).join('') : '<div class="empty-state">El departamento no tiene personal activo.</div>';
   }
 
-  // ---- Tesorería (usuarios y/o departamentos) ----
-  var pendingTesUsuarios = [];
-  var pendingTesDeptos = [];
-
-  function cargarTesoreriaUI() {
-    pendingTesUsuarios = tesoreria.filter(function (c) { return c.tipo === 'usuario'; }).map(function (c) { return String(c.valor); });
-    pendingTesDeptos = tesoreria.filter(function (c) { return c.tipo === 'departamento'; }).map(function (c) { return String(c.valor); });
-    document.getElementById('tesUserSearch').value = '';
-    hideMsg(document.getElementById('tesoreriaMsg'));
-    renderTesUserList();
-    renderTesDeptList();
+  // ---- Personal de Tesorería (solo informativo) ----
+  function renderPersonalTesoreria() {
+    var el = document.getElementById('tesoreriaPersonal');
+    var d = deptoPorNombreNorm(DEPTO_TESORERIA);
+    if (!d) { el.innerHTML = '<div class="empty-state">No se encontró el departamento "Departamento de Tesorería" en Bitrix24.</div>'; return; }
+    var lista = personalDeDepto(DEPTO_TESORERIA);
+    el.innerHTML = lista.length ? lista.map(function (u) {
+      return '<span class="chip">' + esc(fullName(u)) + (String(u.ID) === String(d.UF_HEAD) ? ' <b>(jefe)</b>' : '') + '</span>';
+    }).join('') : '<div class="empty-state">El departamento no tiene personal activo.</div>';
   }
-
-  function renderTesUserList() {
-    var listEl = document.getElementById('tesUserList');
-    var filter = (document.getElementById('tesUserSearch').value || '').toLowerCase();
-    listEl.innerHTML = '';
-    allUsers
-      .filter(function (u) { return fullName(u).toLowerCase().indexOf(filter) !== -1; })
-      .forEach(function (u) {
-        var row = document.createElement('label');
-        row.className = 'user-row';
-        var checked = pendingTesUsuarios.indexOf(String(u.ID)) !== -1;
-        row.innerHTML = '<input type="checkbox" data-id="' + u.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc(fullName(u)) + '</span>';
-        listEl.appendChild(row);
-      });
-  }
-  document.getElementById('tesUserSearch').addEventListener('input', renderTesUserList);
-  document.getElementById('tesUserList').addEventListener('change', function (ev) {
-    var cb = ev.target;
-    if (cb.tagName !== 'INPUT') return;
-    var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingTesUsuarios.indexOf(id) === -1) pendingTesUsuarios.push(id); }
-    else { pendingTesUsuarios = pendingTesUsuarios.filter(function (x) { return x !== id; }); }
-  });
-
-  function renderTesDeptList() {
-    var listEl = document.getElementById('tesDeptList');
-    if (!allDepartments.length) { listEl.innerHTML = '<div class="empty-state">No se pudieron cargar los departamentos de Bitrix24.</div>'; return; }
-    listEl.innerHTML = '';
-    allDepartments.forEach(function (d) {
-      var row = document.createElement('label');
-      row.className = 'user-row';
-      var checked = pendingTesDeptos.indexOf(String(d.ID)) !== -1;
-      row.innerHTML = '<input type="checkbox" data-id="' + d.ID + '" ' + (checked ? 'checked' : '') + ' /><span>' + esc((d.NAME || '').replace(/[_\s]+$/, '').trim()) + '</span>';
-      listEl.appendChild(row);
-    });
-  }
-  document.getElementById('tesDeptList').addEventListener('change', function (ev) {
-    var cb = ev.target;
-    if (cb.tagName !== 'INPUT') return;
-    var id = cb.getAttribute('data-id');
-    if (cb.checked) { if (pendingTesDeptos.indexOf(id) === -1) pendingTesDeptos.push(id); }
-    else { pendingTesDeptos = pendingTesDeptos.filter(function (x) { return x !== id; }); }
-  });
-
-  document.getElementById('btnGuardarTesoreria').addEventListener('click', function () {
-    var msgEl = document.getElementById('tesoreriaMsg');
-    hideMsg(msgEl);
-    var items = pendingTesUsuarios.map(function (id) { return { tipo: 'usuario', valor: id }; })
-      .concat(pendingTesDeptos.map(function (id) { return { tipo: 'departamento', valor: id }; }));
-    var btn = this;
-    btn.disabled = true;
-    apiCall('tesoreria', { method: 'POST', body: { action: 'guardar', items: items } }).then(function (r) {
-      btn.disabled = false;
-      if (r.ok) {
-        showMsg(msgEl, 'success', 'Tesorería actualizada correctamente.');
-        apiCall('tesoreria?action=list').then(function (r2) {
-          tesoreria = r2.tesoreria || [];
-          recalcularAutorizacion();
-        });
-      } else {
-        showMsg(msgEl, 'error', r.error || 'No se pudo guardar la lista de tesorería.');
-      }
-    }).catch(function () {
-      btn.disabled = false;
-      showMsg(msgEl, 'error', 'Error de conexión al guardar.');
-    });
-  });
 
   function initConfigTab() {
     poblarAnios();
     cargarFondos();
     renderPersonalPresupuesto();
-    cargarTesoreriaUI();
+    renderPersonalTesoreria();
     renderFondoAdminList();
   }
 
