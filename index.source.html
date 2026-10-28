@@ -415,7 +415,7 @@
           <div>
             <label for="sAreaSolicitante">Área solicitante *</label>
             <div class="combo-wrap">
-              <input type="text" id="sAreaSolicitante" placeholder="Escribe para buscar una unidad/dependencia..." required maxlength="150" autocomplete="off" />
+              <input type="text" id="sAreaSolicitante" placeholder="Busca y elige una unidad/dependencia de Bitrix24..." required maxlength="150" autocomplete="off" />
               <div id="sAreaDropdown" class="combo-dropdown"></div>
               <input type="hidden" id="sAreaId" />
             </div>
@@ -428,25 +428,24 @@
             <input type="text" id="sJefaturaSolicitante" readonly placeholder="Se completa solo según el área solicitante" />
           </div>
           <div>
-            <label for="sGerencia">Gerente responsable *</label>
-            <div class="combo-wrap">
-              <input type="text" id="sGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
-              <div id="sGerenciaDropdown" class="combo-dropdown"></div>
-              <input type="hidden" id="sGerenciaId" />
-            </div>
+            <label for="sGerenciaUnidad">Gerencia responsable</label>
+            <input type="text" id="sGerenciaUnidad" readonly placeholder="Se completa solo según el área solicitante" />
           </div>
         </div>
 
         <div class="row">
           <div>
-            <label for="sGerenciaUnidad">Gerencia responsable</label>
-            <input type="text" id="sGerenciaUnidad" readonly placeholder="Se completa solo según el gerente responsable" />
+            <label for="sGerencia">Gerente responsable *</label>
+            <input type="text" id="sGerencia" readonly required placeholder="Se completa solo según el área solicitante" />
+            <input type="hidden" id="sGerenciaId" />
           </div>
           <div>
             <label for="sNombreProceso">Nombre del proceso *</label>
             <input type="text" id="sNombreProceso" placeholder="Nombre del proceso al que corresponde la compra" required maxlength="200" />
           </div>
         </div>
+
+        <div id="sResponsablesAviso" class="msg"></div>
 
         <div class="row">
           <div>
@@ -1284,6 +1283,98 @@
     var jefe = findUser(d.UF_HEAD);
     return jefe ? fullName(jefe) : '';
   }
+  // ---- Responsables según la estructura de Bitrix24 ----------------------
+  // La jefatura solicitante, la gerencia responsable y el gerente responsable
+  // no se escriben: salen del organigrama (departamentos + jefe de cada uno).
+  //  - Jefatura solicitante: jefe (UF_HEAD) del área elegida.
+  //  - Gerencia / gerente: la Gerencia que contiene al área (sin importar
+  //    cuántos niveles haya en medio, p. ej. Subgerencia o Departamento) y su
+  //    jefe; no el superior inmediato. Si el área cuelga directo de la
+  //    Dirección de Distrito (sin Gerencia), responde la Dirección.
+  //  - Las dependencias que están sobre la Dirección (Sindicatura, Auditoría,
+  //    Despacho y sus unidades, etc.) responden al Alcalde Municipal, o sea,
+  //    el jefe del "Despacho alcalde municipal".
+  function normTxt(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[_\s]+/g, ' ').trim();
+  }
+  function cadenaDepto(deptoId) {
+    var cadena = [], d = getDeptoPorId(deptoId), n = 0;
+    while (d && n < 30) {
+      cadena.push(d);
+      d = (d.PARENT && String(d.PARENT) !== '0') ? getDeptoPorId(d.PARENT) : null;
+      n++;
+    }
+    return cadena;
+  }
+  function jefeDeDepto(d) {
+    if (!d || !d.UF_HEAD || String(d.UF_HEAD) === '0') return null;
+    return findUser(d.UF_HEAD) || null;
+  }
+  function etiquetaPersona(u) { return fullName(u) + (u.WORK_POSITION ? ' — ' + String(u.WORK_POSITION).trim() : ''); }
+  function resolverResponsables(deptoId) {
+    var r = { area: null, jefe: null, gerenciaDepto: null, gerente: null, esAlcalde: false, faltantes: [] };
+    var cadena = cadenaDepto(deptoId);
+    if (!cadena.length) return r;
+    r.area = cadena[0];
+    r.jefe = jefeDeDepto(cadena[0]);
+    if (!r.jefe) {
+      r.faltantes.push('El área <b>' + esc(nombreDepto(cadena[0])) + '</b> no tiene una jefatura asignada en Bitrix24 (o el usuario asignado está inactivo).');
+    }
+    var iDir = -1, i;
+    for (i = 0; i < cadena.length; i++) { if (/^direccion\b/.test(normTxt(cadena[i].NAME))) { iDir = i; break; } }
+    var limite = iDir === -1 ? cadena.length : iDir;
+    for (i = 0; i < limite; i++) {
+      if (/^gerencia\b/.test(normTxt(cadena[i].NAME))) { r.gerenciaDepto = cadena[i]; break; }
+    }
+    if (!r.gerenciaDepto && iDir !== -1) r.gerenciaDepto = cadena[iDir];
+    if (!r.gerenciaDepto) {
+      // Sobre la Dirección: el Alcalde Municipal hace de gerente.
+      r.esAlcalde = true;
+      r.gerenciaDepto = cadena.find(function (d) { return /^despacho\b.*alcalde/.test(normTxt(d.NAME)); }) ||
+        allDepartments.find(function (d) { return /^despacho\b.*alcalde/.test(normTxt(d.NAME)); }) || null;
+    }
+    if (!r.gerenciaDepto) {
+      r.faltantes.push('No se encontró en Bitrix24 el departamento "Despacho alcalde municipal" (el Alcalde es el gerente de las dependencias que están sobre la Dirección).');
+    } else {
+      r.gerente = jefeDeDepto(r.gerenciaDepto);
+      if (!r.gerente) {
+        r.faltantes.push(r.esAlcalde
+          ? 'El <b>Alcalde Municipal</b> no está asignado como jefe de <b>' + esc(nombreDepto(r.gerenciaDepto)) + '</b> en Bitrix24 (o el usuario está inactivo).'
+          : '<b>' + esc(nombreDepto(r.gerenciaDepto)) + '</b> no tiene un gerente asignado en Bitrix24 (o el usuario asignado está inactivo).');
+      }
+    }
+    return r;
+  }
+  var responsablesActuales = null;
+  // Rellena (o limpia) Jefatura, Gerencia y Gerente de Crear Solicitud según el
+  // área elegida, y avisa qué usuario falta por asignar en Bitrix24.
+  function aplicarResponsables(deptoId) {
+    var aviso = document.getElementById('sResponsablesAviso');
+    var jef = document.getElementById('sJefaturaSolicitante');
+    var ger = document.getElementById('sGerencia');
+    var gerId = document.getElementById('sGerenciaId');
+    var gerUn = document.getElementById('sGerenciaUnidad');
+    responsablesActuales = null;
+    jef.value = ''; ger.value = ''; gerId.value = ''; gerUn.value = '';
+    aviso.className = 'msg'; aviso.style.display = 'none'; aviso.innerHTML = '';
+    if (!deptoId) return;
+    var r = resolverResponsables(deptoId);
+    responsablesActuales = r;
+    if (r.jefe) jef.value = fullName(r.jefe);
+    if (r.gerenciaDepto) gerUn.value = nombreDepto(r.gerenciaDepto);
+    if (r.gerente) { ger.value = fullName(r.gerente); gerId.value = String(r.gerente.ID); }
+    var info = [];
+    if (r.jefe && r.jefe.WORK_POSITION) info.push('Jefatura: ' + esc(etiquetaPersona(r.jefe)));
+    if (r.gerente) info.push((r.esAlcalde ? 'Alcalde Municipal (gerente de esta dependencia): ' : 'Gerente: ') + esc(etiquetaPersona(r.gerente)));
+    if (r.faltantes.length) {
+      showMsg(aviso, 'error', '<b>Falta asignar un usuario en Bitrix24 antes de continuar:</b><br>' +
+        r.faltantes.map(function (f) { return '• ' + f; }).join('<br>') +
+        '<br>Pide a un administrador del portal que lo asigne (Empresa → Estructura de la empresa → editar el departamento → Jefe) y vuelve a elegir el área.');
+    } else if (info.length) {
+      showMsg(aviso, 'info', info.join('<br>'));
+    }
+  }
+
   function getFondosDe(id) {
     var propios = fondos.filter(function (f) { return (f.usuario_ids || []).some(function (x) { return String(x) === String(id); }); });
     if (!propios.length) return '—';
@@ -1447,7 +1538,7 @@
     var hayPropia = propia && propia !== '—';
     document.getElementById('sAreaSolicitante').value = hayPropia ? propia : '';
     document.getElementById('sAreaId').value = hayPropia ? deptoId : '';
-    document.getElementById('sJefaturaSolicitante').value = hayPropia ? getJefaturaDeDepto(deptoId) : '';
+    aplicarResponsables(hayPropia ? deptoId : '');
   }
 
   // Lista solo los fondos a los que pertenece quien está creando la solicitud;
@@ -1808,9 +1899,9 @@
     } else if (!areasDisponibles.length) {
       sAreaDropdown.innerHTML = '<div class="combo-empty">No se pudieron cargar las unidades de Bitrix24' +
         (departamentosError ? ' (falta el permiso "department" en la app)' : '') +
-        '. Puedes escribir el área manualmente.</div>';
+        '. Sin ellas no se puede crear la solicitud.</div>';
     } else {
-      sAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — puedes escribir el nombre manualmente.</div>';
+      sAreaDropdown.innerHTML = '<div class="combo-empty">Sin coincidencias — elige una unidad de la lista.</div>';
     }
   }
   function abrirAreaDropdown() { renderAreaDropdown(); sAreaDropdown.classList.add('open'); }
@@ -1819,7 +1910,7 @@
   sAreaInput.addEventListener('focus', abrirAreaDropdown);
   sAreaInput.addEventListener('input', function () {
     sAreaIdInput.value = '';
-    sJefaturaInput.value = '';
+    aplicarResponsables('');
     abrirAreaDropdown();
   });
   sAreaDropdown.addEventListener('mousedown', function (ev) {
@@ -1830,49 +1921,18 @@
     sAreaInput.value = nombre;
     var deptoId = getDeptoIdPorNombre(nombre);
     sAreaIdInput.value = deptoId;
-    sJefaturaInput.value = deptoId ? getJefaturaDeDepto(deptoId) : '';
+    aplicarResponsables(deptoId);
     cerrarAreaDropdown();
   });
   document.addEventListener('click', function (ev) {
     if (ev.target !== sAreaInput && !sAreaDropdown.contains(ev.target)) cerrarAreaDropdown();
   });
 
-  // ---- Combo con buscador para "Gerente responsable" (usuario Bitrix24) ----
+  // ---- Gerente responsable / Gerencia (Crear Solicitud): solo lectura, salen
+  // de la estructura de Bitrix24 según el área (ver resolverResponsables). ----
   var sGerenciaInput = document.getElementById('sGerencia');
-  var sGerenciaDropdown = document.getElementById('sGerenciaDropdown');
   var sGerenciaIdInput = document.getElementById('sGerenciaId');
   var sGerenciaUnidadInput = document.getElementById('sGerenciaUnidad');
-
-  function renderGerenciaDropdown() {
-    var filtro = sGerenciaInput.value.trim().toLowerCase();
-    var opciones = (filtro ? allUsers.filter(function (u) { return fullName(u).toLowerCase().indexOf(filtro) !== -1; }) : allUsers).slice(0, 40);
-    sGerenciaDropdown.innerHTML = opciones.length
-      ? opciones.map(function (u) { return '<div class="combo-option" data-uid="' + u.ID + '" data-uname="' + esc(fullName(u)) + '">' + esc(fullName(u)) + '</div>'; }).join('')
-      : '<div class="combo-empty">Sin coincidencias.</div>';
-  }
-  function abrirGerenciaDropdown() { renderGerenciaDropdown(); sGerenciaDropdown.classList.add('open'); }
-  function cerrarGerenciaDropdown() { sGerenciaDropdown.classList.remove('open'); }
-
-  sGerenciaInput.addEventListener('focus', abrirGerenciaDropdown);
-  sGerenciaInput.addEventListener('input', function () {
-    sGerenciaIdInput.value = '';
-    sGerenciaUnidadInput.value = '';
-    abrirGerenciaDropdown();
-  });
-  sGerenciaDropdown.addEventListener('mousedown', function (ev) {
-    var opt = ev.target.closest('[data-uid]');
-    if (!opt) return;
-    ev.preventDefault();
-    var uid = opt.getAttribute('data-uid');
-    sGerenciaInput.value = opt.getAttribute('data-uname');
-    sGerenciaIdInput.value = uid;
-    var unidad = getUnidad(uid);
-    sGerenciaUnidadInput.value = (unidad && unidad !== '—') ? unidad : '';
-    cerrarGerenciaDropdown();
-  });
-  document.addEventListener('click', function (ev) {
-    if (ev.target !== sGerenciaInput && !sGerenciaDropdown.contains(ev.target)) cerrarGerenciaDropdown();
-  });
 
   // ---- Tabla de ítems (Crear Solicitud) ----
   function crearFilaItem() {
@@ -1983,6 +2043,7 @@
   function limpiarFormSolicitud() {
     formSolicitud.reset();
     sGerenciaIdInput.value = '';
+    aplicarResponsables('');
     document.getElementById('sItemsBody').innerHTML = '';
     crearFilaItem();
     recalcularItemsTotal();
@@ -2005,8 +2066,17 @@
     hideMsg(msgEl);
     var fondoId = document.getElementById('sFondo').value;
     if (!fondoId) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece esta solicitud.'); return; }
+    if (!sAreaIdInput.value) { sAreaIdInput.value = getDeptoIdPorNombre(sAreaInput.value); }
+    if (!sAreaIdInput.value) { showMsg(msgEl, 'error', 'Elige el área solicitante de la lista de unidades de Bitrix24.'); return; }
+    if (!responsablesActuales || !responsablesActuales.area || String(responsablesActuales.area.ID) !== String(sAreaIdInput.value)) aplicarResponsables(sAreaIdInput.value);
+    if (responsablesActuales && responsablesActuales.faltantes.length) {
+      showMsg(msgEl, 'error', '<b>Falta asignar un usuario en Bitrix24 antes de continuar:</b><br>' +
+        responsablesActuales.faltantes.map(function (f) { return '• ' + f; }).join('<br>') +
+        '<br>Pide a un administrador del portal que lo asigne y vuelve a elegir el área.');
+      return;
+    }
     var gerenciaId = sGerenciaIdInput.value;
-    if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
+    if (!gerenciaId) { showMsg(msgEl, 'error', 'No se pudo determinar el gerente responsable del área elegida.'); return; }
     if (sCotizacionItems.some(function (c) { return c.subiendo; })) {
       showMsg(msgEl, 'error', 'Espera a que terminen de subir las cotizaciones.');
       return;

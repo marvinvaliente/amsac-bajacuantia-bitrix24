@@ -88,13 +88,15 @@ portal, que da acceso a todo sin excepción).
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
      lista los fondos a los que pertenece quien la crea), **área
-     solicitante** (se busca/elige una unidad de Bitrix24), **Jefatura
-     solicitante** (de solo lectura: se completa sola con el nombre de quien
-     figura como jefatura de esa unidad en Bitrix24 — queda vacía si esa
-     unidad no tiene jefatura asignada ahí), **Gerente responsable** (se
-     busca y elige un usuario de Bitrix24), **Gerencia responsable** (de
-     solo lectura: se completa sola con la unidad/departamento de Bitrix24
-     a la que pertenece ese gerente), **nombre del proceso**, descripción,
+     solicitante** (solo se puede elegir una unidad de Bitrix24 de la lista;
+     ya no se escribe a mano) y, a partir de ella, tres campos de solo lectura
+     que salen de la estructura de Bitrix24 (ver "Responsables según la
+     estructura de Bitrix24"): **Jefatura solicitante**, **Gerencia
+     responsable** y **Gerente responsable**. Si falta el usuario que debe
+     figurar como jefe de algún departamento, aparece un aviso ("Falta
+     asignar un usuario en Bitrix24 antes de continuar") y no se puede crear
+     la solicitud hasta que un administrador del portal lo asigne.
+     **nombre del proceso**, descripción,
      justificación, **clasificación del gasto** (Gasto Emergente / Imprevisto
      / Recurrente) y **forma de
      pago** (Efectivo / Transferencia Bancaria / Cheque). Incluye una tabla de
@@ -436,23 +438,24 @@ entorno anteriores.
   confianza que `transporte_*` (herramienta interna, no expuesta al público).
 - "Cargo" y "Unidad" en Reportes salen de `WORK_POSITION` y `UF_DEPARTMENT` de
   `user.get`/`department.get` de Bitrix24, no se guardan en la tabla de gastos.
-- **`jefatura_solicitante` / `gerencia_responsable_unidad`**: se calculan en
-  el navegador, no en el servidor, a partir de datos ya cargados de Bitrix24
-  (`allUsers`/`allDepartments`) — `jefatura_solicitante` busca el
-  departamento elegido en "Área solicitante" por nombre y toma su
-  `UF_HEAD` (el usuario que Bitrix24 tiene registrado como jefatura de esa
-  unidad); `gerencia_responsable_unidad` toma el primer `UF_DEPARTMENT` del
-  usuario elegido como "Gerente responsable". El servidor los guarda tal
-  cual se lo mandan, sin volver a resolverlos (mismo modelo de confianza
-  que `gerencia_responsable_nombre`). Como "Área solicitante" se guarda
-  como texto libre (no como id de departamento), al recargar una solicitud
-  ya existente en Certificación su id se vuelve a inferir buscando un
-  departamento cuyo nombre coincida exactamente — si no hay coincidencia
-  (p. ej. el área se escribió a mano sin elegirla del listado), "Jefatura
-  solicitante" simplemente queda vacía hasta que alguien la corrija con
-  doble clic. Cambiar "Área solicitante" o "Gerente responsable" con doble
-  clic en Certificación recalcula estos dos campos al vuelo con la nueva
-  elección.
+- **Responsables según la estructura de Bitrix24**: `jefatura_solicitante`,
+  `gerencia_responsable_unidad` y `gerencia_responsable_id/nombre` se
+  calculan en el navegador (`resolverResponsables`) con los departamentos y
+  el jefe (`UF_HEAD`) de cada uno, en Crear Solicitud:
+  - **Jefatura solicitante**: jefe del departamento elegido como área.
+  - **Gerencia y gerente responsable**: la *Gerencia* (departamento cuyo
+    nombre empieza por "Gerencia") que contiene al área, suba los niveles que
+    suba (Subgerencia, Departamento, Unidad...), y su jefe. No se toma el
+    superior inmediato. Si el área cuelga directo de la *Dirección de
+    Distrito* sin una Gerencia en medio, responde la Dirección.
+  - **Dependencias sobre la Dirección** (Sindicatura, Auditoría, Secretaría,
+    UAIP, Despacho y sus unidades...): el gerente es el **Alcalde
+    Municipal**, jefe del departamento "Despacho alcalde municipal".
+  - Si algún jefe falta (o está inactivo en Bitrix24) se muestra qué usuario
+    hay que asignar y se bloquea el envío. El servidor guarda los valores tal
+    cual (mismo modelo de confianza que `gerencia_responsable_nombre`).
+  - Certificación presupuestaria conserva su edición manual (doble clic) de
+    estos campos.
 - La exportación a Excel (Reportes) usa SheetJS (`xlsx.full.min.js` por CDN)
   en el navegador; PDF usa `jsPDF` + `jspdf-autotable`, igual que en
   transporte. El PDF de Desembolso además usa `pdf-lib` (CDN) para anexarle
