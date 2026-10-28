@@ -87,16 +87,17 @@ portal, que da acceso a todo sin excepción).
 - El menú **"Solicitud"** agrupa cinco pantallas (se puede colapsar/expandir
   haciendo clic en su encabezado):
   1. **Crear Solicitud**: encabezado de una solicitud de compra — fondo (solo
-     lista los fondos a los que pertenece quien la crea), **área
-     solicitante** (solo se puede elegir una unidad de Bitrix24 de la lista;
-     ya no se escribe a mano) y, a partir de ella, tres campos de solo lectura
-     que salen de la estructura de Bitrix24 (ver "Responsables según la
-     estructura de Bitrix24"): **Jefatura solicitante**, **Gerencia
-     responsable** y **Gerente responsable**. Si falta el usuario que debe
-     figurar como jefe de algún departamento, aparece un aviso ("Falta
-     asignar un usuario en Bitrix24 antes de continuar") y no se puede crear
-     la solicitud hasta que un administrador del portal lo asigne.
-     **nombre del proceso**, descripción,
+     lista los fondos a los que pertenece quien la crea), **nombre del proceso** y, como **información de la solicitud** (texto, no
+     campos de formulario; no se pueden editar), el **Área solicitante**, la
+     **Jefatura solicitante**, la **Gerencia responsable** y el **Gerente
+     responsable**. El área es el departamento de Bitrix24 de quien crea la
+     solicitud (se ignoran grupos como "Solicitantes de Insumos de Oficina" y,
+     si hay otro, la raíz AMSAC) y el resto sale de la estructura (ver
+     "Responsables según la estructura de Bitrix24"). Si falta el usuario que
+     debe figurar como jefe de algún departamento, o el usuario no tiene
+     departamento, aparece un aviso ("Falta asignar un usuario en Bitrix24
+     antes de continuar") y no se puede crear la solicitud hasta asignarlo.
+     Después vienen descripción,
      justificación, **clasificación del gasto** (Gasto Emergente / Imprevisto
      / Recurrente) y **forma de
      pago** (Efectivo / Transferencia Bancaria / Cheque). Incluye una tabla de
@@ -442,7 +443,7 @@ entorno anteriores.
   `gerencia_responsable_unidad` y `gerencia_responsable_id/nombre` se
   calculan en el navegador (`resolverResponsables`) con los departamentos y
   el jefe (`UF_HEAD`) de cada uno, en Crear Solicitud:
-  - **Jefatura solicitante**: jefe del departamento elegido como área.
+  - **Jefatura solicitante**: jefe del departamento del usuario (su área).
   - **Gerencia y gerente responsable** (la gerencia responsable es siempre
     la Gerencia que está por encima del área, no el superior inmediato):
     - Subgerencias, departamentos y unidades que dependen de una *Gerencia*

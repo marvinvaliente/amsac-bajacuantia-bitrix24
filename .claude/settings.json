@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Browser__read_page",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__Claude_Browser__get_page_text",
+      "mcp__Claude_Browser__find",
+      "mcp__Claude_Browser__read_network_requests",
+      "mcp__Claude_Browser__tabs_context",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__cb0faaa9-7070-4aef-9b71-3dd1341406d7__search_threads",
+      "mcp__4563c95b-bcac-46cd-91ec-c9f10592c80e__outlook_email_search",
+      "mcp__25255e3c-3ac9-4937-bef1-6f03dbf1e948__list_projects",
+      "mcp__004d5763-0578-4ce7-be83-55619056432b__list_teams",
+      "mcp__ccd_connectors__session_connectors_status",
+      "mcp__ccd_session_mgmt__search_session_transcripts",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(node --check *)"
+    ]
+  }
+}
