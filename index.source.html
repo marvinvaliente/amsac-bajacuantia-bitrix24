@@ -824,7 +824,7 @@
           <div>
             <label for="cGerencia">Gerente responsable *</label>
             <div class="combo-wrap">
-              <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." required autocomplete="off" />
+              <input type="text" id="cGerencia" placeholder="Escribe para buscar un usuario de Bitrix24..." autocomplete="off" />
               <div id="cGerenciaDropdown" class="combo-dropdown"></div>
               <input type="hidden" id="cGerenciaId" />
             </div>
@@ -1469,10 +1469,10 @@
     salarioMinimo: 408.80,
     circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
       excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false,
-      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, excepcionMaxMonto: 8176 },
+      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false, excepcionMaxMonto: 8176 },
     caja_chica: { montoMaximoAnual: 24000, limiteCompra: 100, formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
       excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
-      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, excepcionMaxMonto: 0 }
+      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false, exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true, excepcionMaxMonto: 0 }
   };
   var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
   var gastosFiltrados = [];
@@ -1660,6 +1660,22 @@
     return r;
   }
   var responsablesActuales = null;
+  // Fondos que no exigen autorización de gerencia (caja chica): del Bitrix24 solo se necesita el área.
+  function fondoSinAutorizacionGerencia() {
+    var el = document.getElementById('sFondo');
+    var f = el && (typeof fondos !== 'undefined' && fondos ? fondos : []).find(function (x) { return String(x.id) === String(el.value); });
+    var R = f && REGLAS_FONDOS[f.tipo];
+    return !!R && R.exigeAutorizacionGerencia === false;
+  }
+  function ajustarResponsablesSegunFondo() {
+    var tG = document.getElementById('sGerenteTxt'), tU = document.getElementById('sGerenciaUnidadTxt'), aviso = document.getElementById('sResponsablesAviso');
+    if (fondoSinAutorizacionGerencia()) {
+      tG.textContent = 'No aplica'; tU.textContent = 'No aplica';
+      if (document.getElementById('sAreaId').value) { aviso.style.display = 'none'; aviso.innerHTML = ''; }
+    } else if (tG.textContent === 'No aplica' && responsablesActuales) {
+      aplicarResponsables(String(responsablesActuales.area.ID));
+    }
+  }
   // Rellena (o limpia) la información de la solicitud -- Área, Jefatura,
   // Gerencia y Gerente -- según el departamento del usuario, y avisa qué
   // usuario falta por asignar en Bitrix24.
@@ -1694,6 +1710,7 @@
         r.faltantes.map(function (f) { return '• ' + f; }).join('<br>') +
         '<br>Pide a un administrador del portal que lo asigne (Empresa → Estructura de la empresa → editar el departamento → Jefe) y recarga la app.');
     }
+    ajustarResponsablesSegunFondo();
   }
 
   function getFondosDe(id) {
@@ -1704,6 +1721,12 @@
   // Fondo real de un gasto puntual (columna fondo_id). Los gastos creados antes
   // de que existiera esa columna no la tienen: en ese caso se usa como
   // aproximación el/los fondo(s) del usuario que lo registró.
+  // ¿El fondo del gasto exige que el administrador reciba el documento físico? (no en caja chica: es la misma persona)
+  function fondoExigeDocumentoDeGasto(g) {
+    var f = fondoObjDeGasto(g);
+    var R = f && REGLAS_FONDOS[f.tipo];
+    return !(R && R.reintegroExigeDocumento === false);
+  }
   function getFondoDeGasto(g) {
     if (g.fondo_id != null) {
       var f = fondos.find(function (x) { return String(x.id) === String(g.fondo_id); });
@@ -2286,6 +2309,9 @@
       (formasOk.indexOf('efectivo') !== -1 && R.efectivoMaxCompra > 0 ? ' El efectivo solo hasta <b>$' + money(R.efectivoMaxCompra) + '</b> por compra.' : '') +
       (formasOk.indexOf('efectivo') !== -1 && fondoTieneBanco(R) ? ' Reparto del fondo: <b>' + R.efectivoPct + '% efectivo / ' + (Math.round((100 - R.efectivoPct) * 100) / 100) + '% banco</b>.' : '') +
       '</div>';
+    if (R.exigeAutorizacionGerencia === false) {
+      html += '<div style="margin-top:4px">' + (R.solicitanteEsAdministrador ? 'El solicitante es el propio administrador del fondo. ' : '') + 'Esta solicitud <b>no requiere autorización de gerencia</b>: pasa directo a la certificación presupuestaria.</div>';
+    }
     if (exc && !permiteExc) {
       html += '<div class="regla-estado wait"><b style="color:#a92626">Esta compra supera el límite ordinario y no se permiten compras excepcionales.</b></div>';
     } else if (exc) {
@@ -2303,6 +2329,7 @@
     var pedirAcuerdo = exc && permiteExc && !!R.exigeAcuerdo;
     wrap.style.display = pedirAcuerdo ? 'block' : 'none';
     if (!pedirAcuerdo && sAcuerdo) { sAcuerdo = null; renderSAcuerdo(); }
+    ajustarResponsablesSegunFondo();
   }
   document.getElementById('sFondo').addEventListener('change', evaluarCuantiaUI);
   document.getElementById('sFormaPago').addEventListener('change', evaluarCuantiaUI);
@@ -2450,14 +2477,15 @@
       showMsg(msgEl, 'error', '<b>Falta asignar un usuario en Bitrix24 antes de continuar:</b><br>• Tu usuario no tiene un departamento (área) asignado en Bitrix24. Pide a un administrador del portal que lo asigne y recarga la app.');
       return;
     }
-    if (responsablesActuales && responsablesActuales.faltantes.length) {
+    var sinGerencia = fondoSinAutorizacionGerencia();
+    if (!sinGerencia && responsablesActuales && responsablesActuales.faltantes.length) {
       showMsg(msgEl, 'error', '<b>Falta asignar un usuario en Bitrix24 antes de continuar:</b><br>' +
         responsablesActuales.faltantes.map(function (f) { return '• ' + f; }).join('<br>') +
         '<br>Pide a un administrador del portal que lo asigne y recarga la app.');
       return;
     }
     var gerenciaId = sGerenciaIdInput.value;
-    if (!gerenciaId) { showMsg(msgEl, 'error', 'No se pudo determinar el gerente responsable del área elegida.'); return; }
+    if (!sinGerencia && !gerenciaId) { showMsg(msgEl, 'error', 'No se pudo determinar el gerente responsable del área elegida.'); return; }
     if (sCotizacionItems.some(function (c) { return c.subiendo; })) {
       showMsg(msgEl, 'error', 'Espera a que terminen de subir las cotizaciones.');
       return;
@@ -2514,7 +2542,9 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', 'Solicitud creada correctamente. Certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
+        showMsg(msgEl, 'success', (r.solicitud && r.solicitud.estado === 'autorizada')
+          ? 'Solicitud creada. Como este fondo no requiere autorización de gerencia, ya está lista para la certificación presupuestaria.'
+          : 'Solicitud creada correctamente. Certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
         limpiarFormSolicitud();
         cargarSolicitudes();
       } else {
@@ -2906,6 +2936,12 @@
       (k.sub ? '<span class="kpi-sub">' + k.sub + '</span>' : '') + '</div>';
   }
 
+  // Solicitudes de fondos sin autorización de gerencia (caja chica) no pasan por esa pantalla.
+  function solicitudRequiereAutorizacion(s) {
+    var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
+    var R = f && REGLAS_FONDOS[f.tipo];
+    return !(R && R.exigeAutorizacionGerencia === false);
+  }
   function htmlExcepcional(s) {
     if (!s.excepcional) return 'No';
     return 'Sí' + (s.acuerdo_administrativo_url ? ' — <a href="' + esc(s.acuerdo_administrativo_url) + '" target="_blank" rel="noopener">Acuerdo administrativo (PDF)</a>' : '') +
@@ -2914,6 +2950,7 @@
 
   function renderAutorizacionTabla() {
     var lista = solicitudes.filter(function (s) {
+      if (!solicitudRequiereAutorizacion(s)) return false;
       if (isAdmin) return true;
       return String(s.gerencia_responsable_id) === String(currentUser.ID);
     }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
@@ -3100,7 +3137,9 @@
     var fondoId = document.getElementById('cFondo').value;
     if (!fondoId) { showMsg(msgEl, 'error', 'Selecciona a qué fondo pertenece esta solicitud.'); return; }
     var gerenciaId = cGerenciaIdInput.value;
-    if (!gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
+    var fCert = fondos.find(function (x) { return String(x.id) === String(fondoId); });
+    var exigeGerCert = !(fCert && REGLAS_FONDOS[fCert.tipo] && REGLAS_FONDOS[fCert.tipo].exigeAutorizacionGerencia === false);
+    if (exigeGerCert && !gerenciaId) { showMsg(msgEl, 'error', 'Selecciona la gerencia responsable de la lista.'); return; }
 
     var items = [];
     var filasIncompletas = 0;
@@ -3927,7 +3966,7 @@
         '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
         '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
         '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
-        (g.estado === 'registrado' ? (g.documento_fisico_recibido ? '<div class="doc-fisico si">📄 Documento físico recibido por el administrador del fondo</div>' : '<div class="doc-fisico no">📄 Entrega el documento físico al administrador del fondo</div>') : '') +
+        (g.estado === 'registrado' && fondoExigeDocumentoDeGasto(g) ? (g.documento_fisico_recibido ? '<div class="doc-fisico si">📄 Documento físico recibido por el administrador del fondo</div>' : '<div class="doc-fisico no">📄 Entrega el documento físico al administrador del fondo</div>') : '') +
         (isAdmin ? '<div class="gasto-line">Registrado por: ' + esc(nombreDe(g.created_by_id)) + ' <span class="badge ' + (esPropio ? 'propio' : 'ajeno') + '">' + (esPropio ? 'Yo' : 'Otro usuario') + '</span></div>' : '') +
         (esVistaEliminados ? '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-restaurar="' + g.id + '">Restablecer</button>' +
@@ -4220,6 +4259,7 @@
 
   function renderInforme() {
     var el = document.getElementById('informeContent');
+    var mostrarDoc = reglasDeFondo(fondos.find(function (x) { return String(x.id) === String(document.getElementById('infFondo').value); })).reintegroExigeDocumento !== false;
     if (!informeGastos.length) {
       el.innerHTML = '<div class="empty-state">No hay gastos con factura registrada, pendientes de reintegrar, en ese fondo y rango de fechas.</div>';
       document.getElementById('informeAcciones').style.display = 'none';
@@ -4238,11 +4278,11 @@
           '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
           '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
           '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
-          (g.documento_fisico_recibido
+          (!mostrarDoc ? '' : g.documento_fisico_recibido
             ? '<div class="doc-fisico si">📄 Documento físico recibido' + (g.documento_fisico_at ? ' el ' + esc(new Date(g.documento_fisico_at).toLocaleDateString('es-HN')) : '') + '</div>'
             : '<div class="doc-fisico no">📄 Documento físico pendiente de recibir</div>') +
           '<div class="gasto-actions">' +
-            '<button type="button" class="secondary" data-doc-inf="' + g.id + '" data-doc-val="' + (g.documento_fisico_recibido ? '0' : '1') + '">' + (g.documento_fisico_recibido ? 'Quitar marca de recibido' : 'Marcar documento recibido') + '</button>' +
+            (mostrarDoc ? '<button type="button" class="secondary" data-doc-inf="' + g.id + '" data-doc-val="' + (g.documento_fisico_recibido ? '0' : '1') + '">' + (g.documento_fisico_recibido ? 'Quitar marca de recibido' : 'Marcar documento recibido') + '</button>' : '') +
             '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
             '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
           '</div>' +
@@ -4250,6 +4290,7 @@
       }).join('');
     document.getElementById('informeResumen').style.display = 'block';
     document.getElementById('informeAcciones').style.display = 'flex';
+    document.getElementById('btnMarcarDocs').style.display = mostrarDoc ? '' : 'none';
     document.getElementById('informeCuentaWrap').style.display = infFondoTipo() === 'circulante' ? 'block' : 'none';
     actualizarResumenInforme();
 
@@ -4696,6 +4737,9 @@
   // ==================================================================
   var reglasCfg = null; // { reglas, meta, defaults, historial }
   var CAMPOS_REGLAS = [
+    { t: 'Solicitante y autorización', c: [
+      { k: 'solicitanteEsAdministrador', tipo: 'bool', l: 'El solicitante es siempre el administrador del fondo', h: 'Todos los usuarios asignados al fondo quedan como administradores y solo ellos pueden crear solicitudes (caja chica).' },
+      { k: 'exigeAutorizacionGerencia', tipo: 'bool', l: 'Exigir autorización de la gerencia responsable', h: 'Si no, la solicitud nace autorizada y pasa directo a Presupuesto.' } ] },
     { t: 'Montos y cuantías', c: [
       { k: 'montoMaximoAnual', tipo: 'num', l: 'Monto máximo anual del fondo ($)', h: 'Tope al crear o editar un fondo de este tipo. 0 = sin tope. La referencia mensual del fondo es su monto entre 12.' },
       { k: 'limiteCompra', tipo: 'num', l: 'Límite de compra ordinaria ($, impuestos incluidos)', h: 'Una compra que lo supera es excepcional.' } ] },
@@ -4744,7 +4788,7 @@
     var id = rgId(tipo, c.k);
     var ayuda = c.h ? '<div class="rg-help">' + esc(c.h) + '</div>' : '';
     if (c.tipo === 'num') return '<div class="rg-field"><label for="' + id + '">' + esc(c.l) + '</label><input type="number" id="' + id + '" min="0" step="0.01" value="' + esc(v[c.k]) + '" />' + ayuda + '</div>';
-    if (c.tipo === 'bool') return '<label class="rg-check"><input type="checkbox" id="' + id + '"' + (v[c.k] ? ' checked' : '') + ' /><span>' + esc(c.l) + '</span></label>';
+    if (c.tipo === 'bool') return '<label class="rg-check"><input type="checkbox" id="' + id + '"' + (v[c.k] ? ' checked' : '') + ' /><span>' + esc(c.l) + (c.h ? '<span class="rg-help" style="display:block">' + esc(c.h) + '</span>' : '') + '</span></label>';
     return '<div class="rg-field"><label>' + esc(c.l) + '</label><div class="rg-formas">' + FORMAS_REGLAS.map(function (f) {
       return '<label class="rg-check"><input type="checkbox" id="' + rgId(tipo, 'forma_' + f[0]) + '"' + ((v.formasPago || []).indexOf(f[0]) !== -1 ? ' checked' : '') + ' /><span>' + f[1] + '</span></label>';
     }).join('') + '</div>' + ayuda + '</div>';
@@ -4908,7 +4952,7 @@
     // asignado desde Configurar usuarios) -- por eso esto se recalcula a
     // partir de las solicitudes ya cargadas, no de una lista de permisos.
     puedeAutorizarAlgo = isAdmin ||
-      solicitudes.some(function (s) { return String(s.gerencia_responsable_id) === String(currentUser.ID); });
+      solicitudes.some(function (s) { return solicitudRequiereAutorizacion(s) && String(s.gerencia_responsable_id) === String(currentUser.ID); });
 
     actualizarVisibilidadTabs();
     actualizarBarraFondo();
@@ -5144,6 +5188,10 @@
       'Asignar usuarios — ' + (TIPO_FONDO_LABEL[fondoAsignando.tipo] || fondoAsignando.tipo) + ' ' + fondoAsignando.anio;
     document.getElementById('asignarUserSearch').value = '';
     hideMsg(document.getElementById('asignarModalMsg'));
+    var RAsig = REGLAS_FONDOS[fondoAsignando.tipo];
+    if (RAsig && RAsig.solicitanteEsAdministrador) {
+      showMsg(document.getElementById('asignarModalMsg'), 'info', 'En este fondo el solicitante es siempre el administrador: todos los usuarios que asignes quedan como administradores del fondo.');
+    }
     renderAsignarTodo();
     document.getElementById('asignarModal').classList.add('open');
   }

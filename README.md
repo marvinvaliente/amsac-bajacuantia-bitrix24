@@ -742,6 +742,8 @@ de fondo (circulante y caja chica) más el salario mínimo de referencia.
 
 | Parámetro (por tipo de fondo) | Qué controla |
 |---|---|
+| El solicitante es siempre el administrador del fondo | todos los usuarios asignados quedan como administradores y solo ellos pueden crear solicitudes |
+| Exigir autorización de la gerencia responsable | si no, la solicitud nace autorizada y pasa directo a Presupuesto |
 | Monto máximo anual | tope al crear o editar un fondo de ese tipo (0 = sin tope) |
 | Límite de compra ordinaria | lo que lo supera es compra excepcional |
 | Formas de pago permitidas | efectivo / transferencia / cheque |
@@ -761,6 +763,31 @@ reglamento de 2025 (sin guardar hasta pulsar "Guardar reglas"). Los valores
 iniciales están también en `api/gestiones.js` (`DEFAULTS`) y sirven de respaldo
 si la tabla no se puede leer. Migración: `migracion-reglas-parametros.sql`.
 API: `GET fondos?action=reglas` y `POST fondos` con `action=guardar_reglas`.
+
+### Caja chica: solicitante = administrador, sin autorización de gerencia
+
+En **caja chica** el solicitante y el administrador del fondo son **siempre la
+misma persona** y la solicitud **no necesita autorización de gerencia**
+(parámetros `solicitanteEsAdministrador` y `exigeAutorizacionGerencia` de
+"Reglas de fondos"; en circulante siguen como antes). Consecuencias, todas
+validadas en el **servidor**:
+
+- **Asignación** (`fondos` → `asignar`): todos los usuarios que se asignan a una
+  caja chica quedan como **administradores** del fondo (aunque se marque lo
+  contrario).
+- **Crear solicitud**: solo puede quien es administrador del fondo (o un
+  administrador del portal). La solicitud **nace "autorizada"** (queda
+  `gerencia_decision_por_nombre = "No requiere autorización de gerencia"`),
+  **no se notifica a ninguna gerencia** y no se exige gerente responsable: de
+  Bitrix24 solo se necesita el **área** del usuario. Pasa directo a
+  **Certificación presupuestaria** (Presupuesto), luego Desembolso.
+- **Pantalla**: Crear Solicitud muestra "No aplica" en gerencia y gerente y no
+  bloquea si faltan en Bitrix24; las solicitudes de caja chica **no aparecen en
+  "Autorización de gerencia"** (ni dan acceso a esa pantalla). En Certificación
+  el campo de gerencia ya no es obligatorio para estos fondos.
+- **Documento físico**: como solicitante y administrador son la misma persona,
+  no hay entrega entre personas: en caja chica `reintegroExigeDocumento` queda
+  en "No" y no se muestra la marca de documento recibido.
 
 ### Límites de compra, efectivo/banco y compras excepcionales
 

@@ -169,7 +169,19 @@ function acuerdoValido(a) {
   return { url: url, nombre: String((a && a.nombre) || '').trim() || 'acuerdo-administrativo.pdf' };
 }
 
-function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigirCotizacion) {
+// Reglas del fondo que afectan a la solicitud: si exige autorización de la gerencia
+// responsable y si el solicitante debe ser el administrador del fondo (caja chica).
+async function opcionesDeFondo(fondoIdRaw) {
+  const base = { exigirGerencia: true, solicitanteEsAdmin: false, tipo: null };
+  const id = parseInt(fondoIdRaw, 10);
+  if (!Number.isInteger(id)) return base;
+  const f = await gestiones.leerFondo(id);
+  if (!f) return base;
+  const R_ = (await gestiones.cargarReglas()).reglas[f.tipo] || {};
+  return { exigirGerencia: R_.exigeAutorizacionGerencia !== false, solicitanteEsAdmin: !!R_.solicitanteEsAdministrador, tipo: f.tipo };
+}
+
+function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigirCotizacion, opts) {
   s = s || {};
   const fondoId = parseInt(s.fondo_id, 10);
   if (!Number.isInteger(fondoId)) return { error: 'Debes seleccionar a qué fondo pertenece esta solicitud.' };
@@ -182,7 +194,7 @@ function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigi
   const justificacion = String(s.justificacion || '').trim();
   if (!justificacion) return { error: 'Falta la justificación.' };
   const gerenciaId = String(s.gerencia_responsable_id || '').trim();
-  if (!gerenciaId) return { error: 'Falta seleccionar la gerencia responsable.' };
+  if (!gerenciaId && !(opts && opts.exigirGerencia === false)) return { error: 'Falta seleccionar la gerencia responsable.' };
   const clasificacion = CLASIFICACIONES.indexOf(s.clasificacion) !== -1 ? s.clasificacion : null;
   if (!clasificacion) return { error: 'Selecciona una clasificación del gasto válida.' };
   const formaPago = FORMAS_PAGO.indexOf(s.forma_pago) !== -1 ? s.forma_pago : null;
@@ -244,8 +256,18 @@ module.exports = async (req, res) => {
       const action = body.action;
 
       if (action === 'create') {
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true);
+        let op;
+        try { op = await opcionesDeFondo((body.solicitud || {}).fondo_id); }
+        catch (eO) { res.status(502).json({ ok: false, error: 'No se pudieron leer las reglas del fondo: ' + String((eO && eO.message) || eO) }); return; }
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true, { exigirGerencia: op.exigirGerencia });
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        // Fondos sin autorización de gerencia (caja chica): la solicitud nace autorizada y pasa directo a Presupuesto.
+        if (!op.exigirGerencia) {
+          built.row.estado = 'autorizada';
+          built.row.gerencia_decision_at = new Date().toISOString();
+          built.row.gerencia_decision_por_id = '';
+          built.row.gerencia_decision_por_nombre = 'No requiere autorización de gerencia';
+        }
         // Límites de compra, efectivo/banco y compras excepcionales (Reglamento).
         const acuerdoIn = acuerdoValido((body.solicitud || {}).acuerdo_administrativo);
         let evC;
@@ -259,12 +281,14 @@ module.exports = async (req, res) => {
         // fue asignado en "Configurar usuarios".
         // Un administrador del portal (verificado contra Bitrix24) puede usar cualquier fondo.
         const esAdminVerif = await presupuesto.esAdminPortal(body.actor_id, body.auth_token);
+        // Si el solicitante debe ser el administrador del fondo (caja chica), se exige es_administrador.
         const asig = await sb(
           'gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(built.row.fondo_id) +
-          '&usuario_id=eq.' + encodeURIComponent(String(body.actor_id || '')) + '&select=id&limit=1'
+          '&usuario_id=eq.' + encodeURIComponent(String(body.actor_id || '')) + (op.solicitanteEsAdmin ? '&es_administrador=eq.true' : '') + '&select=id&limit=1'
         );
         const asigData = await asig.json();
         if (!asig.ok || !Array.isArray(asigData)) { res.status(502).json({ ok: false, error: 'No se pudo verificar tu asignación al fondo.' }); return; }
+        if (!asigData.length && !esAdminVerif && op.solicitanteEsAdmin) { res.status(403).json({ ok: false, error: 'En este fondo el solicitante es siempre el administrador del fondo, y tú no estás registrado como administrador. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
         if (!asigData.length && !esAdminVerif) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
         // Sin confirmar el reintegro recibido no se puede usar el fondo (circulante o caja chica).
         const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
@@ -274,7 +298,7 @@ module.exports = async (req, res) => {
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
-        await notificarGerencia(data[0], req);
+        if (op.exigirGerencia) await notificarGerencia(data[0], req);
         res.status(200).json({ ok: true, solicitud: data[0] });
         return;
       }
@@ -333,7 +357,10 @@ module.exports = async (req, res) => {
           return;
         }
 
-        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true, false);
+        let opU;
+        try { opU = await opcionesDeFondo((body.solicitud || {}).fondo_id); }
+        catch (eOU) { res.status(502).json({ ok: false, error: 'No se pudieron leer las reglas del fondo: ' + String((eOU && eOU.message) || eOU) }); return; }
+        const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, true, false, { exigirGerencia: opU.exigirGerencia });
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
         delete row.created_by_id;

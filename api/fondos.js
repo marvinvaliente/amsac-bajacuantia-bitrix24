@@ -179,9 +179,14 @@ module.exports = async (req, res) => {
         if (!body.fondo_id) { res.status(400).json({ error: 'Falta fondo_id.' }); return; }
         // body.usuarios: [{ id, esAdmin }]. Se acepta también el formato viejo
         // (body.usuario_ids: string[]) por compatibilidad, sin administradores.
-        const usuarios = Array.isArray(body.usuarios)
+        let usuarios = Array.isArray(body.usuarios)
           ? body.usuarios.map((u) => ({ id: String(u.id), esAdmin: !!u.esAdmin }))
           : (Array.isArray(body.usuario_ids) ? body.usuario_ids.map((x) => ({ id: String(x), esAdmin: false })) : []);
+        // Caja chica: el solicitante y el administrador del fondo son siempre la misma persona,
+        // así que todos los usuarios asignados quedan como administradores.
+        const fondoA = await gestiones.leerFondo(body.fondo_id);
+        const RA = fondoA && (await gestiones.cargarReglas()).reglas[fondoA.tipo];
+        if (RA && RA.solicitanteEsAdministrador) usuarios = usuarios.map((u) => ({ id: u.id, esAdmin: true }));
 
         const del = await sb('gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(body.fondo_id), {
           method: 'DELETE', headers: { Prefer: 'return=minimal' }

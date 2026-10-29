@@ -168,13 +168,17 @@ const DEFAULTS = {
     montoMaximoAnual: 300000, limiteCompra: 1000,
     formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
     excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false,
-    reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true
+    reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true,
+    exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false
   },
+  // Caja chica: el solicitante y el administrador del fondo son siempre la misma persona, la
+  // solicitud no necesita autorización de gerencia y no hay entrega de documento físico entre personas.
   caja_chica: {
     montoMaximoAnual: 24000, limiteCompra: 100,
     formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
     excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
-    reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true
+    reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false,
+    exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true
   }
 };
 const FORMAS_PAGO_VALIDAS = ['efectivo', 'transferencia', 'cheque'];
@@ -238,7 +242,9 @@ function normalizarReglas(tipo, v) {
     exigeRetencion: bool(v.exigeRetencion, d.exigeRetencion),
     reintegroPct: num(v.reintegroPct, d.reintegroPct, 0, 100),
     reintegroFinDeMes: bool(v.reintegroFinDeMes, d.reintegroFinDeMes),
-    reintegroExigeDocumento: bool(v.reintegroExigeDocumento, d.reintegroExigeDocumento)
+    reintegroExigeDocumento: bool(v.reintegroExigeDocumento, d.reintegroExigeDocumento),
+    exigeAutorizacionGerencia: bool(v.exigeAutorizacionGerencia, d.exigeAutorizacionGerencia),
+    solicitanteEsAdministrador: bool(v.solicitanteEsAdministrador, d.solicitanteEsAdministrador)
   } };
 }
 
@@ -751,6 +757,7 @@ module.exports.historialReglas = historialReglas;
 module.exports.normalizarReglas = normalizarReglas;
 module.exports.invalidarCacheReglas = invalidarCacheReglas;
 module.exports.DEFAULTS = DEFAULTS;
+module.exports.leerFondo = leerFondo;
 module.exports.fechaLocalDe = fechaLocalDe;
 module.exports.fmtC = fmtC;
 module.exports.referenciaMensualCentavos = referenciaMensualCentavos;
