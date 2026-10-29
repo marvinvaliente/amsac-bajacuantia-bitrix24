@@ -67,7 +67,7 @@ pertenezcan:
   fondos (un administrador del portal puede elegir cuál administrador
   de fondo mirar, desde un selector).
 - **Certificador** también obtiene, además de "Certificar gastos", acceso
-  a la pantalla hermana **"Reintegro o liquidación de fondos"** (mismo
+  a la pantalla hermana **"Revisión de reintegros y liquidaciones"** (mismo
   grupo de permiso, ver más abajo en "Qué hace").
 - **Tesorería (personal del Departamento de Tesorería)** — acceso al menú
   **"Tesorería"** (Reintegro de fondos / Liquidación de Fondos). Solo lo
@@ -182,7 +182,7 @@ portal, que da acceso a todo sin excepción).
      "Eliminar" es un borrado lógico: la solicitud queda en estado
      Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
      la tabla para trazabilidad.
-     - **Reintegro o liquidación de fondos** muestra las **gestiones**
+     - **Revisión de reintegros y liquidaciones** muestra las **gestiones**
      (`gastos_gestiones`) creadas desde "Solicitud de reintegro o liquidación" que siguen
      `pendiente` de revisión, cada una con sus gastos agrupados (mismo
      fondo, mismo mes, mismo tipo — Reintegro o Liquidación). Cada gasto
@@ -382,7 +382,7 @@ Mismas credenciales que ya usa el proyecto de transporte (mismo proyecto Supabas
   `im` (opcional) la app funciona igual salvo por el aviso a la gerencia
   responsable, que simplemente no se envía. **`disk` es obligatorio** desde
   que existe "Confirmar revisado" en Certificación presupuestaria →
-  "Reintegro o liquidación de fondos": esa acción sube el comprobante PDF
+  "Revisión de reintegros y liquidaciones": esa acción sube el comprobante PDF
   a Bitrix24 Disk como paso obligatorio (no best-effort, ver "Notas
   técnicas") — sin ese scope, "Confirmar revisado" falla con un error
   claro en vez de completarse a medias.
@@ -608,7 +608,7 @@ entorno anteriores.
   (Reintegro o Liquidación) en una sola fila, y pasa todos esos gastos a
   `informado` marcados con `gestion_id`. Flujo de estados: `pendiente`
   (recién creada desde Solicitud de reintegro o liquidación) → `revisado` (un certificador
-  confirma en "Reintegro o liquidación de fondos"; genera y sube el PDF) →
+  confirma en "Revisión de reintegros y liquidaciones"; genera y sube el PDF) →
   `cerrado` (Tesorería confirma el reintegro emitido o acepta la
   liquidación). `action=crear` valida en el servidor que quien la crea sea
   administrador de ese fondo específico (`gastos_fondo_usuarios.es_administrador`)
@@ -686,15 +686,20 @@ solicitud, resaltando en rojo lo que excede).
 
 1. **Administrador de fondo** (Solicitud de reintegro o liquidación): elige fondo y rango de
    fechas, marca los gastos y los envía → gestión `pendiente`.
-2. **Presupuesto** (certificadores; Certificación presupuestaria →
-   "Reintegro o liquidación de fondos"): revisa, **modifica con "Editar" si
+2. **Presupuesto** (certificadores; Presupuesto →
+   "Revisión de reintegros y liquidaciones"): revisa, **modifica con "Editar" si
    es necesario** y pulsa **"Autorizar y enviar a Tesorería"** → se genera el
    PDF (fecha y hora), se guarda en Bitrix24 Disk, el total se **recalcula**
    con lo que quedó tras las ediciones y se notifica al administrador y a
    todo el personal del Departamento de Tesorería (miembros + jefe) → `revisado`.
-3. **Tesorería**: sube acuerdo municipal y comprobante → circulante
-   `cerrado`; caja chica `entregado`.
-4. **Caja chica**: el administrador confirma la recepción → `cerrado`.
+3. **Tesorería**: sube el acuerdo municipal y el comprobante (transferencia en
+   fondo circulante; voucher/cheque en caja chica) → `entregado`. Se avisa
+   al administrador.
+4. **Administrador de fondo**: confirma que recibió los fondos → `cerrado`.
+   Mientras no confirme no puede usar ese fondo (el servidor bloquea crear
+   solicitudes, desembolsar y registrar gastos con ese fondo); al confirmar
+   puede iniciar un nuevo ciclo. Aplica a **fondo circulante y caja chica**.
+   (Las liquidaciones no pasan por `entregado`: Tesorería las cierra.)
 
 Estados de `gastos_gestiones`: `pendiente` → `revisado` → (`entregado`) →
 `cerrado`. Columnas nuevas (migración `migracion-reintegro-v2.sql`):

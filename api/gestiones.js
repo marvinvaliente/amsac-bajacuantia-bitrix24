@@ -123,14 +123,13 @@ function etiquetaPeriodo(g) {
   return 'de ' + (MESES[g.mes] || g.mes) + ' ' + g.anio;
 }
 
-// Caja chica: si el administrador de ese fondo tiene un reintegro ya
-// entregado por Tesorería y todavía no confirmó que lo recibió, no puede usar
-// el fondo. Devuelve esa gestión (o null). Lo usan solicitudes.js y gastos.js.
+// Fondo circulante y caja chica: si el administrador de ese fondo tiene un
+// reintegro ya entregado por Tesorería y todavía no confirmó que lo recibió, no
+// puede usar el fondo (no se inicia un ciclo nuevo hasta confirmar). Devuelve
+// esa gestión (o null). Lo usan solicitudes.js y gastos.js. (El nombre se
+// conserva por compatibilidad.)
 async function bloqueoCajaChica(fondoId, actorId) {
   if (!fondoId || !actorId) return null;
-  const rF = await sb('gastos_fondos?id=eq.' + encodeURIComponent(fondoId) + '&select=tipo');
-  const f = await rF.json();
-  if (!rF.ok || !f[0] || f[0].tipo !== 'caja_chica') return null;
   const rG = await sb('gastos_gestiones?fondo_id=eq.' + encodeURIComponent(fondoId) + '&administrador_id=eq.' + encodeURIComponent(actorId) +
     '&estado=eq.entregado&select=id,tipo,mes,anio,fecha_desde,fecha_hasta,monto_total,acuerdo_url,acuerdo_nombre,comprobante_url,comprobante_nombre&order=created_at.asc&limit=1');
   const g = await rG.json();
@@ -353,14 +352,10 @@ module.exports = async (req, res) => {
           comprobante_url: comp.url, comprobante_nombre: comp.nombre || 'Comprobante',
           tesoreria_at: ahora, tesoreria_por_id: String(body.actor_id || ''), tesoreria_por_nombre: body.actor_nombre || ''
         };
-        // Fondo circulante: la transferencia ya se hizo, se cierra. Caja
-        // chica: queda pendiente de que el administrador confirme que recibió.
-        if (esCajaChica) {
-          patch.estado = 'entregado';
-        } else {
-          patch.estado = 'cerrado'; patch.cerrado_at = ahora;
-          patch.cerrado_por_id = String(body.actor_id || ''); patch.cerrado_por_nombre = body.actor_nombre || '';
-        }
+        // Tanto en fondo circulante (transferencia) como en caja chica
+        // (voucher/cheque) el reintegro queda "entregado": el ciclo se cierra
+        // cuando el administrador confirma que recibió los fondos.
+        patch.estado = 'entregado';
         const r = await sb('gastos_gestiones?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(patch)
         });
@@ -371,8 +366,8 @@ module.exports = async (req, res) => {
           ges.administrador_id,
           esCajaChica
             ? 'Tesorería entregó tu ' + etiq + ' (acuerdo municipal y voucher/cheque). Entra a la app y confirma que lo recibiste: mientras no lo hagas no podrás usar la caja chica.'
-            : 'Tesorería realizó la transferencia de tu ' + etiq + ' (acuerdo municipal y comprobante cargados).',
-          esCajaChica ? 'Confirma que recibiste tu reintegro de caja chica.' : 'Tu reintegro fue transferido.',
+            : 'Tesorería realizó la transferencia de tu ' + etiq + ' (acuerdo municipal y comprobante cargados). Entra a la app y confirma que la recibiste: mientras no lo hagas no podrás usar el fondo circulante.',
+          esCajaChica ? 'Confirma que recibiste tu reintegro de caja chica.' : 'Confirma que recibiste tu reintegro.',
           'GASTOS_GESTION_TESORERIA_OK_' + ges.id
         );
         res.status(200).json({ ok: true, gestion: data[0] });

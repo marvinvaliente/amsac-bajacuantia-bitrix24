@@ -468,9 +468,9 @@
     <div class="drawer-caption">Menú principal</div>
     <ul class="drawer-nav">
       <li class="drawer-group hidden open" id="groupSolicitud">
-        <div class="drawer-group-head" id="groupSolicitudHead">
+        <div class="drawer-group-head">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12h6M9 16h6"/></svg>
-          <span>Solicitud</span>
+          <span>Solicitante</span>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </div>
         <ul class="drawer-subnav">
@@ -478,24 +478,33 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
             <span>Crear Solicitud</span>
           </li>
-          <li class="tab hidden" id="tabAutorizacionBtn" data-tab="autorizacion">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
-            <span>Autorización de gerencia</span>
-          </li>
-          <li class="tab hidden" id="tabDesembolsoBtn" data-tab="desembolso">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 15h3"/><path d="M12 3v7M9 6l3-3 3 3"/></svg>
-            <span>Desembolso de fondos</span>
-          </li>
           <li class="tab hidden" id="tabRegistrarBtn" data-tab="registrar">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             <span>Registrar factura o documento equivalente</span>
           </li>
+          <li class="tab hidden" id="tabHistorialBtn" data-tab="historial">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
+            <span>Historial</span>
+          </li>
         </ul>
       </li>
-      <li class="drawer-group hidden" id="groupCertificacion">
-        <div class="drawer-group-head" id="groupCertificacionHead">
+      <li class="drawer-group hidden open" id="groupGerencia">
+        <div class="drawer-group-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          <span>Gerencia responsable</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <ul class="drawer-subnav">
+          <li class="tab hidden" id="tabAutorizacionBtn" data-tab="autorizacion">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+            <span>Autorización de gerencia</span>
+          </li>
+        </ul>
+      </li>
+      <li class="drawer-group hidden open" id="groupCertificacion">
+        <div class="drawer-group-head">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
-          <span>Certificación presupuestaria</span>
+          <span>Presupuesto</span>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
         </div>
         <ul class="drawer-subnav">
@@ -505,12 +514,29 @@
           </li>
           <li class="tab hidden" id="tabReintegroLiquidacionBtn" data-tab="reintegroLiquidacion">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 15h3"/><path d="M12 3v7M9 6l3-3 3 3"/></svg>
-            <span>Reintegro o liquidación de fondos</span>
+            <span>Revisión de reintegros y liquidaciones</span>
           </li>
         </ul>
       </li>
-      <li class="drawer-group hidden" id="groupTesoreria">
-        <div class="drawer-group-head" id="groupTesoreriaHead">
+      <li class="drawer-group hidden open" id="groupAdminFondo">
+        <div class="drawer-group-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 15h3"/><path d="M12 3v7M9 6l3-3 3 3"/></svg>
+          <span>Administrador de fondo</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <ul class="drawer-subnav">
+          <li class="tab hidden" id="tabDesembolsoBtn" data-tab="desembolso">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M8 15h3"/><path d="M12 3v7M9 6l3-3 3 3"/></svg>
+            <span>Desembolso de fondos</span>
+          </li>
+          <li class="tab hidden" id="tabInformeBtn" data-tab="informe">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+            <span>Solicitud de reintegro o liquidación</span>
+          </li>
+        </ul>
+      </li>
+      <li class="drawer-group hidden open" id="groupTesoreria">
+        <div class="drawer-group-head">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M2 10h20"/><circle cx="12" cy="15" r="2.2"/></svg>
           <span>Tesorería</span>
           <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
@@ -526,22 +552,22 @@
           </li>
         </ul>
       </li>
-      <li class="drawer-sep" role="separator"></li>
-      <li class="tab hidden" id="tabHistorialBtn" data-tab="historial">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
-        <span>Historial</span>
-      </li>
-      <li class="tab hidden" id="tabInformeBtn" data-tab="informe">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-        <span>Solicitar reintegro o liquidación</span>
-      </li>
-      <li class="tab hidden" id="tabReportesBtn" data-tab="reportes">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
-        <span>Reportes</span>
-      </li>
-      <li class="tab hidden" id="tabConfigBtn" data-tab="config">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
-        <span>Configurar usuarios</span>
+      <li class="drawer-group hidden open" id="groupConsulta">
+        <div class="drawer-group-head">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+          <span>Consulta y administración</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </div>
+        <ul class="drawer-subnav">
+          <li class="tab hidden" id="tabReportesBtn" data-tab="reportes">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+            <span>Reportes</span>
+          </li>
+          <li class="tab hidden" id="tabConfigBtn" data-tab="config">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+            <span>Configurar usuarios</span>
+          </li>
+        </ul>
       </li>
     </ul>
     <div class="drawer-user" id="drawerUser" style="display:none">
@@ -849,7 +875,7 @@
 
     <!-- ---- Reintegro o liquidación de fondos (Certificación) ---- -->
     <div id="viewReintegroLiquidacion" class="card" style="display:none">
-      <div class="section-title">Reintegro o liquidación de fondos</div>
+      <div class="section-title">Revisión de reintegros y liquidaciones</div>
       <div class="gasto-line" style="margin-bottom:14px">Gestiones enviadas por los administradores de fondo desde "Solicitud de reintegro o liquidación" (gastos que ellos eligieron). Revisa los gastos, modifícalos con "Editar" si es necesario y autoriza: luego pasa a Tesorería.</div>
 
       <div id="reintegroLiqLoading" class="loading">Cargando...</div>
@@ -1718,14 +1744,8 @@
   document.querySelectorAll('.tab').forEach(function (tab) {
     tab.addEventListener('click', function () { activarTab(tab.getAttribute('data-tab')); });
   });
-  document.getElementById('groupSolicitudHead').addEventListener('click', function () {
-    document.getElementById('groupSolicitud').classList.toggle('open');
-  });
-  document.getElementById('groupCertificacionHead').addEventListener('click', function () {
-    document.getElementById('groupCertificacion').classList.toggle('open');
-  });
-  document.getElementById('groupTesoreriaHead').addEventListener('click', function () {
-    document.getElementById('groupTesoreria').classList.toggle('open');
+  document.querySelectorAll('.drawer-group-head').forEach(function (head) {
+    head.addEventListener('click', function () { head.parentNode.classList.toggle('open'); });
   });
 
   // ==================================================================
@@ -3376,9 +3396,9 @@
   // ==================================================================
   // Reintegro: Presupuesto ya autorizó. Tesorería sube el acuerdo municipal y
   // el comprobante (transferencia en fondo circulante; voucher o cheque en
-  // caja chica). Circulante -> se cierra. Caja chica -> "entregado" y el
-  // administrador confirma la recepción (mientras tanto no puede usar el
-  // fondo). Liquidación: Tesorería solo la acepta.
+  // caja chica). En ambos casos queda "entregado" y el administrador confirma
+  // la recepción (mientras tanto no puede usar el fondo; al confirmar se cierra
+  // el ciclo y puede empezar otro). Liquidación: Tesorería solo la acepta.
   function initTesoreriaVista(tipo) {
     cargarTesoreriaVista(tipo);
   }
@@ -3463,15 +3483,15 @@
       if (tipo === 'liquidacion') {
         cuerpo = '<div class="gasto-actions"><button type="button" data-cerrar-gestion="' + g.id + '">Aceptar liquidación</button></div>';
       } else if (g.estado === 'entregado') {
-        cuerpo = '<div class="gasto-line"><a href="' + esc(g.acuerdo_url) + '" target="_blank" rel="noopener">📄 Acuerdo municipal</a> · <a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 Voucher / cheque</a></div>' +
-          '<div class="gasto-line"><b>Esperando que el administrador confirme que lo recibió.</b> Mientras no lo confirme no puede usar la caja chica.</div>';
+        cuerpo = '<div class="gasto-line"><a href="' + esc(g.acuerdo_url) + '" target="_blank" rel="noopener">📄 Acuerdo municipal</a> · <a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 ' + (cajaChica ? 'Voucher / cheque' : 'Comprobante de transferencia') + '</a></div>' +
+          '<div class="gasto-line"><b>Esperando que el administrador confirme que lo recibió.</b> Mientras no lo confirme no puede usar ' + (cajaChica ? 'la caja chica' : 'el fondo circulante') + '.</div>';
       } else {
         cuerpo = (cajaChica ? '' : '<div class="gasto-line"><b>Transferir a:</b> ' + esc(g.cuenta_bancaria || '(el administrador no indicó cuenta)') + '</div>') +
           '<label>Acuerdo municipal (PDF) *</label><input type="file" accept="application/pdf" id="tesAcuerdo_' + g.id + '" />' +
           '<label>' + (cajaChica ? 'Voucher o cheque de desembolso al administrador (imagen o PDF) *' : 'Comprobante de transferencia (imagen o PDF) *') + '</label>' +
           '<input type="file" accept="application/pdf,image/*" id="tesComp_' + g.id + '" />' +
           '<div class="btn-row" style="margin-top:10px"><button type="button" data-registrar-tes="' + g.id + '">' +
-          (cajaChica ? 'Registrar entrega al administrador' : 'Registrar transferencia y cerrar') + '</button></div>' +
+          (cajaChica ? 'Registrar entrega al administrador' : 'Registrar transferencia') + '</button></div>' +
           '<div id="tesMsg_' + g.id + '" class="msg"></div>';
       }
       return '<div class="gasto-item" style="margin-bottom:14px">' + cab + cuerpo + '</div>';
@@ -3503,7 +3523,7 @@
     var cajaChica = tipoFondoDe(g.fondo_id) === 'caja_chica';
     customConfirm(cajaChica
       ? '¿Registrar la entrega al administrador? Se le notificará para que confirme que lo recibió; hasta entonces no podrá usar la caja chica.'
-      : '¿Registrar la transferencia y cerrar este reintegro?', { okText: 'Registrar' }).then(function (ok) {
+      : '¿Registrar la transferencia? Se le notificará al administrador para que confirme que la recibió; hasta entonces no podrá usar el fondo circulante.', { okText: 'Registrar' }).then(function (ok) {
       if (!ok) return;
       btn.disabled = true;
       showMsg(msgEl, 'success', 'Subiendo documentos...');
@@ -3515,7 +3535,7 @@
       }).then(function (r) {
         btn.disabled = false;
         if (r.ok) {
-          customAlert(cajaChica ? 'Entrega registrada. El administrador fue notificado para confirmar la recepción.' : 'Transferencia registrada y reintegro cerrado.');
+          customAlert(cajaChica ? 'Entrega registrada. El administrador fue notificado para confirmar la recepción.' : 'Transferencia registrada. El administrador fue notificado para confirmar que recibió los fondos.');
           cargarTesoreriaVista('reintegro');
         } else {
           showMsg(msgEl, 'error', r.error || 'No se pudo registrar.');
@@ -3778,7 +3798,7 @@
     document.getElementById(id).addEventListener('change', function () { cargarInforme(); });
   });
 
-  // ---- Reintegros de caja chica entregados por Tesorería, pendientes de
+  // ---- Reintegros (circulante o caja chica) entregados por Tesorería, pendientes de
   // que el administrador confirme que los recibió. Mientras estén pendientes
   // no puede usar ese fondo (el servidor lo bloquea y la app avisa). ----
   function cargarPendientesConfirmar() {
@@ -3790,11 +3810,13 @@
       if (!lista.length) return;
       el.style.display = 'block';
       el.innerHTML = lista.map(function (g) {
+        var cc = tipoFondoDe(g.fondo_id) === 'caja_chica';
+        var docLabel = cc ? 'Voucher / cheque' : 'Comprobante de transferencia';
         return '<div class="info-box" style="display:block">' +
-          '<b>Confirma que recibiste tu ' + esc(TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' de caja chica</b> (' + esc(periodoGestion(g)) + ' · $' + money(g.monto_total) + ').<br>' +
-          'Tesorería ya entregó el acuerdo municipal y el voucher/cheque. Hasta que lo confirmes no puedes usar ' + esc(fondoLabelPorId(g.fondo_id)) + '.<br>' +
+          '<b>Confirma que recibiste tu ' + esc(TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' (' + esc(fondoLabelPorId(g.fondo_id)) + ')</b> (' + esc(periodoGestion(g)) + ' · $' + money(g.monto_total) + ').<br>' +
+          'Tesorería ya entregó el acuerdo municipal y ' + (cc ? 'el voucher/cheque' : 'el comprobante de la transferencia') + '. Hasta que lo confirmes no puedes usar ' + esc(fondoLabelPorId(g.fondo_id)) + '.<br>' +
           (g.acuerdo_url ? '<a href="' + esc(g.acuerdo_url) + '" target="_blank" rel="noopener">📄 Acuerdo municipal</a> · ' : '') +
-          (g.comprobante_url ? '<a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 Voucher / cheque</a>' : '') +
+          (g.comprobante_url ? '<a href="' + esc(g.comprobante_url) + '" target="_blank" rel="noopener">🧾 ' + docLabel + '</a>' : '') +
           '<div class="btn-row" style="margin-top:8px"><button type="button" data-confirmar-recepcion="' + g.id + '">Confirmar que lo recibí</button></div>' +
         '</div>';
       }).join('');
@@ -3810,7 +3832,8 @@
   // Devuelve una promesa con true si el administrador confirmó y el servidor
   // lo aceptó. Se reutiliza desde el aviso emergente de bloqueo.
   function confirmarRecepcionGestion(g) {
-    return customConfirm('¿Confirmas que ya recibiste el ' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' de caja chica (' + periodoGestion(g) + ', $' + money(g.monto_total) + ') con su acuerdo municipal y voucher/cheque?', {
+    var ccConf = tipoFondoDe(g.fondo_id) === 'caja_chica';
+    return customConfirm('¿Confirmas que ya recibiste el ' + (TIPO_GESTION_LABEL[g.tipo] || g.tipo) + ' de ' + fondoLabelPorId(g.fondo_id) + ' (' + periodoGestion(g) + ', $' + money(g.monto_total) + ') con su acuerdo municipal y ' + (ccConf ? 'voucher/cheque' : 'comprobante de transferencia') + '?', {
       title: 'Confirmación de recepción', okText: 'Sí, lo recibí'
     }).then(function (ok) {
       if (!ok) return false;
@@ -3986,7 +4009,7 @@
       }).then(function (r) {
         btn.disabled = false;
         if (r.ok) {
-          showMsg(msgEl, 'success', (r.actualizados || ids.length) + ' gasto(s) enviados a Presupuesto para su revisión y autorización (Certificación presupuestaria → Reintegro o liquidación de fondos). Luego pasan a Tesorería.');
+          showMsg(msgEl, 'success', (r.actualizados || ids.length) + ' gasto(s) enviados a Presupuesto para su revisión y autorización (Presupuesto → Revisión de reintegros y liquidaciones). Luego pasan a Tesorería.');
           cargarInforme(true);
         } else {
           showMsg(msgEl, 'error', r.error || 'No se pudo gestionar el reembolso/liquidación.');
@@ -4723,21 +4746,29 @@
 
   function actualizarVisibilidadTabs() {
     var accesoAlgunModulo = canLoad || puedeCertificar || puedeDesembolsar || puedeAutorizarAlgo;
-    document.getElementById('groupSolicitud').classList.toggle('hidden', !accesoAlgunModulo);
-    document.getElementById('tabCrearSolicitudBtn').classList.toggle('hidden', !canLoad);
-    document.getElementById('tabAutorizacionBtn').classList.toggle('hidden', !puedeAutorizarAlgo);
-    document.getElementById('tabDesembolsoBtn').classList.toggle('hidden', !puedeDesembolsar);
-    document.getElementById('tabRegistrarBtn').classList.toggle('hidden', !canLoad);
-    document.getElementById('groupCertificacion').classList.toggle('hidden', !puedeCertificar);
-    document.getElementById('tabCertificacionBtn').classList.toggle('hidden', !puedeCertificar);
-    document.getElementById('tabReintegroLiquidacionBtn').classList.toggle('hidden', !puedeCertificar);
-    document.getElementById('groupTesoreria').classList.toggle('hidden', !puedeTesoreria);
-    document.getElementById('tabTesoreriaReintegroBtn').classList.toggle('hidden', !puedeTesoreria);
-    document.getElementById('tabTesoreriaLiquidacionBtn').classList.toggle('hidden', !puedeTesoreria);
-    document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
-    document.getElementById('tabInformeBtn').classList.toggle('hidden', !puedeVerInforme);
-    document.getElementById('tabReportesBtn').classList.toggle('hidden', !(accesoAlgunModulo || isAdmin || puedeTesoreria || puedeVerInforme));
-    document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
+    function ocultar(id, oculto) { document.getElementById(id).classList.toggle('hidden', oculto); }
+    // Solicitante
+    ocultar('tabCrearSolicitudBtn', !canLoad);
+    ocultar('tabRegistrarBtn', !canLoad);
+    ocultar('tabHistorialBtn', !(canLoad || isAdmin));
+    // Gerencia responsable
+    ocultar('tabAutorizacionBtn', !puedeAutorizarAlgo);
+    // Presupuesto
+    ocultar('tabCertificacionBtn', !puedeCertificar);
+    ocultar('tabReintegroLiquidacionBtn', !puedeCertificar);
+    // Administrador de fondo
+    ocultar('tabDesembolsoBtn', !puedeDesembolsar);
+    ocultar('tabInformeBtn', !puedeVerInforme);
+    // Tesorería
+    ocultar('tabTesoreriaReintegroBtn', !puedeTesoreria);
+    ocultar('tabTesoreriaLiquidacionBtn', !puedeTesoreria);
+    // Consulta y administración
+    ocultar('tabReportesBtn', !(accesoAlgunModulo || isAdmin || puedeTesoreria || puedeVerInforme));
+    ocultar('tabConfigBtn', !isAdmin);
+    // Un grupo solo se muestra si tiene al menos una opción visible.
+    document.querySelectorAll('.drawer-group').forEach(function (g) {
+      g.classList.toggle('hidden', !g.querySelector('.tab:not(.hidden)'));
+    });
   }
 
   // Si BX24.init() nunca llama a su callback (p. ej. porque se abrió esta

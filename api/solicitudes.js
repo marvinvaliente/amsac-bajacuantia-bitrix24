@@ -250,9 +250,9 @@ module.exports = async (req, res) => {
         const asigData = await asig.json();
         if (!asig.ok || !Array.isArray(asigData)) { res.status(502).json({ ok: false, error: 'No se pudo verificar tu asignación al fondo.' }); return; }
         if (!asigData.length && !esAdminVerif) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
-        // Caja chica: sin confirmar el reintegro recibido no se puede usar el fondo.
+        // Sin confirmar el reintegro recibido no se puede usar el fondo (circulante o caja chica).
         const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
-        if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
+        if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
         });
@@ -385,7 +385,7 @@ module.exports = async (req, res) => {
           }
         }
         const bloqueoDes = await gestiones.bloqueoCajaChica(actualEData[0].fondo_id, body.actor_id);
-        if (bloqueoDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
+        if (bloqueoDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },
           body: JSON.stringify({
