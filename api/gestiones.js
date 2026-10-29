@@ -123,6 +123,36 @@ function etiquetaPeriodo(g) {
   return 'de ' + (MESES[g.mes] || g.mes) + ' ' + g.anio;
 }
 
+// ---- Regla del reintegro (Reglamento, Art. 5 y 31) ----------------------
+// Cada fondo tiene un monto máximo al año (gastos_fondos.monto_total). La
+// referencia mensual es ese monto entre 12; para que los 12 meses sumen
+// exactamente el total se reparte con redondeo acumulado (en centavos).
+// Un reintegro se puede solicitar cuando los gastos alcanzan el 60% de la
+// referencia del mes o, como máximo, el último día del mes (plazo).
+function hoyLocal() { return new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10); } // El Salvador, UTC-6
+function ultimoDiaDelMes(fecha) {
+  const y = parseInt(String(fecha).slice(0, 4), 10), m = parseInt(String(fecha).slice(5, 7), 10);
+  const d = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function referenciaMensualCentavos(montoAnual, mes) {
+  const total = Math.round((Number(montoAnual) || 0) * 100);
+  return Math.floor(total * mes / 12) - Math.floor(total * (mes - 1) / 12);
+}
+function evaluarReintegro(montoAnual, gastos, hoy) {
+  hoy = hoy || hoyLocal();
+  const mes = parseInt(hoy.slice(5, 7), 10);
+  const refC = referenciaMensualCentavos(montoAnual, mes);
+  const umbralC = Math.ceil((refC * 6) / 10);
+  const montoC = gastos.reduce((a, g) => a + Math.round((Number(g.monto_total) || 0) * 100), 0);
+  const fechas = gastos.map((g) => String(g.fecha)).filter(Boolean).sort();
+  const limite = fechas.length ? ultimoDiaDelMes(fechas[0]) : ultimoDiaDelMes(hoy);
+  const plazoCumplido = hoy >= limite;
+  return { ok: montoC >= umbralC || plazoCumplido, refC, umbralC, montoC, faltaC: Math.max(0, umbralC - montoC), plazoCumplido, limite, hoy };
+}
+const fmtC = (c) => (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtFecha = (d) => String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4);
+
 // Fondo circulante y caja chica: si el administrador de ese fondo tiene un
 // reintegro ya entregado por Tesorería y todavía no confirmó que lo recibió, no
 // puede usar el fondo (no se inicia un ciclo nuevo hasta confirmar). Devuelve
@@ -178,7 +208,7 @@ module.exports = async (req, res) => {
         }
         if (!ids.length) { res.status(400).json({ ok: false, error: 'Selecciona al menos un gasto.' }); return; }
 
-        const rFondo = await sb('gastos_fondos?id=eq.' + fondoId + '&select=tipo');
+        const rFondo = await sb('gastos_fondos?id=eq.' + fondoId + '&select=tipo,monto_total,anio');
         const fondoData = await rFondo.json();
         if (!rFondo.ok || !fondoData[0]) { res.status(400).json({ ok: false, error: 'El fondo no existe.' }); return; }
         const cuenta = String(body.cuenta_bancaria || '').trim();
@@ -216,6 +246,27 @@ module.exports = async (req, res) => {
         if (!Array.isArray(gastosData) || gastosData.length !== ids.length) {
           res.status(400).json({ ok: false, error: 'Algunos gastos seleccionados ya no están disponibles (otra gestión, otro fondo, otra fecha o ya informados). Actualiza la lista e inténtalo de nuevo.' });
           return;
+        }
+
+        // Un reintegro solo admite gastos cuyo documento físico ya recibió el
+        // administrador, y solo se puede pedir al alcanzar el 60% de la
+        // referencia mensual del fondo o a más tardar el último día del mes.
+        // (La liquidación no tiene estas restricciones.)
+        if (tipo === 'reintegro') {
+          const sinDoc = gastosData.filter((g) => !g.documento_fisico_recibido);
+          if (sinDoc.length) {
+            res.status(400).json({ ok: false, error: sinDoc.length + ' gasto(s) seleccionado(s) no tienen el documento físico recibido por el administrador (' +
+              sinDoc.slice(0, 5).map((g) => g.numero_documento || ('#' + g.id)).join(', ') + (sinDoc.length > 5 ? '…' : '') +
+              '). Márcalos como recibidos o quítalos del reintegro.' });
+            return;
+          }
+          const ev = evaluarReintegro(fondoData[0].monto_total, gastosData);
+          if (!ev.ok) {
+            res.status(400).json({ ok: false, error: 'Aún no se puede solicitar el reintegro: los gastos seleccionados suman $' + fmtC(ev.montoC) +
+              ' y se necesita al menos el 60% de la referencia mensual del fondo ($' + fmtC(ev.refC) + ' → $' + fmtC(ev.umbralC) + '); faltan $' + fmtC(ev.faltaC) +
+              '. También podrás solicitarlo a más tardar el último día del mes (' + fmtFecha(ev.limite) + ').' });
+            return;
+          }
         }
 
         const montoTotal = gastosData.reduce((acc, g) => acc + (Number(g.monto_total) || 0), 0);
@@ -437,3 +488,5 @@ module.exports = async (req, res) => {
 };
 
 module.exports.bloqueoCajaChica = bloqueoCajaChica;
+module.exports.evaluarReintegro = evaluarReintegro;
+module.exports.referenciaMensualCentavos = referenciaMensualCentavos;

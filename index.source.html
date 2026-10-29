@@ -397,6 +397,17 @@
   .rep-fondo-tot .monto { color: var(--primary-dark); }
   .rep-fondo .dash-user-row { padding: 10px 16px; }
 
+  .regla-box { border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 6px; background: #f8f9fc; padding: 12px 16px; margin: 14px 0 4px; font-size: 13px; line-height: 1.55; }
+  .regla-box.ok { border-left-color: #2e9a5b; background: #f1faf5; }
+  .regla-box.wait { border-left-color: #d98a00; background: #fffaf0; }
+  .regla-box .regla-t { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); margin-bottom: 6px; }
+  .regla-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 18px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+  .regla-grid span { display: block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7a86; }
+  .regla-grid b { font-size: 15px; color: var(--primary-dark); }
+  .regla-estado { font-weight: 700; margin-top: 4px; }
+  .regla-estado.ok { color: #1f7a41; } .regla-estado.wait { color: #a86500; }
+  .doc-fisico { font-size: 12.5px; margin: 3px 0; }
+  .doc-fisico.si { color: #1f7a41; font-weight: 600; } .doc-fisico.no { color: #a86500; font-weight: 600; }
   .btn-back {
     width: auto; margin: 0 0 14px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: #fff; color: var(--primary);
     border: 1px solid var(--border); border-radius: 4px;
@@ -1173,6 +1184,7 @@
       <div class="gasto-line" style="margin-top:4px">Se listan los gastos con factura o documento equivalente registrado en ese rango. Marca los que quieres reintegrar o liquidar.</div>
 
       <div id="informeLoading" class="loading" style="display:none">Cargando...</div>
+      <div id="informeRegla" style="display:none"></div>
       <div id="informeResumen" class="gasto-line" style="display:none; margin-top:12px; font-weight:600"></div>
       <div id="informeContent" style="margin-top:10px"></div>
 
@@ -1183,6 +1195,7 @@
       </div>
 
       <div id="informeAcciones" class="btn-row" style="display:none">
+        <button type="button" id="btnMarcarDocs" class="secondary">Marcar seleccionados: documento físico recibido</button>
         <button type="button" id="btnGestionarGastos">Gestionar Reembolso o liquidación</button>
       </div>
       <div id="informeMsg" class="msg"></div>
@@ -3681,6 +3694,7 @@
         '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
         '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
         '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
+        (g.estado === 'registrado' ? (g.documento_fisico_recibido ? '<div class="doc-fisico si">📄 Documento físico recibido por el administrador del fondo</div>' : '<div class="doc-fisico no">📄 Entrega el documento físico al administrador del fondo</div>') : '') +
         (isAdmin ? '<div class="gasto-line">Registrado por: ' + esc(nombreDe(g.created_by_id)) + ' <span class="badge ' + (esPropio ? 'propio' : 'ajeno') + '">' + (esPropio ? 'Yo' : 'Otro usuario') + '</span></div>' : '') +
         (esVistaEliminados ? '<div class="gasto-actions">' +
           '<button type="button" class="secondary" data-restaurar="' + g.id + '">Restablecer</button>' +
@@ -3846,7 +3860,7 @@
     });
   }
 
-  function cargarInforme(preservarMsg) {
+  function cargarInforme(preservarMsg, preservarSel) {
     var fondoId = document.getElementById('infFondo').value;
     var desde = document.getElementById('infDesde').value;
     var hasta = document.getElementById('infHasta').value;
@@ -3854,6 +3868,7 @@
     document.getElementById('informeAcciones').style.display = 'none';
     document.getElementById('informeCuentaWrap').style.display = 'none';
     document.getElementById('informeResumen').style.display = 'none';
+    document.getElementById('informeRegla').style.display = 'none';
     if (!fondoId || !desde || !hasta) { document.getElementById('informeContent').innerHTML = ''; return Promise.resolve(); }
     if (desde > hasta) {
       document.getElementById('informeContent').innerHTML = '<div class="empty-state">La fecha "Desde" no puede ser posterior a "Hasta".</div>';
@@ -3868,10 +3883,65 @@
       informeGastos = (r.gastos || []).filter(function (g) {
         return g.estado === 'registrado' && String(g.fondo_id) === String(fondoId) && g.fecha >= desde && g.fecha <= hasta;
       }).sort(function (a, b) { return String(a.fecha).localeCompare(String(b.fecha)); });
+      var previa = informeSel || {};
       informeSel = {};
-      informeGastos.forEach(function (g) { informeSel[g.id] = true; });
+      informeGastos.forEach(function (g) { informeSel[g.id] = preservarSel && previa[g.id] !== undefined ? previa[g.id] : true; });
       renderInforme();
     });
+  }
+
+  // ---- Regla del reintegro (Reglamento, Art. 5 y 31): mismo cálculo que el servidor ----
+  function hoyLocalStr() { return new Date(Date.now() - 6 * 3600 * 1000).toISOString().slice(0, 10); }
+  function ultimoDiaMesStr(f) {
+    var y = parseInt(String(f).slice(0, 4), 10), m = parseInt(String(f).slice(5, 7), 10);
+    return y + '-' + ('0' + m).slice(-2) + '-' + ('0' + new Date(Date.UTC(y, m, 0)).getUTCDate()).slice(-2);
+  }
+  function fmtFechaCorta(d) { return String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4); }
+  function centavos(c) { return '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  // Referencia mensual = monto anual / 12, con redondeo acumulado para que los 12 meses sumen el total.
+  function evaluarReglaReintegro(fondo, gastosSel) {
+    var hoy = hoyLocalStr(), mes = parseInt(hoy.slice(5, 7), 10);
+    var total = Math.round((Number(fondo && fondo.monto_total) || 0) * 100);
+    var refC = Math.floor(total * mes / 12) - Math.floor(total * (mes - 1) / 12);
+    var umbralC = Math.ceil((refC * 6) / 10);
+    var montoC = gastosSel.reduce(function (a, g) { return a + Math.round((Number(g.monto_total) || 0) * 100); }, 0);
+    var docC = gastosSel.filter(function (g) { return g.documento_fisico_recibido; }).reduce(function (a, g) { return a + Math.round((Number(g.monto_total) || 0) * 100); }, 0);
+    var fechas = gastosSel.map(function (g) { return String(g.fecha); }).filter(Boolean).sort();
+    var limite = fechas.length ? ultimoDiaMesStr(fechas[0]) : ultimoDiaMesStr(hoy);
+    var plazo = hoy >= limite;
+    return { refC: refC, umbralC: umbralC, montoC: montoC, docC: docC, faltaC: Math.max(0, umbralC - montoC), plazo: plazo, limite: limite, ok: montoC >= umbralC || plazo,
+      sinDoc: gastosSel.filter(function (g) { return !g.documento_fisico_recibido; }) };
+  }
+  var MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  function renderReglaReintegro() {
+    var el = document.getElementById('informeRegla');
+    var fondo = fondos.find(function (x) { return String(x.id) === String(document.getElementById('infFondo').value); });
+    if (!fondo) { el.style.display = 'none'; return; }
+    var sel = informeGastos.filter(function (g) { return informeSel[g.id]; });
+    var ev = evaluarReglaReintegro(fondo, sel);
+    var circ = fondo.tipo === 'circulante';
+    var efC = circ ? Math.round(ev.refC * 0.4) : ev.refC;
+    var mesHoy = MESES_ES[parseInt(hoyLocalStr().slice(5, 7), 10)];
+    var estado;
+    if (!sel.length) estado = '<div class="regla-estado wait">Selecciona gastos para evaluar el reintegro.</div>';
+    else if (ev.sinDoc.length && !ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para el 60% (o hasta el último día del mes: ' + fmtFechaCorta(ev.limite) + '). ' + ev.sinDoc.length + ' gasto(s) sin documento físico recibido.</div>';
+    else if (!ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para alcanzar el 60% de la referencia mensual. También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(ev.limite) + ').</div>';
+    else estado = '<div class="regla-estado ok">' + (ev.montoC >= ev.umbralC ? 'Alcanzó el 60% de la referencia mensual: ya puedes solicitar el reintegro.' : 'Se cumplió el plazo del mes (' + fmtFechaCorta(ev.limite) + '): ya puedes solicitar el reintegro.') +
+      (ev.sinDoc.length ? ' Antes marca el documento físico de ' + ev.sinDoc.length + ' gasto(s).' : '') + '</div>';
+    el.className = 'regla-box ' + (sel.length && ev.ok && !ev.sinDoc.length ? 'ok' : 'wait');
+    el.innerHTML = '<div class="regla-t">Condiciones del reintegro · ' + esc(TIPO_FONDO_LABEL[fondo.tipo] || fondo.tipo) + ' ' + esc(fondo.anio) + '</div>' +
+      '<div class="regla-grid">' +
+        '<div><span>Monto anual del fondo</span><b>$' + money(fondo.monto_total) + '</b></div>' +
+        '<div><span>Referencia de ' + mesHoy + '</span><b>' + centavos(ev.refC) + '</b></div>' +
+        '<div><span>60% mínimo para reintegro</span><b>' + centavos(ev.umbralC) + '</b></div>' +
+        '<div><span>Gastos seleccionados</span><b>' + centavos(ev.montoC) + '</b></div>' +
+        '<div><span>Con documento físico recibido</span><b>' + centavos(ev.docC) + '</b></div>' +
+      '</div>' + estado +
+      '<div class="gasto-line" style="margin-top:6px">Distribución del fondo en el mes: ' + (circ
+        ? '<b>Efectivo (40%) ' + centavos(efC) + '</b> · <b>Banco (60%) ' + centavos(ev.refC - efC) + '</b> (Reglamento, Art. 11).'
+        : '<b>Todo en efectivo ' + centavos(efC) + '</b> (Reglamento, Art. 12).') + '</div>' +
+      '<div class="gasto-line">Un reintegro solo admite gastos con el documento físico ya recibido. La liquidación no tiene estas restricciones.</div>';
+    el.style.display = 'block';
   }
 
   function actualizarResumenInforme() {
@@ -3882,6 +3952,8 @@
     var todos = document.getElementById('infSelTodos');
     if (todos) todos.checked = sel.length === informeGastos.length;
     document.getElementById('btnGestionarGastos').disabled = !sel.length;
+    document.getElementById('btnMarcarDocs').disabled = !sel.length;
+    renderReglaReintegro();
   }
 
   function renderInforme() {
@@ -3890,6 +3962,7 @@
       el.innerHTML = '<div class="empty-state">No hay gastos con factura registrada, pendientes de reintegrar, en ese fondo y rango de fechas.</div>';
       document.getElementById('informeAcciones').style.display = 'none';
       document.getElementById('informeResumen').style.display = 'none';
+      renderReglaReintegro();
       return;
     }
     el.innerHTML = '<label class="user-row" style="font-weight:600;cursor:pointer"><input type="checkbox" id="infSelTodos" checked /><span>Seleccionar todos</span></label>' +
@@ -3903,7 +3976,11 @@
           '<div class="gasto-line"><b>' + esc(g.proveedor) + '</b></div>' +
           '<div class="gasto-line">' + esc(g.descripcion) + '</div>' +
           '<div class="gasto-line">Área solicitante: ' + esc(g.area_solicitante) + ' · Retenido: $' + money(g.monto_retenido) + ' · Fondo: ' + esc(getFondoDeGasto(g)) + '</div>' +
+          (g.documento_fisico_recibido
+            ? '<div class="doc-fisico si">📄 Documento físico recibido' + (g.documento_fisico_at ? ' el ' + esc(new Date(g.documento_fisico_at).toLocaleDateString('es-HN')) : '') + '</div>'
+            : '<div class="doc-fisico no">📄 Documento físico pendiente de recibir</div>') +
           '<div class="gasto-actions">' +
+            '<button type="button" class="secondary" data-doc-inf="' + g.id + '" data-doc-val="' + (g.documento_fisico_recibido ? '0' : '1') + '">' + (g.documento_fisico_recibido ? 'Quitar marca de recibido' : 'Marcar documento recibido') + '</button>' +
             '<button type="button" class="secondary" data-editar-inf="' + g.id + '">Editar</button>' +
             '<button type="button" class="danger" data-eliminar-inf="' + g.id + '">Eliminar</button>' +
           '</div>' +
@@ -3926,6 +4003,11 @@
         actualizarResumenInforme();
       });
     });
+    el.querySelectorAll('[data-doc-inf]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        marcarDocumentosFisicos([btn.getAttribute('data-doc-inf')], btn.getAttribute('data-doc-val') === '1');
+      });
+    });
     el.querySelectorAll('[data-editar-inf]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var g = informeGastos.find(function (x) { return String(x.id) === btn.getAttribute('data-editar-inf'); });
@@ -3945,6 +4027,23 @@
       });
     });
   }
+
+  // El administrador de fondo marca que recibió el documento físico del gasto.
+  function marcarDocumentosFisicos(ids, recibido) {
+    var msgEl = document.getElementById('informeMsg');
+    hideMsg(msgEl);
+    return apiCall('gastos', { method: 'POST', body: { action: 'documento_fisico', ids: ids, recibido: recibido, actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
+      if (r.ok) return cargarInforme(false, true);
+      showMsg(msgEl, 'error', r.error || 'No se pudo actualizar el documento físico.');
+    }).catch(function () { showMsg(msgEl, 'error', 'Error de conexión.'); });
+  }
+  document.getElementById('btnMarcarDocs').addEventListener('click', function () {
+    var ids = informeGastos.filter(function (g) { return informeSel[g.id] && !g.documento_fisico_recibido; }).map(function (g) { return g.id; });
+    if (!ids.length) { showMsg(document.getElementById('informeMsg'), 'info', 'Los gastos seleccionados ya tienen el documento físico recibido.'); return; }
+    customConfirm('¿Confirmas que ya recibiste el documento físico (factura o documento equivalente) de ' + ids.length + ' gasto(s)?', { okText: 'Sí, lo recibí' }).then(function (ok) {
+      if (ok) marcarDocumentosFisicos(ids, true);
+    });
+  });
 
   // ---- Modal de decisión: ¿Reintegro o Liquidación? ----
   function pedirTipoGestion() {
@@ -3984,6 +4083,18 @@
     var esCirculante = infFondoTipo() === 'circulante';
     pedirTipoGestion().then(function (tipo) {
       if (!tipo) return;
+      if (tipo === 'reintegro') {
+        var fondoObj = fondos.find(function (x) { return String(x.id) === String(fondoId); });
+        var evR = evaluarReglaReintegro(fondoObj, informeGastos.filter(function (g) { return informeSel[g.id]; }));
+        if (evR.sinDoc.length) {
+          showMsg(msgEl, 'error', evR.sinDoc.length + ' gasto(s) seleccionado(s) no tienen el documento físico recibido. Márcalos como recibidos o quítalos de la selección para solicitar un reintegro.');
+          return;
+        }
+        if (!evR.ok) {
+          showMsg(msgEl, 'error', 'Aún no se puede solicitar el reintegro: los gastos seleccionados suman ' + centavos(evR.montoC) + ' y se necesita al menos el 60% de la referencia mensual (' + centavos(evR.umbralC) + '); faltan ' + centavos(evR.faltaC) + '. También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(evR.limite) + ').');
+          return;
+        }
+      }
       if (tipo === 'reintegro' && esCirculante && !cuenta) {
         showMsg(msgEl, 'error', 'Para un reintegro del fondo circulante indica la cuenta bancaria del administrador (banco y número).');
         document.getElementById('infCuenta').focus();

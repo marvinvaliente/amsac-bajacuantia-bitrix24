@@ -260,6 +260,48 @@ module.exports = async (req, res) => {
         return;
       }
 
+      // El administrador de fondo marca que ya recibió el documento físico
+      // (factura o equivalente) que le entregó el solicitante. Solo los gastos
+      // con documento recibido pueden incluirse en un reintegro.
+      if (action === 'documento_fisico') {
+        const ids = (Array.isArray(body.ids) ? body.ids : []).map((x) => parseInt(x, 10)).filter(Number.isInteger);
+        if (!ids.length) { res.status(400).json({ ok: false, error: 'Selecciona al menos un gasto.' }); return; }
+        const recibido = body.recibido !== false;
+        const rG = await sb('gastos_registros?id=in.(' + ids.join(',') + ')&select=id,fondo_id,estado');
+        const filas = await rG.json();
+        if (!rG.ok || !Array.isArray(filas)) { res.status(500).json({ ok: false, error: 'No se pudieron leer los gastos.' }); return; }
+        if (filas.length !== ids.length) { res.status(404).json({ ok: false, error: 'Algún gasto ya no existe.' }); return; }
+        if (filas.some((g) => g.estado !== 'registrado')) {
+          res.status(400).json({ ok: false, error: 'Solo se puede marcar el documento de gastos registrados que aún no están en una gestión de reintegro o liquidación.' });
+          return;
+        }
+        // Quién puede: el administrador del portal (verificado contra Bitrix24) o el
+        // administrador del fondo al que pertenece cada gasto.
+        if (!(await presupuesto.esAdminPortal(body.actor_id, body.auth_token))) {
+          const fondoIds = Array.from(new Set(filas.map((g) => g.fondo_id)));
+          if (fondoIds.some((f) => f == null)) { res.status(403).json({ ok: false, error: 'Hay gastos sin fondo asignado; solo un administrador del portal puede marcarlos.' }); return; }
+          const rA = await sb('gastos_fondo_usuarios?usuario_id=eq.' + encodeURIComponent(String(body.actor_id || '')) +
+            '&es_administrador=eq.true&fondo_id=in.(' + fondoIds.map(encodeURIComponent).join(',') + ')&select=fondo_id');
+          const adm = await rA.json();
+          if (!rA.ok || !Array.isArray(adm)) { res.status(502).json({ ok: false, error: 'No se pudo verificar que seas administrador del fondo.' }); return; }
+          const okFondos = new Set(adm.map((a) => String(a.fondo_id)));
+          if (fondoIds.some((f) => !okFondos.has(String(f)))) {
+            res.status(403).json({ ok: false, error: 'Solo el administrador del fondo (o un administrador del portal) puede marcar la recepción del documento físico.' });
+            return;
+          }
+        }
+        const r = await sb('gastos_registros?id=in.(' + ids.join(',') + ')', {
+          method: 'PATCH', headers: { Prefer: 'return=representation' },
+          body: JSON.stringify(recibido
+            ? { documento_fisico_recibido: true, documento_fisico_at: new Date().toISOString(), documento_fisico_por_id: String(body.actor_id || ''), documento_fisico_por_nombre: body.actor_nombre || '' }
+            : { documento_fisico_recibido: false, documento_fisico_at: null, documento_fisico_por_id: null, documento_fisico_por_nombre: null })
+        });
+        const data = await r.json();
+        if (!r.ok) { res.status(500).json({ ok: false, error: 'No se pudo actualizar.' }); return; }
+        res.status(200).json({ ok: true, actualizados: Array.isArray(data) ? data.length : ids.length });
+        return;
+      }
+
       if (action === 'save') {
         const solRes = await buscarSolicitud((body.gasto || {}).solicitud_id);
         if (solRes.error) { res.status(400).json({ ok: false, error: solRes.error }); return; }

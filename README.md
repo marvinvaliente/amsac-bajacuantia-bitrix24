@@ -701,6 +701,45 @@ solicitud, resaltando en rojo lo que excede).
    puede iniciar un nuevo ciclo. Aplica a **fondo circulante y caja chica**.
    (Las liquidaciones no pasan por `entregado`: Tesorería las cierra.)
 
+### Reglas del reintegro (según el Reglamento de fondos de baja cuantía)
+
+Fuente: *Reglamento para la Administración de los Fondos para las Compras de
+Baja Cuantía y Compras en Línea* (Decreto 3/2025, Concejo Municipal de Santa
+Ana Centro). Las reglas las valida el **servidor** (`api/gestiones.js`,
+acción `crear`), no solo la pantalla.
+
+- **Referencia mensual** (Art. 5): cada fondo tiene un monto máximo al año
+  (`gastos_fondos.monto_total`, variable por fondo; el reglamento fija hasta
+  $300,000 en circulante y $24,000 en caja chica). La referencia mensual es
+  ese monto entre 12, con **redondeo acumulado en centavos** para que los 12
+  meses sumen exactamente el total anual (sin descuadres).
+- **Cuándo se puede pedir un reintegro** (Art. 31): cuando los gastos
+  seleccionados alcanzan el **60% de la referencia del mes**, o a más tardar el
+  **último día del mes** (si el mes ya terminó o hoy es su último día, se
+  permite aunque no se llegue al 60%). La fecha de hoy se toma en hora de El
+  Salvador (UTC-6). Si no se cumple, el servidor responde con cuánto falta.
+  Aplica a fondo circulante y caja chica. **La liquidación no tiene estas
+  restricciones** (se puede pedir en cualquier momento).
+- **Documento físico recibido**: el solicitante entrega la factura o documento
+  equivalente al administrador de fondo, y este lo marca como **recibido**
+  (por gasto o en bloque) en "Solicitud de reintegro o liquidación". Solo los
+  gastos con documento recibido pueden incluirse en un **reintegro** (se guarda
+  quién y cuándo lo marcó; columnas `documento_fisico_*` de
+  `gastos_registros`, migración `migracion-documento-fisico.sql`). Solo lo
+  puede marcar el administrador del fondo (o un administrador del portal
+  verificado contra Bitrix24) y solo mientras el gasto siga "registrado". Los
+  gastos anteriores a esta regla quedan como "pendiente de recibir".
+- **Efectivo y banco** (Art. 11 y 12), solo informativo en pantalla: en el
+  **fondo circulante** el 40% de la referencia mensual se gira en cheque y se
+  mantiene en efectivo (gastos de hasta $500) y el 60% queda en la cuenta
+  bancaria (pagos por transferencia o cheque no negociable); la **caja chica**
+  se abre por cheque y se maneja **toda en efectivo**. El panel "Condiciones del
+  reintegro" muestra esa distribución. No se valida contra los pagos reales.
+- Otras cuantías del reglamento **no controladas** por el sistema todavía:
+  compra máxima por factura ($1,000 circulante, $100 caja chica, Art. 6),
+  efectivo hasta $500 (Art. 11) y plazo de 3 días hábiles para presentar
+  comprobantes (Art. 19).
+
 Estados de `gastos_gestiones`: `pendiente` → `revisado` → (`entregado`) →
 `cerrado`. Columnas nuevas (migración `migracion-reintegro-v2.sql`):
 `fecha_desde`, `fecha_hasta`, `cuenta_bancaria`, `acuerdo_*`,
