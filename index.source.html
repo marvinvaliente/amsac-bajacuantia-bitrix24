@@ -33,8 +33,8 @@
 
   .app-header {
     position: fixed; top: 0; left: 0; right: 0; height: 56px; z-index: 1000;
-    background: var(--primary); color: #fff; display: flex; align-items: center; gap: 6px;
-    padding: 0 6px 0 4px; box-shadow: 0 1px 6px rgba(0,0,0,0.18);
+    background: linear-gradient(180deg, #1b2a4a 0%, #14213d 100%); color: #fff; display: flex; align-items: center; gap: 6px;
+    padding: 0 6px 0 4px; box-shadow: 0 2px 8px rgba(8, 14, 30, 0.28); border-bottom: 2px solid var(--accent);
   }
   .menu-toggle {
     width: 44px; height: 44px; flex: none; margin: 0; padding: 0; background: none; border: none;
@@ -42,46 +42,74 @@
   }
   .menu-toggle:hover { background: rgba(255,255,255,0.12); }
   .menu-toggle svg { width: 22px; height: 22px; }
-  .app-header-title { display: flex; flex-direction: column; justify-content: center; line-height: 1.25; overflow: hidden; }
-  .app-header-title strong { font-size: 15.5px; font-weight: 700; letter-spacing: .1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .app-header-title small { font-size: 10.5px; color: #c7d0e0; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-header-title { display: flex; flex-direction: column; justify-content: center; line-height: 1.25; overflow: hidden; padding-left: 8px; }
+  .app-header-title strong { font-size: 15.5px; font-weight: 700; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .app-header-title small { font-size: 10.5px; color: #c9b36a; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .drawer-overlay {
-    position: fixed; inset: 0; background: rgba(10,15,30,0.45); z-index: 998;
+    position: fixed; inset: 0; background: rgba(10,15,30,0.55); z-index: 998;
     opacity: 0; pointer-events: none; transition: opacity .2s ease;
   }
   .drawer-overlay.open { opacity: 1; pointer-events: auto; }
 
   .app-body { display: flex; padding-top: 56px; min-height: 100vh; }
+
+  /* Menú lateral corporativo */
   .drawer {
-    position: fixed; top: 56px; bottom: 0; left: 0; width: 272px; background: #fff; z-index: 999;
-    transform: translateX(-100%); transition: transform .22s ease; box-shadow: 3px 0 16px rgba(0,0,0,0.16);
-    overflow-y: auto; will-change: transform;
+    position: fixed; top: 56px; bottom: 0; left: 0; width: 280px; z-index: 999;
+    background: linear-gradient(180deg, #15223f 0%, #0e1830 100%); color: #cfd8ea;
+    transform: translateX(-100%); transition: transform .22s ease; box-shadow: 4px 0 18px rgba(0,0,0,0.28);
+    overflow-y: auto; will-change: transform; display: flex; flex-direction: column;
+    scrollbar-width: thin; scrollbar-color: #33436a transparent;
   }
   .drawer.open { transform: translateX(0) !important; }
-  .drawer-nav { list-style: none; margin: 0; padding: 10px 0; }
+  .drawer-caption {
+    padding: 20px 24px 8px; font-size: 10.5px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #6f82a8;
+  }
+  .drawer-nav { list-style: none; margin: 0; padding: 4px 0 12px; flex: 1; }
   .drawer-nav .tab {
-    display: flex; align-items: center; gap: 13px; padding: 13px 22px; font-size: 14.5px;
-    color: #46536b; cursor: pointer; user-select: none; border-left: 3px solid transparent;
+    display: flex; align-items: center; gap: 12px; padding: 11px 22px; margin: 1px 10px; font-size: 13.5px;
+    color: #cfd8ea; cursor: pointer; user-select: none; border-radius: 6px; position: relative;
+    transition: background .15s ease, color .15s ease;
   }
-  .drawer-nav .tab svg { width: 19px; height: 19px; flex: none; opacity: .8; }
-  .drawer-nav .tab:hover { background: #f4f6fa; }
+  .drawer-nav .tab svg { width: 18px; height: 18px; flex: none; opacity: .65; }
+  .drawer-nav .tab:hover { background: rgba(255,255,255,0.07); color: #fff; }
+  .drawer-nav .tab:hover svg { opacity: .95; }
   .drawer-nav .tab.active {
-    background: #eef1f9; border-left-color: var(--accent); color: var(--primary); font-weight: 700;
+    background: linear-gradient(90deg, rgba(201,162,39,0.22), rgba(201,162,39,0.06)); color: #fff; font-weight: 600;
   }
-  .drawer-nav .tab.active svg { opacity: 1; color: var(--accent-dark); }
+  .drawer-nav .tab.active::before {
+    content: ""; position: absolute; left: -10px; top: 7px; bottom: 7px; width: 4px; border-radius: 0 3px 3px 0; background: var(--accent);
+  }
+  .drawer-nav .tab.active svg { opacity: 1; color: #e4c24a; }
   .drawer-nav .tab.hidden { display: none; }
+  .drawer-nav .drawer-group { margin-top: 6px; }
   .drawer-nav .drawer-group-head {
-    display: flex; align-items: center; gap: 13px; padding: 13px 22px; font-size: 14.5px;
-    color: #46536b; cursor: pointer; user-select: none; font-weight: 700;
+    display: flex; align-items: center; gap: 10px; padding: 11px 22px 8px 24px; font-size: 11px;
+    color: #8fa1c4; cursor: pointer; user-select: none; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
   }
-  .drawer-nav .drawer-group-head:hover { background: #f4f6fa; }
-  .drawer-nav .drawer-group-head svg.chevron { width: 15px; height: 15px; flex: none; margin-left: auto; opacity: .7; transition: transform .18s ease; }
+  .drawer-nav .drawer-group-head svg:not(.chevron) { width: 16px; height: 16px; flex: none; opacity: .8; }
+  .drawer-nav .drawer-group-head:hover { color: #fff; }
+  .drawer-nav .drawer-group:has(.tab.active) > .drawer-group-head { color: #e4c24a; }
+  .drawer-nav .drawer-group-head svg.chevron { width: 14px; height: 14px; flex: none; margin-left: auto; opacity: .6; transition: transform .18s ease; }
   .drawer-nav .drawer-group.open .drawer-group-head svg.chevron { transform: rotate(90deg); }
   .drawer-subnav { list-style: none; margin: 0; padding: 0; max-height: 0; overflow: hidden; transition: max-height .2s ease; }
   .drawer-nav .drawer-group.open .drawer-subnav { max-height: 340px; }
-  .drawer-subnav .tab { padding-left: 42px; }
+  .drawer-subnav .tab { padding-left: 24px; }
   .drawer-nav .drawer-group.hidden { display: none; }
+  .drawer-sep { height: 1px; margin: 10px 22px 6px; background: rgba(255,255,255,0.09); }
+
+  .drawer-user {
+    display: flex; align-items: center; gap: 11px; padding: 14px 20px; margin-top: auto;
+    border-top: 1px solid rgba(255,255,255,0.09); background: rgba(0,0,0,0.18);
+  }
+  .drawer-user-av {
+    width: 36px; height: 36px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center;
+    background: var(--accent); color: #14213d; font-weight: 800; font-size: 13px; letter-spacing: .02em;
+  }
+  .drawer-user-info { min-width: 0; line-height: 1.3; }
+  .drawer-user-name { font-size: 13px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drawer-user-role { font-size: 11px; color: #9db0d3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .app-main { flex: 1; min-width: 0; }
 
@@ -90,8 +118,9 @@
     .drawer-overlay { display: none; }
     .drawer {
       position: sticky; top: 56px; transform: none; height: calc(100vh - 56px);
-      box-shadow: none; border-right: 1px solid var(--border); flex: none;
+      box-shadow: none; border-right: 1px solid #0a1226; flex: none;
     }
+    .app-header-title { padding-left: 18px; }
     .app-header-title strong { font-size: 17px; }
   }
 
@@ -301,6 +330,92 @@
   .map-actions .danger-solid { background: var(--danger); }
   .map-actions .danger-solid:hover { background: #c73a3a; }
 
+  /* ---- Pantallas formales: Autorización y Desembolso ---- */
+  .page-head { margin: 0 0 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border); position: relative; }
+  .page-head::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 64px; height: 3px; background: var(--accent); }
+  .page-title { font-size: 20px; font-weight: 700; color: var(--primary-dark); letter-spacing: .1px; }
+  .page-sub { font-size: 13px; color: #6b7a86; margin-top: 3px; }
+
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 0 0 18px; }
+  .kpi { background: #fff; border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; box-shadow: 0 1px 2px rgba(14, 24, 48, .05); min-width: 0; }
+  .kpi.warn { border-left-color: #d98a00; }
+  .kpi.ok { border-left-color: #2e9a5b; }
+  .kpi.bad { border-left-color: #c9552b; }
+  .kpi.gold { border-left-color: var(--accent); }
+  .kpi-label { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7a86; }
+  .kpi-val { font-size: 22px; font-weight: 700; color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+  .kpi-sub { font-size: 12px; color: #6b7a86; font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .kpi-row { grid-template-columns: 1fr; } }
+
+  .table-wrap.corp { border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 1px 3px rgba(14, 24, 48, .06); }
+  table.table-corp { font-size: 13px; white-space: normal; }
+  table.table-corp th { white-space: nowrap; }
+  table.table-corp td:nth-child(2) { white-space: nowrap; }
+  table.table-corp th {
+    background: var(--primary); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    padding: 12px 10px; border-bottom: 2px solid var(--accent); z-index: 1;
+  }
+  table.table-corp td { padding: 11px 10px; border-bottom: 1px solid #e8ecf3; color: #2a3650; }
+  table.table-corp tbody tr:nth-child(even) td { background: #f8f9fc; }
+  table.table-corp tbody tr:hover td { background: #eef1f9; }
+  table.table-corp .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.table-corp td.num { font-weight: 600; color: var(--primary-dark); }
+  table.table-corp .col-id { font-weight: 700; color: var(--primary); width: 1%; }
+  table.table-corp .col-desc { min-width: 170px; max-width: 300px; line-height: 1.4; }
+  table.table-corp .badge { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 3px 10px; border-radius: 4px; }
+  table.table-corp .row-actions button { background: #fff; color: var(--primary); border: 1px solid var(--primary); font-weight: 600; border-radius: 4px; padding: 6px 12px; }
+  table.table-corp .row-actions button:hover { background: var(--primary); color: #fff; }
+  table.table-items th { background: #eef1f9; color: var(--primary-dark); border-bottom: 2px solid var(--primary); }
+  table.table-items tbody tr:nth-child(even) td { background: #fff; }
+  table.table-items tbody tr:hover td { background: #f8f9fc; }
+
+  @media (max-width: 1300px) { table.table-corp .hide-md { display: none; } }
+
+  .btn-back {
+    width: auto; margin: 0 0 14px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: #fff; color: var(--primary);
+    border: 1px solid var(--border); border-radius: 4px;
+  }
+  .btn-back:hover { background: var(--bg); }
+
+  .doc { background: #fff; border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 6px; box-shadow: 0 1px 3px rgba(14, 24, 48, .07); overflow: hidden; }
+  .doc-head { background: var(--primary); color: #fff; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .doc-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #c9b36a; }
+  .doc-title { font-size: 20px; font-weight: 700; margin-top: 2px; }
+  .doc-state { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .doc-state-label { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #aebbd6; }
+  .doc-state .badge { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; }
+  .doc-body { padding: 4px 20px 20px; }
+  .doc-section {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--primary);
+    margin: 20px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+  }
+  .doc-section::before { content: ""; width: 4px; height: 12px; background: var(--accent); border-radius: 1px; }
+  .doc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 24px; }
+  .doc-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .doc-item.wide { grid-column: 1 / -1; }
+  .doc-item.half { grid-column: span 2; }
+  .doc-label { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: #6b7a86; }
+  .doc-val { font-size: 14px; font-weight: 600; color: var(--primary-dark); overflow-wrap: anywhere; line-height: 1.45; }
+  .doc-val.text { font-weight: 400; color: #2a3650; }
+  .doc-total {
+    display: flex; justify-content: flex-end; align-items: center; gap: 18px; margin-top: 14px; padding: 12px 18px;
+    background: #f4f6fb; border: 1px solid var(--border); border-top: 2px solid var(--primary); border-radius: 0 0 6px 6px;
+  }
+  .doc-total span { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary-dark); }
+  .doc-total b { font-size: 24px; color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+  .doc-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .doc-actions button { width: auto; margin: 0; padding: 11px 28px; font-size: 14px; border-radius: 4px; letter-spacing: .02em; }
+  .doc-actions .btn-deny { background: #fff; color: #b3382c; border: 1px solid #b3382c; }
+  .doc-actions .btn-deny:hover { background: #b3382c; color: #fff; }
+  @media (max-width: 760px) {
+    .doc-grid { grid-template-columns: 1fr 1fr; }
+    .doc-item.half { grid-column: 1 / -1; }
+    .doc-total { justify-content: space-between; }
+    .doc-actions button { flex: 1; }
+  }
+  @media (max-width: 480px) { .doc-grid { grid-template-columns: 1fr; } .doc-body { padding: 4px 14px 16px; } }
+
   @media (max-width: 480px) {
     .wrap { padding: 14px 12px 40px; }
     .card { padding: 14px; }
@@ -325,6 +440,7 @@
 
 <div class="app-body">
   <nav id="drawer" class="drawer">
+    <div class="drawer-caption">Menú principal</div>
     <ul class="drawer-nav">
       <li class="drawer-group hidden open" id="groupSolicitud">
         <div class="drawer-group-head" id="groupSolicitudHead">
@@ -385,6 +501,7 @@
           </li>
         </ul>
       </li>
+      <li class="drawer-sep" role="separator"></li>
       <li class="tab hidden" id="tabHistorialBtn" data-tab="historial">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
         <span>Historial</span>
@@ -406,6 +523,13 @@
         <span>Configurar usuarios</span>
       </li>
     </ul>
+    <div class="drawer-user" id="drawerUser" style="display:none">
+      <div class="drawer-user-av" id="drawerUserAv">—</div>
+      <div class="drawer-user-info">
+        <div class="drawer-user-name" id="drawerUserName">—</div>
+        <div class="drawer-user-role" id="drawerUserRole">—</div>
+      </div>
+    </div>
   </nav>
 
   <main class="app-main">
@@ -513,58 +637,73 @@
 
     <!-- ---- Autorización de gerencia ---- -->
     <div id="viewAutorizacion" class="card" style="display:none">
-      <div class="section-title">Autorización de gerencia</div>
-
-      <div id="autorizacionDetalle" style="display:none">
-        <div class="btn-row">
-          <button type="button" id="btnCerrarAutorizacion" class="secondary">Volver a la lista</button>
-        </div>
-        <div class="section-title" id="autorizacionTitulo" style="margin-top:14px">Solicitud #—</div>
-        <div class="solicitud-info">
-          <div><b>Fondo:</b> <span id="aFondo">—</span></div>
-          <div><b>Área solicitante:</b> <span id="aArea">—</span></div>
-          <div><b>Jefatura solicitante:</b> <span id="aJefatura">—</span></div>
-          <div><b>Gerente responsable:</b> <span id="aGerencia">—</span></div>
-          <div><b>Gerencia responsable:</b> <span id="aGerenciaUnidad">—</span></div>
-          <div><b>Nombre del proceso:</b> <span id="aNombreProceso">—</span></div>
-          <div><b>Descripción:</b> <span id="aDescripcion">—</span></div>
-          <div><b>Justificación:</b> <span id="aJustificacion">—</span></div>
-          <div><b>Clasificación del gasto:</b> <span id="aClasificacion">—</span></div>
-          <div><b>Forma de pago:</b> <span id="aFormaPago">—</span></div>
-          <div><b>Estado:</b> <span id="aEstado">—</span></div>
-          <div><b>Creada por:</b> <span id="aCreador">—</span></div>
-        </div>
-
-        <label style="margin-top:14px">Cotización adjunta</label>
-        <div id="aCotizacionLista" class="cotizacion-lista"></div>
-
-        <div class="section-title" style="margin-top:16px">Ítems</div>
-        <div class="table-wrap">
-          <table class="data-table" id="aItemsTable">
-            <thead>
-              <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th>Cantidad</th><th>Precio unitario</th><th>Total</th></tr>
-            </thead>
-            <tbody id="aItemsBody"></tbody>
-          </table>
-        </div>
-
-        <div class="monto-solicitado">
-          <span>Monto solicitado</span>
-          <b id="aMontoSolicitado">$0.00</b>
-        </div>
-
-        <div class="btn-row" style="margin-top:16px">
-          <button type="button" id="btnAutorizar">Autorizar</button>
-          <button type="button" id="btnDenegar" class="secondary">Denegar</button>
-        </div>
-        <div id="autorizacionMsg" class="msg"></div>
+      <div class="page-head">
+        <div class="page-title">Autorización de gerencia</div>
+        <div class="page-sub">Revisión y decisión de las solicitudes de gasto asignadas a su gerencia.</div>
       </div>
 
+      <div id="autorizacionDetalle" style="display:none">
+        <button type="button" id="btnCerrarAutorizacion" class="btn-back">&larr; Volver a la lista</button>
+        <div class="doc">
+          <div class="doc-head">
+            <div>
+              <div class="doc-kicker">Solicitud de gasto de baja cuantía</div>
+              <div class="doc-title" id="autorizacionTitulo">Solicitud #—</div>
+            </div>
+            <div class="doc-state"><span class="doc-state-label">Estado</span><span id="aEstado">—</span></div>
+          </div>
+          <div class="doc-body">
+            <div class="doc-section">Dependencia solicitante</div>
+            <div class="doc-grid">
+              <div class="doc-item"><span class="doc-label">Fondo</span><span class="doc-val" id="aFondo">—</span></div>
+              <div class="doc-item"><span class="doc-label">Área solicitante</span><span class="doc-val" id="aArea">—</span></div>
+              <div class="doc-item"><span class="doc-label">Creada por</span><span class="doc-val" id="aCreador">—</span></div>
+              <div class="doc-item"><span class="doc-label">Jefatura solicitante</span><span class="doc-val" id="aJefatura">—</span></div>
+              <div class="doc-item"><span class="doc-label">Gerencia responsable</span><span class="doc-val" id="aGerenciaUnidad">—</span></div>
+              <div class="doc-item"><span class="doc-label">Gerente responsable</span><span class="doc-val" id="aGerencia">—</span></div>
+            </div>
+
+            <div class="doc-section">Detalle de la solicitud</div>
+            <div class="doc-grid">
+              <div class="doc-item wide"><span class="doc-label">Nombre del proceso</span><span class="doc-val" id="aNombreProceso">—</span></div>
+              <div class="doc-item"><span class="doc-label">Clasificación del gasto</span><span class="doc-val" id="aClasificacion">—</span></div>
+              <div class="doc-item"><span class="doc-label">Forma de pago</span><span class="doc-val" id="aFormaPago">—</span></div>
+              <div class="doc-item wide"><span class="doc-label">Descripción</span><span class="doc-val text" id="aDescripcion">—</span></div>
+              <div class="doc-item wide"><span class="doc-label">Justificación</span><span class="doc-val text" id="aJustificacion">—</span></div>
+            </div>
+
+            <div class="doc-section">Cotización adjunta</div>
+            <div id="aCotizacionLista" class="cotizacion-lista" style="margin-top:0"></div>
+
+            <div class="doc-section">Ítems solicitados</div>
+            <div class="table-wrap corp">
+              <table class="data-table table-corp table-items" id="aItemsTable">
+                <thead>
+                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario</th><th class="num">Total</th></tr>
+                </thead>
+                <tbody id="aItemsBody"></tbody>
+              </table>
+            </div>
+            <div class="doc-total">
+              <span>Monto solicitado</span>
+              <b id="aMontoSolicitado">$0.00</b>
+            </div>
+
+            <div class="doc-actions">
+              <button type="button" id="btnDenegar" class="btn-deny">Denegar</button>
+              <button type="button" id="btnAutorizar">Autorizar solicitud</button>
+            </div>
+            <div id="autorizacionMsg" class="msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="autorizacionKpis" class="kpi-row" style="display:none"></div>
       <div id="autorizacionListLoading" class="loading">Cargando...</div>
-      <div class="table-wrap" id="autorizacionListWrap" style="max-height:480px; overflow-y:auto">
-        <table class="data-table" id="autorizacionTable">
+      <div class="table-wrap corp" id="autorizacionListWrap" style="max-height:540px; overflow-y:auto">
+        <table class="data-table table-corp" id="autorizacionTable">
           <thead>
-            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Gerente responsable</th><th>Monto</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>N°</th><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th class="hide-md">Gerente responsable</th><th class="num">Monto</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody id="autorizacionTableBody"></tbody>
         </table>
@@ -572,7 +711,7 @@
       <div id="autorizacionListVacio" class="empty-state" style="display:none">No hay solicitudes para autorizar todavía.</div>
     </div>
 
-    <!-- ---- Certificación presupuestaria ---- -->
+        <!-- ---- Certificación presupuestaria ---- -->
     <div id="viewCertificacion" class="card" style="display:none">
       <div class="section-title" id="certFormTitulo" style="display:none">Editar solicitud</div>
       <form id="formCertificacion" style="display:none">
@@ -699,57 +838,72 @@
 
     <!-- ---- Desembolso de fondos ---- -->
     <div id="viewDesembolso" class="card" style="display:none">
-      <div class="section-title">Desembolso de fondos</div>
-
-      <div id="desembolsoDetalle" style="display:none">
-        <div class="btn-row">
-          <button type="button" id="btnCerrarDesembolso" class="secondary">Volver a la lista</button>
-        </div>
-        <div class="section-title" id="desembolsoTitulo" style="margin-top:14px">Solicitud #—</div>
-        <div class="solicitud-info">
-          <div><b>Fondo:</b> <span id="dFondo">—</span></div>
-          <div><b>Área solicitante:</b> <span id="dArea">—</span></div>
-          <div><b>Jefatura solicitante:</b> <span id="dJefatura">—</span></div>
-          <div><b>Gerente responsable:</b> <span id="dGerencia">—</span></div>
-          <div><b>Gerencia responsable:</b> <span id="dGerenciaUnidad">—</span></div>
-          <div><b>Nombre del proceso:</b> <span id="dNombreProceso">—</span></div>
-          <div><b>Descripción:</b> <span id="dDescripcion">—</span></div>
-          <div><b>Justificación:</b> <span id="dJustificacion">—</span></div>
-          <div><b>Clasificación del gasto:</b> <span id="dClasificacion">—</span></div>
-          <div><b>Forma de pago:</b> <span id="dFormaPago">—</span></div>
-          <div><b>Estado:</b> <span id="dEstado">—</span></div>
-          <div><b>Creada por:</b> <span id="dCreador">—</span></div>
-        </div>
-
-        <label style="margin-top:14px">Cotización adjunta</label>
-        <div id="dCotizacionLista" class="cotizacion-lista"></div>
-
-        <div class="section-title" style="margin-top:16px">Ítems</div>
-        <div class="table-wrap">
-          <table class="data-table" id="dItemsTable">
-            <thead>
-              <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th>Cantidad</th><th>Precio unitario</th><th>Específico</th><th>CEP</th><th>Total</th></tr>
-            </thead>
-            <tbody id="dItemsBody"></tbody>
-          </table>
-        </div>
-
-        <div class="monto-solicitado">
-          <span>Monto solicitado</span>
-          <b id="dMontoSolicitado">$0.00</b>
-        </div>
-
-        <div class="btn-row" style="margin-top:16px">
-          <button type="button" id="btnDesembolsar">Desembolsar</button>
-        </div>
-        <div id="desembolsoMsg" class="msg"></div>
+      <div class="page-head">
+        <div class="page-title">Desembolso de fondos</div>
+        <div class="page-sub">Entrega de fondos para las solicitudes ya certificadas por Presupuesto.</div>
       </div>
 
+      <div id="desembolsoDetalle" style="display:none">
+        <button type="button" id="btnCerrarDesembolso" class="btn-back">&larr; Volver a la lista</button>
+        <div class="doc">
+          <div class="doc-head">
+            <div>
+              <div class="doc-kicker">Solicitud de gasto de baja cuantía</div>
+              <div class="doc-title" id="desembolsoTitulo">Solicitud #—</div>
+            </div>
+            <div class="doc-state"><span class="doc-state-label">Estado</span><span id="dEstado">—</span></div>
+          </div>
+          <div class="doc-body">
+            <div class="doc-section">Dependencia solicitante</div>
+            <div class="doc-grid">
+              <div class="doc-item"><span class="doc-label">Fondo</span><span class="doc-val" id="dFondo">—</span></div>
+              <div class="doc-item"><span class="doc-label">Área solicitante</span><span class="doc-val" id="dArea">—</span></div>
+              <div class="doc-item"><span class="doc-label">Creada por</span><span class="doc-val" id="dCreador">—</span></div>
+              <div class="doc-item"><span class="doc-label">Jefatura solicitante</span><span class="doc-val" id="dJefatura">—</span></div>
+              <div class="doc-item"><span class="doc-label">Gerencia responsable</span><span class="doc-val" id="dGerenciaUnidad">—</span></div>
+              <div class="doc-item"><span class="doc-label">Gerente responsable</span><span class="doc-val" id="dGerencia">—</span></div>
+            </div>
+
+            <div class="doc-section">Detalle de la solicitud</div>
+            <div class="doc-grid">
+              <div class="doc-item wide"><span class="doc-label">Nombre del proceso</span><span class="doc-val" id="dNombreProceso">—</span></div>
+              <div class="doc-item"><span class="doc-label">Clasificación del gasto</span><span class="doc-val" id="dClasificacion">—</span></div>
+              <div class="doc-item"><span class="doc-label">Forma de pago</span><span class="doc-val" id="dFormaPago">—</span></div>
+              <div class="doc-item wide"><span class="doc-label">Descripción</span><span class="doc-val text" id="dDescripcion">—</span></div>
+              <div class="doc-item wide"><span class="doc-label">Justificación</span><span class="doc-val text" id="dJustificacion">—</span></div>
+            </div>
+
+            <div class="doc-section">Cotización adjunta</div>
+            <div id="dCotizacionLista" class="cotizacion-lista" style="margin-top:0"></div>
+
+            <div class="doc-section">Ítems y partida presupuestaria</div>
+            <div class="table-wrap corp">
+              <table class="data-table table-corp table-items" id="dItemsTable">
+                <thead>
+                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario</th><th>Específico</th><th>CEP</th><th class="num">Total</th></tr>
+                </thead>
+                <tbody id="dItemsBody"></tbody>
+              </table>
+            </div>
+            <div class="doc-total">
+              <span>Monto solicitado</span>
+              <b id="dMontoSolicitado">$0.00</b>
+            </div>
+
+            <div class="doc-actions">
+              <button type="button" id="btnDesembolsar">Desembolsar fondos</button>
+            </div>
+            <div id="desembolsoMsg" class="msg"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="desembolsoKpis" class="kpi-row" style="display:none"></div>
       <div id="desembolsoListLoading" class="loading">Cargando...</div>
-      <div class="table-wrap" id="desembolsoListWrap" style="max-height:480px; overflow-y:auto">
-        <table class="data-table" id="desembolsoTable">
+      <div class="table-wrap corp" id="desembolsoListWrap" style="max-height:540px; overflow-y:auto">
+        <table class="data-table table-corp" id="desembolsoTable">
           <thead>
-            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Monto solicitado</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>N°</th><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th class="num">Monto</th><th>Estado</th><th>Acciones</th></tr>
           </thead>
           <tbody id="desembolsoTableBody"></tbody>
         </table>
@@ -2528,6 +2682,12 @@
   // ==================================================================
   var autorizacionActualId = null;
 
+  function sumaMontos(arr) { return arr.reduce(function (t, x) { return t + (Number(x.monto_total) || 0); }, 0); }
+  function kpiHtml(k) {
+    return '<div class="kpi ' + (k.cls || '') + '"><span class="kpi-label">' + k.label + '</span><span class="kpi-val">' + k.val + '</span>' +
+      (k.sub ? '<span class="kpi-sub">' + k.sub + '</span>' : '') + '</div>';
+  }
+
   function renderAutorizacionTabla() {
     var lista = solicitudes.filter(function (s) {
       if (isAdmin) return true;
@@ -2535,15 +2695,27 @@
     }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
     document.getElementById('autorizacionListLoading').style.display = 'none';
     document.getElementById('autorizacionListVacio').style.display = lista.length ? 'none' : 'block';
+    var pend = lista.filter(function (s) { return (s.estado || 'pendiente') === 'pendiente'; });
+    var deneg = lista.filter(function (s) { return s.estado === 'denegado'; });
+    var autor = lista.filter(function (s) { var e = s.estado || 'pendiente'; return e !== 'pendiente' && e !== 'denegado' && e !== 'eliminada'; });
+    var kp = document.getElementById('autorizacionKpis');
+    kp.innerHTML = [
+      { label: 'Pendientes de decisión', val: pend.length, sub: 'Monto: $' + money(sumaMontos(pend)), cls: 'warn' },
+      { label: 'Autorizadas', val: autor.length, sub: 'Monto: $' + money(sumaMontos(autor)), cls: 'ok' },
+      { label: 'Denegadas', val: deneg.length, sub: 'Monto: $' + money(sumaMontos(deneg)), cls: 'bad' },
+      { label: 'Total de solicitudes', val: lista.length, sub: 'Monto: $' + money(sumaMontos(lista)), cls: '' }
+    ].map(kpiHtml).join('');
+    kp.style.display = lista.length ? 'grid' : 'none';
     document.getElementById('autorizacionTableBody').innerHTML = lista.map(function (s) {
       var estado = s.estado || 'pendiente';
       return '<tr>' +
+        '<td class="col-id">#' + s.id + '</td>' +
         '<td>' + esc((s.created_at || '').slice(0, 10)) + '</td>' +
         '<td>' + esc(fondoLabelPorId(s.fondo_id)) + '</td>' +
         '<td>' + esc(s.area_solicitante || '') + '</td>' +
-        '<td>' + esc((s.descripcion || '').slice(0, 60)) + '</td>' +
-        '<td>' + esc(s.gerencia_responsable_nombre || '') + '</td>' +
-        '<td>$' + money(s.monto_total) + '</td>' +
+        '<td class="col-desc">' + esc((s.descripcion || '').slice(0, 90)) + '</td>' +
+        '<td class="hide-md">' + esc(s.gerencia_responsable_nombre || '') + '</td>' +
+        '<td class="num">$' + money(s.monto_total) + '</td>' +
         '<td><span class="badge estado-' + esc(estado) + '">' + (SOLICITUD_ESTADO_LABEL[estado] || estado) + '</span></td>' +
         '<td><div class="row-actions"><button type="button" class="secondary" data-ver-autorizacion="' + s.id + '">Ver detalle</button></div></td>' +
         '</tr>';
@@ -2573,12 +2745,12 @@
     var items = Array.isArray(s.items) ? s.items : [];
     document.getElementById('aItemsBody').innerHTML = items.map(function (it) {
       return '<tr>' +
-        '<td>' + it.numero + '</td>' +
+        '<td class="col-id">' + it.numero + '</td>' +
         '<td>' + esc(it.tipo === 'servicio' ? 'Servicio' : 'Bien') + '</td>' +
-        '<td>' + esc(it.descripcion || '') + '</td>' +
-        '<td>' + (it.cantidad != null ? it.cantidad : '') + '</td>' +
-        '<td>$' + money(it.precio_unitario) + '</td>' +
-        '<td>$' + money(it.total) + '</td>' +
+        '<td class="col-desc">' + esc(it.descripcion || '') + '</td>' +
+        '<td class="num">' + (it.cantidad != null ? it.cantidad : '') + '</td>' +
+        '<td class="num">$' + money(it.precio_unitario) + '</td>' +
+        '<td class="num">$' + money(it.total) + '</td>' +
         '</tr>';
     }).join('');
 
@@ -2595,6 +2767,7 @@
     hideMsg(document.getElementById('autorizacionMsg'));
     document.getElementById('autorizacionListWrap').style.display = 'none';
     document.getElementById('autorizacionListVacio').style.display = 'none';
+    document.getElementById('autorizacionKpis').style.display = 'none';
     document.getElementById('autorizacionDetalle').style.display = 'block';
     renderAutorizacionDetalle(s);
     document.getElementById('viewAutorizacion').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2940,14 +3113,24 @@
     }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
     document.getElementById('desembolsoListLoading').style.display = 'none';
     document.getElementById('desembolsoListVacio').style.display = lista.length ? 'none' : 'block';
+    var porDes = lista.filter(function (s) { return s.estado === 'certificado'; });
+    var yaDes = lista.filter(function (s) { return s.estado === 'desembolsado' || s.estado === 'facturado'; });
+    var kpD = document.getElementById('desembolsoKpis');
+    kpD.innerHTML = [
+      { label: 'Por desembolsar', val: porDes.length, sub: 'Monto: $' + money(sumaMontos(porDes)), cls: 'warn' },
+      { label: 'Desembolsadas', val: yaDes.length, sub: 'Monto: $' + money(sumaMontos(yaDes)), cls: 'ok' },
+      { label: 'Total de solicitudes', val: lista.length, sub: 'Monto: $' + money(sumaMontos(lista)), cls: '' }
+    ].map(kpiHtml).join('');
+    kpD.style.display = lista.length ? 'grid' : 'none';
     document.getElementById('desembolsoTableBody').innerHTML = lista.map(function (s) {
       var estado = s.estado || 'pendiente';
       return '<tr>' +
+        '<td class="col-id">#' + s.id + '</td>' +
         '<td>' + esc((s.created_at || '').slice(0, 10)) + '</td>' +
         '<td>' + esc(fondoLabelPorId(s.fondo_id)) + '</td>' +
         '<td>' + esc(s.area_solicitante || '') + '</td>' +
-        '<td>' + esc((s.descripcion || '').slice(0, 60)) + '</td>' +
-        '<td>$' + money(s.monto_total) + '</td>' +
+        '<td class="col-desc">' + esc((s.descripcion || '').slice(0, 90)) + '</td>' +
+        '<td class="num">$' + money(s.monto_total) + '</td>' +
         '<td><span class="badge estado-' + esc(estado) + '">' + (SOLICITUD_ESTADO_LABEL[estado] || estado) + '</span></td>' +
         '<td><div class="row-actions"><button type="button" class="secondary" data-ver-desembolso="' + s.id + '">Ver detalle</button></div></td>' +
         '</tr>';
@@ -2977,14 +3160,14 @@
     var items = Array.isArray(s.items) ? s.items : [];
     document.getElementById('dItemsBody').innerHTML = items.map(function (it) {
       return '<tr>' +
-        '<td>' + it.numero + '</td>' +
+        '<td class="col-id">' + it.numero + '</td>' +
         '<td>' + esc(it.tipo === 'servicio' ? 'Servicio' : 'Bien') + '</td>' +
-        '<td>' + esc(it.descripcion || '') + '</td>' +
-        '<td>' + (it.cantidad != null ? it.cantidad : '') + '</td>' +
-        '<td>$' + money(it.precio_unitario) + '</td>' +
+        '<td class="col-desc">' + esc(it.descripcion || '') + '</td>' +
+        '<td class="num">' + (it.cantidad != null ? it.cantidad : '') + '</td>' +
+        '<td class="num">$' + money(it.precio_unitario) + '</td>' +
         '<td>' + esc(it.especifico_presupuestario || '—') + '</td>' +
         '<td>' + esc(it.cep || '—') + '</td>' +
-        '<td>$' + money(it.total) + '</td>' +
+        '<td class="num">$' + money(it.total) + '</td>' +
         '</tr>';
     }).join('');
 
@@ -2999,6 +3182,7 @@
     hideMsg(document.getElementById('desembolsoMsg'));
     document.getElementById('desembolsoListWrap').style.display = 'none';
     document.getElementById('desembolsoListVacio').style.display = 'none';
+    document.getElementById('desembolsoKpis').style.display = 'none';
     document.getElementById('desembolsoDetalle').style.display = 'block';
     renderDesembolsoDetalle(s);
     document.getElementById('viewDesembolso').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4477,6 +4661,24 @@
   // ==================================================================
   // Init
   // ==================================================================
+  // Tarjeta del usuario al pie del menú lateral: nombre y rol principal.
+  function pintarUsuarioMenu() {
+    if (!currentUser) return;
+    var nombre = fullName(currentUser) || '—';
+    var partes = nombre.split(/\s+/).filter(Boolean);
+    var ini = ((partes[0] || '')[0] || '') + ((partes.length > 1 ? partes[partes.length - 1] : '')[0] || '');
+    var rol = isAdmin ? 'Administrador del portal'
+      : puedeCertificar ? 'Presupuesto'
+      : puedeTesoreria ? 'Tesorería'
+      : fondosAdministrados.length ? 'Administrador de fondo'
+      : puedeAutorizarAlgo ? 'Gerencia responsable'
+      : 'Solicitante';
+    document.getElementById('drawerUserAv').textContent = ini.toUpperCase() || '—';
+    document.getElementById('drawerUserName').textContent = nombre;
+    document.getElementById('drawerUserRole').textContent = rol;
+    document.getElementById('drawerUser').style.display = 'flex';
+  }
+
   function actualizarVisibilidadTabs() {
     var accesoAlgunModulo = canLoad || puedeCertificar || puedeDesembolsar || puedeAutorizarAlgo;
     document.getElementById('groupSolicitud').classList.toggle('hidden', !accesoAlgunModulo);
@@ -4534,6 +4736,7 @@
       tesoreria = resList[3].tesoreria || [];
       recalcularAutorizacion();
       poblarSolicitudesSelectores();
+      pintarUsuarioMenu();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
