@@ -39,7 +39,7 @@ pertenezcan:
 - **Solicitante** — estar asignado a un fondo (lo mismo que hoy habilita
   "usar" ese fondo, se asigna desde **Configurar usuarios**) da acceso a
   **Crear Solicitud, Registrar factura o documento equivalente, Historial
-  e Informe de Gastos**. Es la misma persona quien crea la solicitud,
+  e Solicitud de reintegro o liquidación**. Es la misma persona quien crea la solicitud,
   registra su factura, revisa su historial y genera su informe.
 - **Certificador (personal de Presupuesto)** — acceso a **Certificación
   presupuestaria**. Solo lo tienen los **miembros del "Departamento de
@@ -52,7 +52,7 @@ pertenezcan:
   no pertenece; 502 si no puede consultar Bitrix24, sin asumir permiso). No
   depende de ningún fondo.
 - **Administrador de fondo** — acceso a **Desembolso de fondos** e
-  **Informe de Gastos**, pero **solo para el/los fondo(s) que administra**:
+  **Solicitud de reintegro o liquidación**, pero **solo para el/los fondo(s) que administra**:
   es un subconjunto de los usuarios asignados a un fondo (no todos los que
   pueden usarlo para crear solicitudes son también administradores de
   ese fondo). Se elige al **crear el fondo** (y se puede cambiar después
@@ -60,7 +60,7 @@ pertenezcan:
   usuario normal del fondo (no pierde el acceso a crear solicitudes
   contra él, solo el de desembolsar/informar). El servidor valida esto
   también al momento de desembolsar y de gestionar un reembolso o
-  liquidación, no solo la pantalla. **Informe de Gastos ya no es de
+  liquidación, no solo la pantalla. **Solicitud de reintegro o liquidación ya no es de
   autoservicio para cualquier solicitante** — desde que existe la
   gestión de reintegro/liquidación, solo administradores de fondo (y del
   portal) entran ahí, y cada uno solo ve la información de sus propios
@@ -76,7 +76,7 @@ pertenezcan:
   municipal y el comprobante de transferencia (fondo circulante) o el
   voucher/cheque (caja chica). Está **separado de los administradores de
   fondo**, que son quienes *piden* el reintegro o la liquidación desde
-  Informe de Gastos y no usan este menú (salvo que además sean de Tesorería).
+  Solicitud de reintegro o liquidación y no usan este menú (salvo que además sean de Tesorería).
   Ya no se asigna en Configurar usuarios: se deriva de Bitrix24 y ahí solo
   se muestra la lista informativa. El administrador del portal también
   entra (ver "Administrador del portal"). El servidor lo verifica contra
@@ -85,7 +85,7 @@ pertenezcan:
 - **Administrador del portal de Bitrix24** — ve **todas** las opciones de la
   app (Crear Solicitud con cualquier fondo, Autorización, Desembolso,
   Registrar factura, Certificación, Reintegro/liquidación, Tesorería,
-  Historial, Informe, Reportes, Dashboard y Configurar usuarios) y puede
+  Historial, Solicitud de reintegro o liquidación, Reportes y Configurar usuarios) y puede
   usarlas. Para las acciones de Presupuesto y Tesorería (y para crear
   solicitudes contra un fondo que no tiene asignado) el servidor no se fía
   del navegador: recibe el token de sesión de Bitrix24 del usuario
@@ -183,7 +183,7 @@ portal, que da acceso a todo sin excepción).
      Eliminada, ya no se puede editar ni desembolsar, pero sigue visible en
      la tabla para trazabilidad.
      - **Reintegro o liquidación de fondos** muestra las **gestiones**
-     (`gastos_gestiones`) creadas desde "Informe de Gastos" que siguen
+     (`gastos_gestiones`) creadas desde "Solicitud de reintegro o liquidación" que siguen
      `pendiente` de revisión, cada una con sus gastos agrupados (mismo
      fondo, mismo mes, mismo tipo — Reintegro o Liquidación). Cada gasto
      tiene un botón **"Editar"** (mismo formulario de "Registrar factura",
@@ -258,7 +258,7 @@ portal, que da acceso a todo sin excepción).
   suyos, nunca los eliminados). Desde la vista "Eliminados" (solo admin) se
   puede **restablecer** un gasto a su estado anterior (`registrado` o
   `informado`).
-- **Informe de Gastos** (acceso: administradores de fondo y del portal, ver
+- **Solicitud de reintegro o liquidación** (acceso: administradores de fondo y del portal, ver
   "Modelo de permisos"): el administrador elige **Fondo** y un rango de
   fechas **Desde / Hasta**, y ve los gastos con factura o documento
   equivalente registrado en ese rango (estado `registrado`, de ese fondo,
@@ -272,24 +272,28 @@ portal, que da acceso a todo sin excepción).
   del portal puede elegir de qué administrador de fondo ver la
   información. Arriba aparece un aviso si tiene un reintegro de caja chica
   por confirmar (ver "Reintegro de fondos").
-- **Reportes** (disponible para todo usuario habilitado, no solo administradores):
-  filtra todos los gastos por Nombre, Cargo y Unidad del usuario que los
-  registró (tomados de Bitrix24: `user.get` / `department.get`), más rango de
-  fechas, y descarga el resultado en **Excel** o **PDF** (el PDF incluye además
-  el fondo asociado a quien registró cada gasto). El filtro por **Estado**
-  (registrado/informado) solo lo ve un administrador.
-- **Dashboard** (disponible para todo usuario habilitado, no solo administradores):
-  por cada fondo, muestra a cada usuario asignado con su foto de perfil de
-  Bitrix24 (o iniciales si no tiene foto o la foto falla al cargar), su monto
-  **Registrado** (naranja) y su monto **Informado** (verde) del período
-  filtrado, calculado a partir del fondo real (`fondo_id`) de cada gasto —no de
-  una estimación por usuario—, así que un usuario con varios fondos ve su gasto
-  repartido correctamente entre ellos. Filtros por Tipo de fondo, Año, Mes y
-  Usuario. Si hay algún monto informado en el resultado filtrado, aparece el
-  botón **"Descargar informe (PDF)"**. Los datos se recalculan cada vez que se
-  abre la pestaña o se le da "Actualizar" (no hay un socket de tiempo real;
-  refleja el estado más reciente guardado en Supabase al momento de
-  cargar/actualizar).
+- **Reportes** (una sola pantalla que reemplaza al antiguo "Dashboard" y al
+  antiguo "Reportes"; disponible para todo usuario habilitado). Una barra de
+  filtros compartida (Tipo de fondo, Año del fondo, Estado, Usuario, Cargo,
+  Unidad, Fecha desde/hasta; Cargo y Unidad salen de Bitrix24) alimenta dos
+  pestañas, con una sola carga de datos:
+  - **Resumen por fondo**: por cada fondo, cada usuario con su foto de perfil
+    de Bitrix24 (o iniciales), su monto **Registrado** (naranja) y
+    **Informado** (verde), calculado con el fondo real (`fondo_id`) de cada
+    gasto, más totales por fondo y tarjetas de resumen. Botón **"Descargar
+    resumen (PDF)"** si hay algún monto informado.
+  - **Detalle de gastos**: tabla de gastos con tarjetas de totales y descarga
+    en **Excel** o **PDF**.
+
+  **Visibilidad (verificada en el servidor**, acción `reporte` de
+  `api/gastos.js`**, no en el navegador):** el administrador del portal ve
+  todo (se verifica con su token de sesión de Bitrix24); un administrador de
+  fondo ve los gastos de sus fondos más los suyos; cualquier otro usuario ve
+  solo los gastos que él registró. En el resumen, además, solo se listan los
+  fondos y usuarios que le corresponden. La pantalla indica el alcance
+  vigente bajo el título. Los datos se recalculan al abrir la pestaña o al
+  pulsar "Actualizar datos".
+  El menú "Dashboard" desapareció: ahora es la pestaña "Resumen por fondo".
 - **Tesorería** (acceso: personal del Departamento de Tesorería, ver
   "Modelo de permisos"): menú con **"Reintegro de fondos"** y **"Liquidación de
   Fondos"**. Solo aparece lo que Presupuesto ya autorizó.
@@ -300,7 +304,7 @@ portal, que da acceso a todo sin excepción).
   - **Reintegro, caja chica**: Tesorería sube el **acuerdo municipal (PDF)**
     y el **voucher o cheque de desembolso (imagen o PDF)**; la gestión queda
     **entregada** y el administrador del fondo recibe un aviso. Él debe
-    **confirmar que lo recibió** (desde el aviso en Informe de Gastos) y
+    **confirmar que lo recibió** (desde el aviso en Solicitud de reintegro o liquidación) y
     ahí se cierra. **Mientras no lo confirme no puede usar ese fondo**:
     crear solicitudes, desembolsar o registrar facturas contra la caja
     chica muestra una ventana emergente para confirmarlo en el momento y
@@ -511,7 +515,7 @@ entorno anteriores.
   eligiendo una solicitud (`gastos_solicitudes`) y el servidor copia de ahí
   `fondo_id`, `area_solicitante`, `nombre_proceso`, `descripcion` y
   `justificacion` hacia la fila del gasto — nunca se confía en esos valores si los manda el navegador. Por
-  eso Historial, Informe, Reportes, Dashboard y las exportaciones no cambiaron:
+  eso Historial, Solicitud de reintegro o liquidación, Reportes y las exportaciones no cambiaron:
   siguen leyendo esos campos directo del gasto. Editar un gasto (incluidos los
   creados antes de que existiera este flujo) exige elegir una solicitud, igual
   como ya exigía elegir un fondo antes de este cambio.
@@ -603,14 +607,14 @@ entorno anteriores.
   agrupa los gastos `registrado` de **un fondo, un mes y un tipo**
   (Reintegro o Liquidación) en una sola fila, y pasa todos esos gastos a
   `informado` marcados con `gestion_id`. Flujo de estados: `pendiente`
-  (recién creada desde Informe de Gastos) → `revisado` (un certificador
+  (recién creada desde Solicitud de reintegro o liquidación) → `revisado` (un certificador
   confirma en "Reintegro o liquidación de fondos"; genera y sube el PDF) →
   `cerrado` (Tesorería confirma el reintegro emitido o acepta la
   liquidación). `action=crear` valida en el servidor que quien la crea sea
   administrador de ese fondo específico (`gastos_fondo_usuarios.es_administrador`)
   o un administrador del portal; en este último caso, si el administrador
   del portal gestionó **en nombre de** otro administrador de fondo (elegido
-  en el selector de Informe de Gastos), `administrador_id`/
+  en el selector de Solicitud de reintegro o liquidación), `administrador_id`/
   `administrador_nombre` en la gestión quedan con esa persona, no con quien
   ejecutó la acción (`actor_id`) — así el comprobante y la notificación
   llegan a quien realmente administra el fondo. `action=revisar` exige ser
@@ -680,7 +684,7 @@ solicitud, resaltando en rojo lo que excede).
 
 ## Flujo de reintegro (v2)
 
-1. **Administrador de fondo** (Informe de Gastos): elige fondo y rango de
+1. **Administrador de fondo** (Solicitud de reintegro o liquidación): elige fondo y rango de
    fechas, marca los gastos y los envía → gestión `pendiente`.
 2. **Presupuesto** (certificadores; Certificación presupuestaria →
    "Reintegro o liquidación de fondos"): revisa, **modifica con "Editar" si

@@ -221,6 +221,45 @@ module.exports = async (req, res) => {
       const body = await readBody(req);
       const action = body.action;
 
+      // Datos de la pantalla Reportes, con el alcance calculado en el servidor:
+      //  - administrador del portal (verificado contra Bitrix24): todos los gastos
+      //  - administrador de fondo: los gastos de sus fondos + los suyos
+      //  - cualquier otro usuario: solo los gastos que él registró
+      if (action === 'reporte') {
+        const actor = String(body.actor_id || '').trim();
+        if (!actor) { res.status(400).json({ ok: false, error: 'Falta el usuario.' }); return; }
+        const enc = encodeURIComponent;
+        let filtro = '';
+        let alcance = 'propio';
+        if (await presupuesto.esAdminPortal(actor, body.auth_token)) {
+          alcance = 'todos';
+        } else {
+          const rA = await sb('gastos_fondo_usuarios?usuario_id=eq.' + enc(actor) + '&es_administrador=eq.true&select=fondo_id');
+          const adm = await rA.json();
+          if (!rA.ok || !Array.isArray(adm)) { res.status(502).json({ ok: false, error: 'No se pudo verificar los fondos que administras.' }); return; }
+          const fondoIds = Array.from(new Set(adm.map((a) => a.fondo_id).filter((x) => x != null)));
+          if (fondoIds.length) {
+            const lista = fondoIds.map(enc).join(',');
+            const rU = await sb('gastos_fondo_usuarios?fondo_id=in.(' + lista + ')&select=usuario_id');
+            const us = await rU.json();
+            if (!rU.ok || !Array.isArray(us)) { res.status(502).json({ ok: false, error: 'No se pudo verificar los usuarios de tus fondos.' }); return; }
+            const uids = Array.from(new Set(us.map((u) => String(u.usuario_id))));
+            const partes = ['created_by_id.eq.' + enc(actor), 'fondo_id.in.(' + lista + ')'];
+            // gastos antiguos sin fondo_id: se atribuyen por el usuario que los registró
+            if (uids.length) partes.push('and(fondo_id.is.null,created_by_id.in.(' + uids.map(enc).join(',') + '))');
+            filtro = '&or=(' + partes.join(',') + ')';
+            alcance = 'fondos';
+          } else {
+            filtro = '&created_by_id=eq.' + enc(actor);
+          }
+        }
+        const r = await sb('gastos_registros?select=*&order=fecha.desc,created_at.desc&estado=neq.eliminado' + filtro);
+        const data = await r.json();
+        if (!r.ok || !Array.isArray(data)) { res.status(500).json({ ok: false, error: 'No se pudieron leer los gastos.' }); return; }
+        res.status(200).json({ ok: true, alcance: alcance, gastos: data });
+        return;
+      }
+
       if (action === 'save') {
         const solRes = await buscarSolicitud((body.gasto || {}).solicitud_id);
         if (solRes.error) { res.status(400).json({ ok: false, error: solRes.error }); return; }

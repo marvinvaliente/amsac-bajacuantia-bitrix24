@@ -372,6 +372,31 @@
 
   @media (max-width: 1300px) { table.table-corp .hide-md { display: none; } }
 
+  .filtros-panel { background: #f8f9fc; border: 1px solid var(--border); border-radius: 6px; padding: 4px 16px 16px; margin-bottom: 18px; }
+  .filtros-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 14px; }
+  .filtros-grid label { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #6b7a86; margin: 14px 0 5px; }
+  .filtros-grid select, .filtros-grid input { padding: 9px 10px; font-size: 14px; }
+  .filtros-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .filtros-actions button, .pane-actions button { width: auto; margin: 0; padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 4px; }
+  .pane-actions { display: flex; gap: 8px; justify-content: flex-end; margin: 0 0 12px; flex-wrap: wrap; }
+  .pane-actions:empty { display: none; }
+  @media (max-width: 1100px) { .filtros-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .filtros-grid { grid-template-columns: 1fr; } }
+  .seg { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin: 0 0 18px; }
+  .seg .seg-btn {
+    width: auto; margin: 0 0 -2px; padding: 11px 20px; background: none; color: #6b7a86; border: none; border-bottom: 3px solid transparent;
+    border-radius: 0; font-size: 13px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .seg .seg-btn:hover { background: none; color: var(--primary); }
+  .seg .seg-btn.active { color: var(--primary-dark); border-bottom-color: var(--accent); }
+  .rep-fondo { border: 1px solid var(--border); border-top: 3px solid var(--primary); border-radius: 6px; margin-bottom: 14px; background: #fff; box-shadow: 0 1px 2px rgba(14, 24, 48, .05); }
+  .rep-fondo-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; background: #f4f6fb; border-bottom: 1px solid var(--border); }
+  .rep-fondo-name { font-size: 14px; font-weight: 700; color: var(--primary-dark); }
+  .rep-fondo-name span { font-weight: 400; color: #6b7a86; }
+  .rep-fondo-tot { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .rep-fondo-tot .monto { color: var(--primary-dark); }
+  .rep-fondo .dash-user-row { padding: 10px 16px; }
+
   .btn-back {
     width: auto; margin: 0 0 14px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: #fff; color: var(--primary);
     border: 1px solid var(--border); border-radius: 4px;
@@ -508,15 +533,11 @@
       </li>
       <li class="tab hidden" id="tabInformeBtn" data-tab="informe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6a1 1 0 0 1 1 1v2H8V3a1 1 0 0 1 1-1z"/><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
-        <span>Informe de Gastos</span>
+        <span>Solicitar reintegro o liquidación</span>
       </li>
       <li class="tab hidden" id="tabReportesBtn" data-tab="reportes">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
         <span>Reportes</span>
-      </li>
-      <li class="tab hidden" id="tabDashboardBtn" data-tab="dashboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-        <span>Dashboard</span>
       </li>
       <li class="tab hidden" id="tabConfigBtn" data-tab="config">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
@@ -829,7 +850,7 @@
     <!-- ---- Reintegro o liquidación de fondos (Certificación) ---- -->
     <div id="viewReintegroLiquidacion" class="card" style="display:none">
       <div class="section-title">Reintegro o liquidación de fondos</div>
-      <div class="gasto-line" style="margin-bottom:14px">Gestiones enviadas por los administradores de fondo desde "Informe de Gastos" (gastos que ellos eligieron). Revisa los gastos, modifícalos con "Editar" si es necesario y autoriza: luego pasa a Tesorería.</div>
+      <div class="gasto-line" style="margin-bottom:14px">Gestiones enviadas por los administradores de fondo desde "Solicitud de reintegro o liquidación" (gastos que ellos eligieron). Revisa los gastos, modifícalos con "Editar" si es necesario y autoriza: luego pasa a Tesorería.</div>
 
       <div id="reintegroLiqLoading" class="loading">Cargando...</div>
       <div id="reintegroLiqContent" style="display:none"></div>
@@ -1102,7 +1123,10 @@
 
     <!-- ---- Informe de Gastos ---- -->
     <div id="viewInforme" class="card" style="display:none">
-      <div class="section-title">Informe de Gastos</div>
+      <div class="page-head">
+        <div class="page-title">Solicitud de reintegro o liquidación</div>
+        <div class="page-sub">Selecciona los gastos con factura registrada y envíalos a Presupuesto para su reintegro o liquidación.</div>
+      </div>
       <div id="infPendientes" style="display:none"></div>
       <div id="infUsuarioWrap" style="display:none">
         <label for="infUsuario">Administrador de fondo</label>
@@ -1138,110 +1162,96 @@
       <div id="informeMsg" class="msg"></div>
     </div>
 
-    <!-- ---- Reportes ---- -->
+    <!-- ---- Reportes (resumen por fondo + detalle de gastos) ---- -->
     <div id="viewReportes" class="card" style="display:none">
-      <div class="section-title">Reportes</div>
+      <div class="page-head">
+        <div class="page-title">Reportes</div>
+        <div class="page-sub" id="repAlcance">—</div>
+      </div>
       <div id="reportesLoading" class="loading">Cargando...</div>
       <div id="reportesContent" style="display:none">
-        <div class="filters-grid">
-          <div id="repEstadoWrap" style="display:none">
-            <label for="repEstado">Estado</label>
-            <select id="repEstado">
-              <option value="">Todos</option>
-              <option value="registrado">Registrado</option>
-              <option value="informado">Informado</option>
-            </select>
+        <div class="filtros-panel">
+          <div class="filtros-grid">
+            <div>
+              <label for="repTipo">Tipo de fondo</label>
+              <select id="repTipo">
+                <option value="">Todos</option>
+                <option value="caja_chica">Fondo de caja chica</option>
+                <option value="circulante">Fondo circulante</option>
+              </select>
+            </div>
+            <div>
+              <label for="repAnio">Año del fondo</label>
+              <select id="repAnio"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label for="repEstado">Estado del gasto</label>
+              <select id="repEstado">
+                <option value="">Todos</option>
+                <option value="registrado">Registrado</option>
+                <option value="informado">Informado</option>
+              </select>
+            </div>
+            <div>
+              <label for="repUsuario">Usuario</label>
+              <select id="repUsuario"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label for="repCargo">Cargo</label>
+              <select id="repCargo"><option value="">Todos</option></select>
+            </div>
+            <div>
+              <label for="repUnidad">Unidad</label>
+              <select id="repUnidad"><option value="">Todas</option></select>
+            </div>
+            <div>
+              <label for="repDesde">Fecha desde</label>
+              <input type="date" id="repDesde" />
+            </div>
+            <div>
+              <label for="repHasta">Fecha hasta</label>
+              <input type="date" id="repHasta" />
+            </div>
           </div>
-          <div>
-            <label for="repUsuario">Nombre</label>
-            <select id="repUsuario"><option value="">Todos</option></select>
-          </div>
-          <div>
-            <label for="repCargo">Cargo</label>
-            <select id="repCargo"><option value="">Todos</option></select>
-          </div>
-          <div>
-            <label for="repUnidad">Unidad</label>
-            <select id="repUnidad"><option value="">Todas</option></select>
-          </div>
-          <div></div>
-          <div>
-            <label for="repDesde">Fecha desde</label>
-            <input type="date" id="repDesde" />
-          </div>
-          <div>
-            <label for="repHasta">Fecha hasta</label>
-            <input type="date" id="repHasta" />
+          <div class="filtros-actions">
+            <button type="button" id="btnRepLimpiar" class="secondary">Limpiar filtros</button>
+            <button type="button" id="btnRepActualizar" class="secondary">Actualizar datos</button>
           </div>
         </div>
-        <button type="button" id="btnAplicarFiltros">Aplicar filtros</button>
 
-        <div id="repStats" class="stat-row"></div>
-
-        <div class="btn-row">
-          <button type="button" id="btnExportExcel" class="secondary">Descargar Excel</button>
-          <button type="button" id="btnExportPDF" class="secondary">Descargar PDF</button>
+        <div class="seg" role="tablist">
+          <button type="button" class="seg-btn active" data-rep-vista="resumen">Resumen por fondo</button>
+          <button type="button" class="seg-btn" data-rep-vista="detalle">Detalle de gastos</button>
         </div>
 
-        <div class="table-wrap" style="margin-top:14px; max-height:420px; overflow-y:auto">
-          <table class="data-table" id="repTable">
-            <thead>
-              <tr>
-                <th>Fecha</th><th>N° Doc</th><th>Proveedor</th><th>Descripción</th><th>Área solicitante</th>
-                <th>Retenido</th><th>Total</th><th>Registrado por</th><th>Cargo</th><th>Unidad</th>
-              </tr>
-            </thead>
-            <tbody id="repTableBody"></tbody>
-          </table>
+        <div id="repPaneResumen">
+          <div id="repResumenKpis" class="kpi-row"></div>
+          <div class="pane-actions">
+            <button type="button" id="btnDescargarDashboardPDF" class="secondary" style="display:none">Descargar resumen (PDF)</button>
+          </div>
+          <div id="repResumenContent"></div>
+        </div>
+
+        <div id="repPaneDetalle" style="display:none">
+          <div id="repDetalleKpis" class="kpi-row"></div>
+          <div class="pane-actions">
+            <button type="button" id="btnExportExcel" class="secondary">Descargar Excel</button>
+            <button type="button" id="btnExportPDF" class="secondary">Descargar PDF</button>
+          </div>
+          <div class="table-wrap corp" style="max-height:520px; overflow-y:auto">
+            <table class="data-table table-corp" id="repTable">
+              <thead>
+                <tr>
+                  <th>Fecha</th><th>N° Doc</th><th>Proveedor</th><th>Descripción</th><th>Área solicitante</th><th>Fondo</th>
+                  <th class="num">Retenido</th><th class="num">Total</th><th>Estado</th><th>Registrado por</th><th class="hide-md">Cargo</th><th class="hide-md">Unidad</th>
+                </tr>
+              </thead>
+              <tbody id="repTableBody"></tbody>
+            </table>
+          </div>
+          <div id="repDetalleVacio" class="empty-state" style="display:none">No hay gastos que coincidan con los filtros.</div>
         </div>
       </div>
-    </div>
-
-    <!-- ---- Dashboard ---- -->
-    <div id="viewDashboard" class="card" style="display:none">
-      <div class="section-title">Dashboard de fondos</div>
-      <div class="filters-grid">
-        <div>
-          <label for="dashTipo">Tipo de fondo</label>
-          <select id="dashTipo">
-            <option value="">Todos</option>
-            <option value="caja_chica">Fondo de caja chica</option>
-            <option value="circulante">Fondo circulante</option>
-          </select>
-        </div>
-        <div>
-          <label for="dashAnio">Año</label>
-          <select id="dashAnio"><option value="">Todos</option></select>
-        </div>
-        <div>
-          <label for="dashMes">Mes</label>
-          <select id="dashMes">
-            <option value="">Todos</option>
-            <option value="1">1 - Enero</option>
-            <option value="2">2 - Febrero</option>
-            <option value="3">3 - Marzo</option>
-            <option value="4">4 - Abril</option>
-            <option value="5">5 - Mayo</option>
-            <option value="6">6 - Junio</option>
-            <option value="7">7 - Julio</option>
-            <option value="8">8 - Agosto</option>
-            <option value="9">9 - Septiembre</option>
-            <option value="10">10 - Octubre</option>
-            <option value="11">11 - Noviembre</option>
-            <option value="12">12 - Diciembre</option>
-          </select>
-        </div>
-        <div>
-          <label for="dashUsuario">Usuario</label>
-          <select id="dashUsuario"><option value="">Todos</option></select>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button type="button" id="btnActualizarDashboard" class="secondary">Actualizar</button>
-        <button type="button" id="btnDescargarDashboardPDF" class="secondary" style="display:none">Descargar informe (PDF)</button>
-      </div>
-      <div id="dashboardLoading" class="loading">Cargando...</div>
-      <div id="dashboardContent" style="display:none; margin-top:14px"></div>
     </div>
 
     <!-- ---- Configurar usuarios / Fondos ---- -->
@@ -1362,7 +1372,7 @@
   var editingNumeroComprobante = '';
   var editingFacturaUrls = [];
 
-  var todosLosGastos = [];      // cache para Reportes (solo admin)
+  var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
   var gastosFiltrados = [];
 
   var certificadores = [];      // [{id, tipo:'usuario'|'departamento', valor}]
@@ -1687,7 +1697,7 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'dashboard', 'config', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
+  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'config', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
@@ -1701,7 +1711,6 @@
     if (name === 'historial') loadHistorial();
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
-    if (name === 'dashboard') initDashboard();
     if (name === 'config') { initConfigTab(); }
     if (name === 'tesoreriaReintegro') initTesoreriaVista('reintegro');
     if (name === 'tesoreriaLiquidacion') initTesoreriaVista('liquidacion');
@@ -3991,94 +4000,258 @@
   });
 
   // ==================================================================
-  // Reportes
+  // Reportes (resumen por fondo + detalle de gastos, una sola pantalla)
   // ==================================================================
-  var reportesInicializado = false;
+  // El servidor ya devuelve solo lo que le corresponde al usuario (todo para
+  // el administrador del portal, los gastos de sus fondos para un
+  // administrador de fondo, y los propios para el resto). Aquí además se
+  // limitan los fondos y usuarios que se listan en el resumen.
+  var dashboardFilasPDF = [];
+  var reportesVista = 'resumen';
+
+  function iniciales(u) {
+    if (!u) return '?';
+    return [u.NAME, u.LAST_NAME].filter(Boolean).map(function (s) { return s.charAt(0).toUpperCase(); }).join('') || '?';
+  }
+
+  function esFondoAdministrado(f) {
+    return fondosAdministrados.some(function (id) { return String(id) === String(f.id); });
+  }
+  // Usuarios de un fondo que el usuario actual puede ver en el resumen.
+  function usuariosVisiblesEnFondo(f) {
+    var ids = (f.usuario_ids || []).map(String);
+    if (isAdmin || esFondoAdministrado(f)) return ids;
+    return ids.filter(function (id) { return id === String(currentUser.ID); });
+  }
+  function fondosVisiblesReporte() {
+    return fondos.filter(function (f) { return usuariosVisiblesEnFondo(f).length > 0; });
+  }
+  // Fondo de un gasto: el exacto (fondo_id) o, en gastos antiguos sin esa
+  // columna, el único fondo del usuario que lo registró.
+  function fondoObjDeGasto(g) {
+    if (g.fondo_id != null) return fondos.find(function (x) { return String(x.id) === String(g.fondo_id); }) || null;
+    var propios = fondos.filter(function (f) {
+      return (f.usuario_ids || []).some(function (x) { return String(x) === String(g.created_by_id); });
+    });
+    return propios.length === 1 ? propios[0] : null;
+  }
+  // Determina si un gasto cuenta para un fondo dado (misma regla que antes).
+  function gastoPerteneceAFondo(g, fondoId, uid) {
+    if (g.fondo_id != null) return String(g.fondo_id) === String(fondoId);
+    var fondosDelUsuario = fondos.filter(function (f) {
+      return (f.usuario_ids || []).some(function (x) { return String(x) === String(uid); });
+    });
+    return fondosDelUsuario.length === 1 && String(fondosDelUsuario[0].id) === String(fondoId);
+  }
+
+  function textoAlcanceReportes() {
+    if (isAdmin) return 'Mostrando todos los fondos y usuarios (administrador del portal).';
+    if (fondosAdministrados.length) return 'Mostrando los fondos que administras y tus propios gastos.';
+    return 'Mostrando únicamente tus propios gastos.';
+  }
+
   function initReportes() {
-    document.getElementById('repEstadoWrap').style.display = isAdmin ? 'block' : 'none';
+    document.getElementById('repAlcance').textContent = textoAlcanceReportes();
+    document.getElementById('reportesLoading').className = 'loading';
+    document.getElementById('reportesLoading').textContent = 'Cargando...';
     document.getElementById('reportesLoading').style.display = 'block';
     document.getElementById('reportesContent').style.display = 'none';
-    apiCall('gastos?action=list&admin=1').then(function (r) {
+    apiCall('gastos', { method: 'POST', body: { action: 'reporte', actor_id: currentUser.ID } }).then(function (r) {
+      if (!r || !r.ok) {
+        document.getElementById('reportesLoading').textContent = (r && r.error) || 'No se pudieron cargar los reportes.';
+        return;
+      }
       todosLosGastos = r.gastos || [];
       document.getElementById('reportesLoading').style.display = 'none';
       document.getElementById('reportesContent').style.display = 'block';
-      if (!reportesInicializado) { poblarFiltrosReporte(); reportesInicializado = true; }
-      aplicarFiltrosReporte();
+      poblarFiltrosReporte();
+      renderReportes();
+    }).catch(function () {
+      document.getElementById('reportesLoading').textContent = 'Error de conexión al cargar los reportes.';
     });
+  }
+
+  function poblarSelectRep(id, opciones, todosTxt) {
+    var sel = document.getElementById(id);
+    var actual = sel.value;
+    sel.innerHTML = '<option value="">' + todosTxt + '</option>' + opciones.map(function (o) {
+      return '<option value="' + esc(o.v) + '">' + esc(o.t) + '</option>';
+    }).join('');
+    if (actual && opciones.some(function (o) { return String(o.v) === actual; })) sel.value = actual;
   }
 
   function poblarFiltrosReporte() {
-    var selUsuario = document.getElementById('repUsuario');
-    var creadores = Array.from(new Set(todosLosGastos.map(function (g) { return String(g.created_by_id); })));
-    creadores.sort(function (a, b) { return nombreDe(a).localeCompare(nombreDe(b)); });
-    creadores.forEach(function (id) {
-      var opt = document.createElement('option');
-      opt.value = id; opt.textContent = nombreDe(id);
-      selUsuario.appendChild(opt);
-    });
+    var anios = Array.from(new Set(fondosVisiblesReporte().map(function (f) { return String(f.anio); }))).sort();
+    poblarSelectRep('repAnio', anios.map(function (a) { return { v: a, t: a }; }), 'Todos');
 
-    var selCargo = document.getElementById('repCargo');
-    var cargos = Array.from(new Set(creadores.map(function (id) { return getCargo(id); }).filter(function (c) { return c && c !== '—'; })));
-    cargos.sort();
-    cargos.forEach(function (c) {
-      var opt = document.createElement('option');
-      opt.value = c; opt.textContent = c;
-      selCargo.appendChild(opt);
-    });
+    var ids = {};
+    todosLosGastos.forEach(function (g) { ids[String(g.created_by_id)] = true; });
+    fondosVisiblesReporte().forEach(function (f) { usuariosVisiblesEnFondo(f).forEach(function (id) { ids[id] = true; }); });
+    var lista = Object.keys(ids).sort(function (a, b) { return nombreDe(a).localeCompare(nombreDe(b)); });
+    poblarSelectRep('repUsuario', lista.map(function (id) { return { v: id, t: nombreDe(id) }; }), 'Todos');
+    var cargos = Array.from(new Set(lista.map(getCargo).filter(function (c) { return c && c !== '—'; }))).sort();
+    poblarSelectRep('repCargo', cargos.map(function (c) { return { v: c, t: c }; }), 'Todos');
+    var unidades = Array.from(new Set(lista.map(getUnidad).filter(function (u) { return u && u !== '—'; }))).sort();
+    poblarSelectRep('repUnidad', unidades.map(function (u) { return { v: u, t: u }; }), 'Todas');
+  }
 
-    var selUnidad = document.getElementById('repUnidad');
-    var unidades = Array.from(new Set(creadores.map(function (id) { return getUnidad(id); }).filter(function (u) { return u && u !== '—'; })));
-    unidades.sort();
-    unidades.forEach(function (u) {
-      var opt = document.createElement('option');
-      opt.value = u; opt.textContent = u;
-      selUnidad.appendChild(opt);
+  function leerFiltrosRep() {
+    return {
+      tipo: document.getElementById('repTipo').value, anio: document.getElementById('repAnio').value,
+      estado: document.getElementById('repEstado').value, usuario: document.getElementById('repUsuario').value,
+      cargo: document.getElementById('repCargo').value, unidad: document.getElementById('repUnidad').value,
+      desde: document.getElementById('repDesde').value, hasta: document.getElementById('repHasta').value
+    };
+  }
+  // Filtros que no dependen del fondo (estado, usuario, cargo, unidad, fechas).
+  function gastosBaseReporte(F) {
+    return todosLosGastos.filter(function (g) {
+      if (F.estado && g.estado !== F.estado) return false;
+      if (F.usuario && String(g.created_by_id) !== F.usuario) return false;
+      if (F.cargo && getCargo(g.created_by_id) !== F.cargo) return false;
+      if (F.unidad && getUnidad(g.created_by_id) !== F.unidad) return false;
+      if (F.desde && g.fecha < F.desde) return false;
+      if (F.hasta && g.fecha > F.hasta) return false;
+      return true;
     });
   }
 
-  document.getElementById('btnAplicarFiltros').addEventListener('click', aplicarFiltrosReporte);
+  function renderReportes() {
+    var F = leerFiltrosRep();
+    var base = gastosBaseReporte(F);
+    renderResumenReporte(F, base);
+    renderDetalleReporte(F, base);
+  }
 
-  function aplicarFiltrosReporte() {
-    var estado = document.getElementById('repEstado').value;
-    var usuario = document.getElementById('repUsuario').value;
-    var cargo = document.getElementById('repCargo').value;
-    var unidad = document.getElementById('repUnidad').value;
-    var desde = document.getElementById('repDesde').value;
-    var hasta = document.getElementById('repHasta').value;
+  function renderResumenReporte(F, base) {
+    var fondosF = fondosVisiblesReporte().filter(function (f) {
+      return (!F.tipo || f.tipo === F.tipo) && (!F.anio || String(f.anio) === F.anio);
+    });
+    var totR = 0, totI = 0, nUsuarios = 0, hayInformado = false, nFondos = 0;
+    dashboardFilasPDF = [];
 
-    gastosFiltrados = todosLosGastos.filter(function (g) {
-      if (estado && g.estado !== estado) return false;
-      if (usuario && String(g.created_by_id) !== usuario) return false;
-      if (cargo && getCargo(g.created_by_id) !== cargo) return false;
-      if (unidad && getUnidad(g.created_by_id) !== unidad) return false;
-      if (desde && g.fecha < desde) return false;
-      if (hasta && g.fecha > hasta) return false;
+    var html = fondosF.map(function (f) {
+      var uids = usuariosVisiblesEnFondo(f).filter(function (uid) {
+        if (F.usuario && uid !== F.usuario) return false;
+        if (F.cargo && getCargo(uid) !== F.cargo) return false;
+        if (F.unidad && getUnidad(uid) !== F.unidad) return false;
+        return true;
+      });
+      if (!uids.length) return '';
+      var fr = 0, fi = 0;
+      var filas = uids.map(function (uid) {
+        var u = findUser(uid);
+        var gastosUsuario = base.filter(function (g) { return String(g.created_by_id) === String(uid) && gastoPerteneceAFondo(g, f.id, uid); });
+        var montoRegistrado = gastosUsuario.filter(function (g) { return g.estado === 'registrado'; })
+          .reduce(function (t, g) { return t + (Number(g.monto_total) || 0); }, 0);
+        var montoInformado = gastosUsuario.filter(function (g) { return g.estado === 'informado'; })
+          .reduce(function (t, g) { return t + (Number(g.monto_total) || 0); }, 0);
+        fr += montoRegistrado; fi += montoInformado;
+        if (montoInformado > 0) hayInformado = true;
+        dashboardFilasPDF.push({
+          fondo: (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio,
+          usuario: nombreDe(uid), cargo: getCargo(uid), unidad: getUnidad(uid),
+          registrado: montoRegistrado, informado: montoInformado
+        });
+        var tieneFoto = u && u.PERSONAL_PHOTO;
+        return '<div class="dash-user-row">' +
+          (tieneFoto
+            ? '<img class="dash-avatar" data-fallback="' + esc(iniciales(u)) + '" src="' + esc(u.PERSONAL_PHOTO) + '" />'
+            : '<div class="dash-avatar-fallback">' + esc(iniciales(u)) + '</div>') +
+          '<div class="dash-user-info">' +
+            '<div class="dash-user-name">' + esc(nombreDe(uid)) + ' <span class="dash-user-cargo">' + esc(getCargo(uid)) + '</span></div>' +
+            '<div class="dash-user-amounts">' +
+              '<span class="dash-amount registrado">Registrado: $' + money(montoRegistrado) + '</span>' +
+              '<span class="dash-amount informado">Informado: $' + money(montoInformado) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+      totR += fr; totI += fi; nUsuarios += uids.length; nFondos++;
+      return '<div class="rep-fondo">' +
+        '<div class="rep-fondo-head">' +
+          '<div class="rep-fondo-name">' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' <span>· ' + esc(f.anio) + '</span></div>' +
+          '<div class="rep-fondo-tot"><span class="monto">Fondo: $' + money(f.monto_total) + '</span>' +
+            '<span class="dash-amount registrado">Registrado: $' + money(fr) + '</span>' +
+            '<span class="dash-amount informado">Informado: $' + money(fi) + '</span></div>' +
+        '</div>' + filas +
+      '</div>';
+    }).filter(Boolean).join('');
+
+    document.getElementById('repResumenKpis').innerHTML = [
+      { label: 'Fondos', val: nFondos, cls: '' },
+      { label: 'Usuarios', val: nUsuarios, cls: '' },
+      { label: 'Registrado', val: '$' + money(totR), sub: 'Pendiente de informar', cls: 'warn' },
+      { label: 'Informado', val: '$' + money(totI), sub: 'Con factura informada', cls: 'ok' }
+    ].map(kpiHtml).join('');
+
+    var el = document.getElementById('repResumenContent');
+    el.innerHTML = html || '<div class="empty-state">No hay fondos o usuarios que coincidan con los filtros.</div>';
+    el.querySelectorAll('.dash-avatar').forEach(function (img) {
+      img.addEventListener('error', function () {
+        var div = document.createElement('div');
+        div.className = 'dash-avatar-fallback';
+        div.textContent = img.getAttribute('data-fallback') || '?';
+        img.replaceWith(div);
+      });
+    });
+    document.getElementById('btnDescargarDashboardPDF').style.display = hayInformado ? 'block' : 'none';
+  }
+
+  function renderDetalleReporte(F, base) {
+    gastosFiltrados = base.filter(function (g) {
+      if (!F.tipo && !F.anio) return true;
+      var f = fondoObjDeGasto(g);
+      if (!f) return false;
+      if (F.tipo && f.tipo !== F.tipo) return false;
+      if (F.anio && String(f.anio) !== F.anio) return false;
       return true;
     });
-
-    var sumaTotal = gastosFiltrados.reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
-    var sumaRetenido = gastosFiltrados.reduce(function (s, g) { return s + (Number(g.monto_retenido) || 0); }, 0);
-    document.getElementById('repStats').innerHTML =
-      '<div class="stat-box"><div class="n">' + gastosFiltrados.length + '</div><div class="l">Gastos</div></div>' +
-      '<div class="stat-box"><div class="n">$' + money(sumaTotal) + '</div><div class="l">Monto total</div></div>' +
-      '<div class="stat-box"><div class="n">$' + money(sumaRetenido) + '</div><div class="l">Monto retenido</div></div>';
-
+    var sumaTotal = gastosFiltrados.reduce(function (t, g) { return t + (Number(g.monto_total) || 0); }, 0);
+    var sumaRetenido = gastosFiltrados.reduce(function (t, g) { return t + (Number(g.monto_retenido) || 0); }, 0);
+    document.getElementById('repDetalleKpis').innerHTML = [
+      { label: 'Gastos', val: gastosFiltrados.length, cls: '' },
+      { label: 'Monto total', val: '$' + money(sumaTotal), cls: 'gold' },
+      { label: 'Monto retenido', val: '$' + money(sumaRetenido), cls: '' }
+    ].map(kpiHtml).join('');
+    document.getElementById('repDetalleVacio').style.display = gastosFiltrados.length ? 'none' : 'block';
     document.getElementById('repTableBody').innerHTML = gastosFiltrados.map(function (g) {
       return '<tr>' +
         '<td>' + esc(g.fecha) + '</td><td>' + esc(g.numero_documento) + '</td><td>' + esc(g.proveedor) + '</td>' +
-        '<td>' + esc(g.descripcion) + '</td><td>' + esc(g.area_solicitante) + '</td>' +
-        '<td>$' + money(g.monto_retenido) + '</td><td>$' + money(g.monto_total) + '</td>' +
-        '<td>' + esc(nombreDe(g.created_by_id)) + '</td><td>' + esc(getCargo(g.created_by_id)) + '</td><td>' + esc(getUnidad(g.created_by_id)) + '</td>' +
+        '<td class="col-desc">' + esc(g.descripcion) + '</td><td>' + esc(g.area_solicitante) + '</td><td>' + esc(getFondoDeGasto(g)) + '</td>' +
+        '<td class="num">$' + money(g.monto_retenido) + '</td><td class="num">$' + money(g.monto_total) + '</td>' +
+        '<td><span class="badge estado-' + esc(g.estado) + '">' + esc(g.estado === 'informado' ? 'Informado' : 'Registrado') + '</span></td>' +
+        '<td>' + esc(nombreDe(g.created_by_id)) + '</td><td class="hide-md">' + esc(getCargo(g.created_by_id)) + '</td><td class="hide-md">' + esc(getUnidad(g.created_by_id)) + '</td>' +
         '</tr>';
     }).join('');
   }
+
+  function mostrarVistaReporte(v) {
+    reportesVista = v;
+    document.querySelectorAll('[data-rep-vista]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-rep-vista') === v); });
+    document.getElementById('repPaneResumen').style.display = v === 'resumen' ? 'block' : 'none';
+    document.getElementById('repPaneDetalle').style.display = v === 'detalle' ? 'block' : 'none';
+  }
+  document.querySelectorAll('[data-rep-vista]').forEach(function (b) {
+    b.addEventListener('click', function () { mostrarVistaReporte(b.getAttribute('data-rep-vista')); });
+  });
+  ['repTipo', 'repAnio', 'repEstado', 'repUsuario', 'repCargo', 'repUnidad', 'repDesde', 'repHasta'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderReportes);
+  });
+  document.getElementById('btnRepLimpiar').addEventListener('click', function () {
+    ['repTipo', 'repAnio', 'repEstado', 'repUsuario', 'repCargo', 'repUnidad', 'repDesde', 'repHasta'].forEach(function (id) { document.getElementById(id).value = ''; });
+    renderReportes();
+  });
+  document.getElementById('btnRepActualizar').addEventListener('click', initReportes);
 
   document.getElementById('btnExportExcel').addEventListener('click', function () {
     var data = gastosFiltrados.map(function (g) {
       return {
         'Fecha': g.fecha, 'Mes': g.mes, 'N° Documento': g.numero_documento, 'Proveedor': g.proveedor,
-        'Descripción': g.descripcion, 'Área solicitante': g.area_solicitante,
-        'Monto retenido': Number(g.monto_retenido) || 0, 'Monto total': Number(g.monto_total) || 0
+        'Descripción': g.descripcion, 'Área solicitante': g.area_solicitante, 'Fondo': getFondoDeGasto(g),
+        'Estado': g.estado === 'informado' ? 'Informado' : 'Registrado',
+        'Monto retenido': Number(g.monto_retenido) || 0, 'Monto total': Number(g.monto_total) || 0,
+        'Registrado por': nombreDe(g.created_by_id), 'Cargo': getCargo(g.created_by_id), 'Unidad': getUnidad(g.created_by_id)
       };
     });
     var ws = XLSX.utils.json_to_sheet(data.length ? data : [{}]);
@@ -4094,153 +4267,22 @@
     doc.text('Reporte de Gastos de Baja Cuantía', 14, 12);
     doc.autoTable({
       startY: 18,
-      head: [['Fecha', 'N° Doc', 'Proveedor', 'Descripción', 'Área solicitante', 'Retenido', 'Total', 'Registrado por', 'Cargo', 'Unidad', 'Fondo']],
+      head: [['Fecha', 'N° Doc', 'Proveedor', 'Descripción', 'Área solicitante', 'Retenido', 'Total', 'Estado', 'Registrado por', 'Cargo', 'Unidad', 'Fondo']],
       body: gastosFiltrados.map(function (g) {
         return [g.fecha, g.numero_documento, g.proveedor, g.descripcion, g.area_solicitante,
-          money(g.monto_retenido), money(g.monto_total), nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id), getFondoDeGasto(g)];
+          money(g.monto_retenido), money(g.monto_total), g.estado === 'informado' ? 'Informado' : 'Registrado',
+          nombreDe(g.created_by_id), getCargo(g.created_by_id), getUnidad(g.created_by_id), getFondoDeGasto(g)];
       }),
       styles: { fontSize: 7 }
     });
     doc.save('Gastos_Baja_Cuantia_' + todayStr() + '.pdf');
   });
 
-  // ==================================================================
-  // Dashboard de fondos
-  // ==================================================================
-  var dashboardGastos = [];
-  var dashboardFilasPDF = [];
-  var dashboardInicializado = false;
-
-  function iniciales(u) {
-    if (!u) return '?';
-    return [u.NAME, u.LAST_NAME].filter(Boolean).map(function (s) { return s.charAt(0).toUpperCase(); }).join('') || '?';
-  }
-
-  function poblarFiltrosDashboard() {
-    var selAnio = document.getElementById('dashAnio');
-    var anios = Array.from(new Set(fondos.map(function (f) { return String(f.anio); }))).sort();
-    anios.forEach(function (a) {
-      var opt = document.createElement('option');
-      opt.value = a; opt.textContent = a;
-      selAnio.appendChild(opt);
-    });
-
-    var selUsuario = document.getElementById('dashUsuario');
-    var idsFondo = Array.from(new Set(autorizadosIds));
-    idsFondo.sort(function (a, b) { return nombreDe(a).localeCompare(nombreDe(b)); });
-    idsFondo.forEach(function (id) {
-      var opt = document.createElement('option');
-      opt.value = id; opt.textContent = nombreDe(id);
-      selUsuario.appendChild(opt);
-    });
-  }
-
-  function initDashboard() {
-    if (!dashboardInicializado) { poblarFiltrosDashboard(); dashboardInicializado = true; }
-    document.getElementById('dashboardLoading').style.display = 'block';
-    document.getElementById('dashboardContent').style.display = 'none';
-    apiCall('gastos?action=list&admin=1').then(function (r) {
-      dashboardGastos = r.gastos || [];
-      document.getElementById('dashboardLoading').style.display = 'none';
-      document.getElementById('dashboardContent').style.display = 'block';
-      renderDashboard();
-    });
-  }
-  document.getElementById('btnActualizarDashboard').addEventListener('click', initDashboard);
-  ['dashTipo', 'dashAnio', 'dashMes', 'dashUsuario'].forEach(function (id) {
-    document.getElementById(id).addEventListener('change', renderDashboard);
-  });
-
-  // Determina si un gasto cuenta para un fondo dado. Los gastos nuevos ya
-  // guardan su fondo_id exacto; los creados antes de esa columna (fondo_id
-  // vacío) se le atribuyen a un fondo solo si el usuario pertenece a un único
-  // fondo (caso sin ambigüedad posible).
-  function gastoPerteneceAFondo(g, fondoId, uid) {
-    if (g.fondo_id != null) return String(g.fondo_id) === String(fondoId);
-    var fondosDelUsuario = fondos.filter(function (f) {
-      return (f.usuario_ids || []).some(function (x) { return String(x) === String(uid); });
-    });
-    return fondosDelUsuario.length === 1 && String(fondosDelUsuario[0].id) === String(fondoId);
-  }
-
-  function renderDashboard() {
-    var tipo = document.getElementById('dashTipo').value;
-    var anio = document.getElementById('dashAnio').value;
-    var mes = document.getElementById('dashMes').value;
-    var usuarioSel = document.getElementById('dashUsuario').value;
-
-    var fondosFiltrados = fondos.filter(function (f) {
-      if (tipo && f.tipo !== tipo) return false;
-      if (anio && String(f.anio) !== anio) return false;
-      return true;
-    });
-
-    var el = document.getElementById('dashboardContent');
-    var hayInformado = false;
-    dashboardFilasPDF = [];
-
-    var html = fondosFiltrados.map(function (f) {
-      var usuariosFondo = (f.usuario_ids || []).filter(function (uid) { return !usuarioSel || String(uid) === usuarioSel; });
-      if (!usuariosFondo.length) return '';
-
-      var filas = usuariosFondo.map(function (uid) {
-        var u = findUser(uid);
-        var gastosUsuario = dashboardGastos.filter(function (g) {
-          return String(g.created_by_id) === String(uid) && (!mes || String(g.mes) === mes) && gastoPerteneceAFondo(g, f.id, uid);
-        });
-        var montoRegistrado = gastosUsuario.filter(function (g) { return g.estado === 'registrado'; })
-          .reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
-        var montoInformado = gastosUsuario.filter(function (g) { return g.estado === 'informado'; })
-          .reduce(function (s, g) { return s + (Number(g.monto_total) || 0); }, 0);
-        if (montoInformado > 0) hayInformado = true;
-
-        dashboardFilasPDF.push({
-          fondo: (TIPO_FONDO_LABEL[f.tipo] || f.tipo) + ' ' + f.anio,
-          usuario: nombreDe(uid), cargo: getCargo(uid), unidad: getUnidad(uid),
-          registrado: montoRegistrado, informado: montoInformado
-        });
-
-        var tieneFoto = u && u.PERSONAL_PHOTO;
-        return '<div class="dash-user-row">' +
-          (tieneFoto
-            ? '<img class="dash-avatar" data-fallback="' + esc(iniciales(u)) + '" src="' + esc(u.PERSONAL_PHOTO) + '" />'
-            : '<div class="dash-avatar-fallback">' + esc(iniciales(u)) + '</div>') +
-          '<div class="dash-user-info">' +
-            '<div class="dash-user-name">' + esc(nombreDe(uid)) + ' <span class="dash-user-cargo">' + esc(getCargo(uid)) + '</span></div>' +
-            '<div class="dash-user-amounts">' +
-              '<span class="dash-amount registrado">Registrado: $' + money(montoRegistrado) + '</span>' +
-              '<span class="dash-amount informado">Informado: $' + money(montoInformado) + '</span>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
-      }).join('');
-
-      return '<div class="gasto-item">' +
-        '<div class="gasto-top"><span><b>' + esc(TIPO_FONDO_LABEL[f.tipo] || f.tipo) + '</b> · ' + esc(f.anio) + '</span>' +
-        '<span class="gasto-total">$' + money(f.monto_total) + '</span></div>' +
-        filas +
-      '</div>';
-    }).filter(Boolean).join('');
-
-    el.innerHTML = html || '<div class="empty-state">No hay fondos o usuarios que coincidan con los filtros.</div>';
-
-    el.querySelectorAll('.dash-avatar').forEach(function (img) {
-      img.addEventListener('error', function () {
-        var div = document.createElement('div');
-        div.className = 'dash-avatar-fallback';
-        div.textContent = img.getAttribute('data-fallback') || '?';
-        img.replaceWith(div);
-      });
-    });
-
-    document.getElementById('btnDescargarDashboardPDF').style.display = hayInformado ? 'block' : 'none';
-  }
-
   document.getElementById('btnDescargarDashboardPDF').addEventListener('click', function () {
     var jsPDFCtor = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
     var doc = new jsPDFCtor({ unit: 'mm', format: 'letter', orientation: 'landscape' });
     doc.setFontSize(12);
-    doc.text('Informe de Dashboard — Fondos de Baja Cuantía', 14, 12);
+    doc.text('Resumen por fondo — Fondos de Baja Cuantía', 14, 12);
     doc.autoTable({
       startY: 18,
       head: [['Fondo', 'Usuario', 'Cargo', 'Unidad', 'Registrado', 'Informado']],
@@ -4249,7 +4291,7 @@
       }),
       styles: { fontSize: 8 }
     });
-    doc.save('Dashboard_Fondos_' + todayStr() + '.pdf');
+    doc.save('Resumen_Fondos_' + todayStr() + '.pdf');
   });
 
   // ==================================================================
@@ -4695,7 +4737,6 @@
     document.getElementById('tabHistorialBtn').classList.toggle('hidden', !(canLoad || isAdmin));
     document.getElementById('tabInformeBtn').classList.toggle('hidden', !puedeVerInforme);
     document.getElementById('tabReportesBtn').classList.toggle('hidden', !(accesoAlgunModulo || isAdmin || puedeTesoreria || puedeVerInforme));
-    document.getElementById('tabDashboardBtn').classList.toggle('hidden', !(accesoAlgunModulo || isAdmin || puedeTesoreria || puedeVerInforme));
     document.getElementById('tabConfigBtn').classList.toggle('hidden', !isAdmin);
   }
 
