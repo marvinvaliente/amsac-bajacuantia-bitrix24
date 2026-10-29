@@ -272,8 +272,9 @@ module.exports = async (req, res) => {
         // Límites de compra, efectivo/banco y compras excepcionales (Reglamento).
         const acuerdoIn = acuerdoValido((body.solicitud || {}).acuerdo_administrativo);
         let evC;
+        const prueba = await gestiones.modoPruebasActivo(body);
         try {
-          evC = await gestiones.evaluarCuantia({ fondoId: built.row.fondo_id, monto: built.row.monto_total, formaPago: built.row.forma_pago, tieneAcuerdo: !!acuerdoIn });
+          evC = await gestiones.evaluarCuantia({ fondoId: built.row.fondo_id, monto: built.row.monto_total, formaPago: built.row.forma_pago, tieneAcuerdo: !!acuerdoIn, sinRestricciones: prueba });
         } catch (eC) { res.status(502).json({ ok: false, error: 'No se pudieron validar los límites del fondo: ' + String((eC && eC.message) || eC) }); return; }
         if (evC.error) { res.status(400).json({ ok: false, error: evC.error }); return; }
         built.row.excepcional = !!evC.excepcional;
@@ -293,14 +294,14 @@ module.exports = async (req, res) => {
         if (!asigData.length && !esAdminVerif) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
         // Sin confirmar el reintegro recibido no se puede usar el fondo (circulante o caja chica).
         const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
-        if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
+        if (bloqueoCrear && !prueba) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
         const r = await sb('gastos_solicitudes', {
           method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(built.row)
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
         if (op.exigirGerencia) await notificarGerencia(data[0], req);
-        res.status(200).json({ ok: true, solicitud: data[0] });
+        res.status(200).json({ ok: true, solicitud: data[0], advertencias: prueba ? evC.advertencias : undefined });
         return;
       }
 
@@ -371,7 +372,8 @@ module.exports = async (req, res) => {
         try {
           const evU = await gestiones.evaluarCuantia({
             fondoId: row.fondo_id, monto: row.monto_total, formaPago: row.forma_pago, excluirId: body.id,
-            tieneAcuerdo: !!actualData[0].acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(actualData[0].created_at)
+            tieneAcuerdo: !!actualData[0].acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(actualData[0].created_at),
+            sinRestricciones: await gestiones.modoPruebasActivo(body)
           });
           if (evU.error) { res.status(400).json({ ok: false, error: evU.error }); return; }
           row.excepcional = !!evU.excepcional;
@@ -382,7 +384,7 @@ module.exports = async (req, res) => {
         try {
           const errPresupuesto = await presupuesto.validarCertificacion(
             row.fondo_id, row.area_solicitante, (body.solicitud || {}).area_id, row.items, body.id);
-          if (errPresupuesto) { res.status(400).json({ ok: false, error: errPresupuesto }); return; }
+          if (errPresupuesto && !(await gestiones.modoPruebasActivo(body))) { res.status(400).json({ ok: false, error: errPresupuesto }); return; }
         } catch (ePres) {
           res.status(502).json({ ok: false, error: 'No se pudo consultar el presupuesto aprobado: ' + String((ePres && ePres.message) || ePres) });
           return;
@@ -438,8 +440,9 @@ module.exports = async (req, res) => {
             return;
           }
         }
+        const pruebaDes = await gestiones.modoPruebasActivo(body);
         const bloqueoDes = await gestiones.bloqueoCajaChica(actualEData[0].fondo_id, body.actor_id);
-        if (bloqueoDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
+        if (bloqueoDes && !pruebaDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
         // Reglas del reglamento al entregar el dinero: límites de compra y compras
         // excepcionales, comprobante de retención (caja chica) y saldo real en
         // efectivo o banco según la forma de pago de la solicitud.
@@ -453,16 +456,16 @@ module.exports = async (req, res) => {
         try {
           const evD = await gestiones.evaluarCuantia({
             fondoId: sol.fondo_id, monto: sol.monto_total, formaPago: sol.forma_pago, excluirId: sol.id,
-            tieneAcuerdo: !!sol.acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(sol.created_at)
+            tieneAcuerdo: !!sol.acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(sol.created_at), sinRestricciones: pruebaDes
           });
           if (evD.error) { res.status(400).json({ ok: false, error: evD.error }); return; }
           if (evD.retencionRequerida) {
             const ret = String(body.retencion_comprobante || sol.retencion_comprobante || '').trim();
-            if (!ret) {
+            if (!ret && !pruebaDes) {
               res.status(400).json({ ok: false, error: 'Esta compra es de $' + evD.retencion.total.toFixed(2) + ' con IVA ($' + evD.retencion.neto.toFixed(2) + ' sin IVA; se retiene desde $' + evD.retencion.minimo.toFixed(2) + ' sin IVA) y la alcaldía, como agente de retención, debe retener el ' + evD.retencion.pct + '% del valor sin IVA, como anticipo de IVA: $' + evD.retencion.monto.toFixed(2) + '. Antes de desembolsar tramita con Tesorería el comprobante de retención (Código Tributario, Art. 162 y 112) y registra su número.' });
               return;
             }
-            patchDes.retencion_comprobante = ret;
+            patchDes.retencion_comprobante = ret || null;
             patchDes.retencion_base = evD.retencion.neto;
             patchDes.retencion_monto = evD.retencion.monto;
             patchDes.retencion_tramitada_at = new Date().toISOString();
@@ -471,7 +474,7 @@ module.exports = async (req, res) => {
           }
           patchDes.excepcional = !!evD.excepcional;
           const sal = await gestiones.calcularSaldoFondo(sol.fondo_id);
-          if (sal && sal.refC > 0) {
+          if (sal && sal.refC > 0 && !pruebaDes) {
             const medio = sol.forma_pago === 'efectivo' ? 'efectivo' : 'banco';
             const dispC = medio === 'efectivo' ? sal.efectivoDispC : sal.bancoDispC;
             const capC = medio === 'efectivo' ? sal.efectivoCapC : sal.bancoCapC;

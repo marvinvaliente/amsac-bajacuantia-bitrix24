@@ -170,6 +170,7 @@ const DEFAULTS = {
   global: {
     salarioMinimo: 408.80, plazoComprobantesDias: 3,
     ivaPct: 13,
+    modoPruebas: false,
     feriadosBitrix: true, descansoSemanalBitrix: false,
     feriados: ['2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-08-06', '2026-09-15', '2026-11-02', '2026-12-25',
       '2027-01-01', '2027-03-25', '2027-03-26', '2027-05-01', '2027-08-06', '2027-09-15', '2027-11-02', '2027-12-25']
@@ -235,7 +236,7 @@ function normalizarReglas(tipo, v) {
     const bool = (x, def) => (typeof x === 'boolean' ? x : (x === 'true' ? true : (x === 'false' ? false : def)));
     const iva = (v.ivaPct == null || v.ivaPct === '') ? DEFAULTS.global.ivaPct : Number(v.ivaPct);
     if (!Number.isFinite(iva) || iva <= 0 || iva > 100) return { error: 'El IVA debe ser un porcentaje mayor que 0 y no mayor que 100.' };
-    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, ivaPct: Math.round(iva * 100) / 100, feriados: fer.sort(),
+    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, ivaPct: Math.round(iva * 100) / 100, modoPruebas: bool(v.modoPruebas, false), feriados: fer.sort(),
       feriadosBitrix: bool(v.feriadosBitrix, DEFAULTS.global.feriadosBitrix), descansoSemanalBitrix: bool(v.descansoSemanalBitrix, DEFAULTS.global.descansoSemanalBitrix) } };
   }
   const d = DEFAULTS[tipo];
@@ -304,7 +305,7 @@ async function reglasPublicas() {
   const { reglas, meta } = await cargarReglas();
   const sm = reglas.global.salarioMinimo;
   const conMax = (t) => Object.assign({}, reglas[t], { excepcionMaxMonto: Math.round((Number(reglas[t].excepcionMaxSalarios) || 0) * sm * 100) / 100 });
-  return { salarioMinimo: sm, ivaPct: reglas.global.ivaPct, plazoComprobantesDias: reglas.global.plazoComprobantesDias, circulante: conMax('circulante'), caja_chica: conMax('caja_chica'), meta: meta };
+  return { salarioMinimo: sm, ivaPct: reglas.global.ivaPct, modoPruebas: !!reglas.global.modoPruebas, plazoComprobantesDias: reglas.global.plazoComprobantesDias, circulante: conMax('circulante'), caja_chica: conMax('caja_chica'), meta: meta };
 }
 const centavosDe = (n) => Math.round((Number(n) || 0) * 100);
 const fechaLocalDe = (ts) => new Date(new Date(ts).getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
@@ -321,6 +322,18 @@ async function leerFondo(fondoId) {
   const f = await rF.json();
   if (!rF.ok || !Array.isArray(f)) throw new Error('No se pudo leer el fondo.');
   return f[0] || null;
+}
+
+// MODO DE PRUEBAS (desarrollo): lo activa un administrador del portal en "Reglas de fondos". Mientras esté activo,
+// un administrador del portal (verificado contra Bitrix24) puede hacer todo: las reglas del reglamento (límites,
+// topes, retención, saldo, facturas, bloqueos, disponibilidad presupuestaria, requisitos del reintegro) dejan de
+// bloquearlo y solo se muestran como advertencias. Debe apagarse al salir a producción.
+async function modoPruebasActivo(body) {
+  try {
+    const { reglas } = await cargarReglas();
+    if (!reglas.global.modoPruebas) return false;
+    return !!(await presupuesto.esAdminPortal(body && body.actor_id, body && body.auth_token));
+  } catch (e) { return false; }
 }
 
 // Retención de anticipo de IVA (Código Tributario, Art. 162; comprobante: Art. 112). La alcaldía es agente de
@@ -356,13 +369,15 @@ async function evaluarCuantia(datos) {
   const nomDe = f.tipo === 'circulante' ? 'del fondo circulante' : 'de la caja chica';
   const monto = Math.round((Number(datos.monto) || 0) * 100) / 100;
   const retencion = calcularRetencion(monto, R_, reglas.global.ivaPct);
+  const adv = [];
+  const fallar = (m) => { if (datos.sinRestricciones) { adv.push(m); return null; } return { error: m }; };
 
   // Forma de pago (efectivo / banco)
   if (R_.formasPago.indexOf(datos.formaPago) === -1) {
-    return { error: 'En ' + nom + ' solo se permite pagar con: ' + R_.formasPago.map((x) => FORMA_LABEL[x] || x).join(', ') + '. Cambia la forma de pago de la solicitud.' };
+    { const r_ = fallar('En ' + nom + ' solo se permite pagar con: ' + R_.formasPago.map((x) => FORMA_LABEL[x] || x).join(', ') + '. Cambia la forma de pago de la solicitud.'); if (r_) return r_; }
   }
   if (datos.formaPago === 'efectivo' && R_.efectivoMaxCompra > 0 && monto > R_.efectivoMaxCompra) {
-    return { error: 'En ' + nom + ' el efectivo solo se usa en compras de hasta $' + R_.efectivoMaxCompra.toFixed(2) + '. Esta compra es de $' + monto.toFixed(2) + ': debe pagarse por otro medio permitido.' };
+    { const r_ = fallar('En ' + nom + ' el efectivo solo se usa en compras de hasta $' + R_.efectivoMaxCompra.toFixed(2) + '. Esta compra es de $' + monto.toFixed(2) + ': debe pagarse por otro medio permitido.'); if (r_) return r_; }
   }
 
   const excepcional = monto > R_.limiteCompra;
@@ -370,21 +385,21 @@ async function evaluarCuantia(datos) {
     excepcional, tipo: f.tipo, limite: R_.limiteCompra,
     acuerdoRequerido: excepcional && R_.excepcionesPermitidas && !!R_.exigeAcuerdo,
     // La retención del 1% del IVA depende del valor de la compra (sin IVA), no de que sea excepcional.
-    retencionRequerida: retencion.requerida, retencion: retencion
+    retencionRequerida: retencion.requerida, retencion: retencion, advertencias: adv
   };
   if (!excepcional) return out;
 
   if (!R_.excepcionesPermitidas) {
-    return { error: 'Esta compra de $' + monto.toFixed(2) + ' supera el límite de compra ' + nomDe + ' ($' + R_.limiteCompra.toFixed(2) + ') y no se permiten compras excepcionales.' };
+    { const r_ = fallar('Esta compra de $' + monto.toFixed(2) + ' supera el límite de compra ' + nomDe + ' ($' + R_.limiteCompra.toFixed(2) + ') y no se permiten compras excepcionales.'); if (r_) return r_; }
   }
   if (R_.excepcionMaxSalarios > 0) {
     const maxC = Math.round(R_.excepcionMaxSalarios * SM * 100);
     if (centavosDe(monto) > maxC) {
-      return { error: 'Esta compra de $' + monto.toFixed(2) + ' supera el máximo que se puede autorizar de forma excepcional en ' + nom + ': ' + R_.excepcionMaxSalarios + ' salarios mínimos ($' + fmtC(maxC) + ').' };
+      { const r_ = fallar('Esta compra de $' + monto.toFixed(2) + ' supera el máximo que se puede autorizar de forma excepcional en ' + nom + ': ' + R_.excepcionMaxSalarios + ' salarios mínimos ($' + fmtC(maxC) + ').'); if (r_) return r_; }
     }
   }
   if (R_.exigeAcuerdo && !datos.tieneAcuerdo) {
-    return { error: 'Esta compra supera el límite ordinario ' + nomDe + ' ($' + R_.limiteCompra.toFixed(2) + ') y es excepcional: debes adjuntar el acuerdo administrativo en PDF.' };
+    { const r_ = fallar('Esta compra supera el límite ordinario ' + nomDe + ' ($' + R_.limiteCompra.toFixed(2) + ') y es excepcional: debes adjuntar el acuerdo administrativo en PDF.'); if (r_) return r_; }
   }
 
   // Tope de lo excepcional: una sola compra excepcional o varias compras excepcionales individuales no pueden
@@ -396,8 +411,8 @@ async function evaluarCuantia(datos) {
     if (uso && uso.refC > 0) {
       out.refC = uso.refC; out.topeC = uso.topeC; out.usadoC = uso.usadoC; out.porCiclo = uso.porCiclo;
       if (uso.usadoC + centavosDe(monto) > uso.topeC) {
-        return { error: 'Las compras excepcionales ' + (uso.porCiclo ? 'de este ciclo del fondo (desde el último reintegro)' : 'del mes') + ' sumarían $' + fmtC(uso.usadoC + centavosDe(monto)) + ' y el tope es el ' + R_.excepcionMensualPct + '% de la referencia mensual del fondo ($' + fmtC(uso.refC) + ' → $' + fmtC(uso.topeC) +
-          '); ya hay $' + fmtC(uso.usadoC) + ' en compras excepcionales ' + (uso.porCiclo ? 'en este ciclo. El tope se renueva cuando Tesorería entrega el reintegro y se repone el fondo' : 'este mes. Lo no utilizado no se acumula para los meses siguientes') + '.' };
+        { const r_ = fallar('Las compras excepcionales ' + (uso.porCiclo ? 'de este ciclo del fondo (desde el último reintegro)' : 'del mes') + ' sumarían $' + fmtC(uso.usadoC + centavosDe(monto)) + ' y el tope es el ' + R_.excepcionMensualPct + '% de la referencia mensual del fondo ($' + fmtC(uso.refC) + ' → $' + fmtC(uso.topeC) +
+          '); ya hay $' + fmtC(uso.usadoC) + ' en compras excepcionales ' + (uso.porCiclo ? 'en este ciclo. El tope se renueva cuando Tesorería entrega el reintegro y se repone el fondo' : 'este mes. Lo no utilizado no se acumula para los meses siguientes') + '.'); if (r_) return r_; }
       }
     }
   }
@@ -626,7 +641,8 @@ module.exports = async (req, res) => {
         // (La liquidación no tiene estas restricciones.)
         if (tipo === 'reintegro') {
           const RG = (await cargarReglas()).reglas[fondoData[0].tipo] || DEFAULTS.circulante;
-          const sinDoc = RG.reintegroExigeDocumento === false ? [] : gastosData.filter((g) => !g.documento_fisico_recibido);
+          const prueba = await modoPruebasActivo(body);
+          const sinDoc = (RG.reintegroExigeDocumento === false || prueba) ? [] : gastosData.filter((g) => !g.documento_fisico_recibido);
           if (sinDoc.length) {
             res.status(400).json({ ok: false, error: sinDoc.length + ' gasto(s) seleccionado(s) no tienen el documento físico recibido por el administrador (' +
               sinDoc.slice(0, 5).map((g) => g.numero_documento || ('#' + g.id)).join(', ') + (sinDoc.length > 5 ? '…' : '') +
@@ -634,7 +650,7 @@ module.exports = async (req, res) => {
             return;
           }
           const ev = evaluarReintegro(fondoData[0].monto_total, gastosData, undefined, RG);
-          if (!ev.ok) {
+          if (!ev.ok && !prueba) {
             res.status(400).json({ ok: false, error: 'Aún no se puede solicitar el reintegro: los gastos seleccionados suman $' + fmtC(ev.montoC) +
               ' y se necesita al menos el ' + ev.pct + '% de la referencia mensual del fondo ($' + fmtC(ev.refC) + ' → $' + fmtC(ev.umbralC) + '); faltan $' + fmtC(ev.faltaC) + '.' +
               (ev.plazoCuenta ? ' También podrás solicitarlo a más tardar el último día del mes (' + fmtFecha(ev.limite) + ').' : '') });
@@ -865,6 +881,7 @@ module.exports.evaluarReintegro = evaluarReintegro;
 module.exports.evaluarCuantia = evaluarCuantia;
 module.exports.calcularRetencion = calcularRetencion;
 module.exports.validarFacturasSolicitud = validarFacturasSolicitud;
+module.exports.modoPruebasActivo = modoPruebasActivo;
 module.exports.calcularSaldoFondo = calcularSaldoFondo;
 module.exports.reglasPublicas = reglasPublicas;
 module.exports.cargarReglas = cargarReglas;

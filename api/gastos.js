@@ -313,7 +313,7 @@ module.exports = async (req, res) => {
         const row = built.row;
         try {
           const errFact = await gestiones.validarFacturasSolicitud(solRes.solicitud, row.monto_total, body.id);
-          if (errFact) { res.status(400).json({ ok: false, error: errFact }); return; }
+          if (errFact && !(await gestiones.modoPruebasActivo(body))) { res.status(400).json({ ok: false, error: errFact }); return; }
         } catch (eF) {
           res.status(502).json({ ok: false, error: 'No se pudo validar el monto de la factura: ' + String((eF && eF.message) || eF) });
           return;
@@ -337,7 +337,7 @@ module.exports = async (req, res) => {
         } else {
           // Sin confirmar el reintegro recibido no se puede usar el fondo (circulante o caja chica).
           const bloqueoGasto = await gestiones.bloqueoCajaChica(row.fondo_id, body.actor_id);
-          if (bloqueoGasto) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoGasto }); return; }
+          if (bloqueoGasto && !(await gestiones.modoPruebasActivo(body))) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoGasto }); return; }
           row.estado = 'registrado';
           r = await sb('gastos_registros', {
             method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(row)
