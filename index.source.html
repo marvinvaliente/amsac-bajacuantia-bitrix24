@@ -2885,6 +2885,7 @@
   });
 
   var certEditingId = null;
+  var certEditingEstado = '';
 
   function fondoLabelPorId(fondoId) {
     var f = fondos.find(function (x) { return String(x.id) === String(fondoId); });
@@ -2909,7 +2910,8 @@
       var acciones = '';
       if (!esFinal) {
         acciones = '<div class="row-actions">' +
-          (puedeEditar ? '<button type="button" class="secondary" data-editar-sol="' + s.id + '">Editar</button>' : '') +
+          (estado === 'pendiente' ? '<span class="gasto-line" style="margin:0">Falta la autorización de la gerencia responsable (pestaña "Autorización de gerencia")</span>' : '') +
+          (puedeEditar ? '<button type="button" class="' + (estado === 'autorizada' ? '' : 'secondary') + '" data-editar-sol="' + s.id + '">' + (estado === 'autorizada' ? 'Certificar' : 'Editar') + '</button>' : '') +
           '<button type="button" class="danger" data-eliminar-sol="' + s.id + '">Eliminar</button></div>';
       }
       return '<tr' + (esEliminada ? ' class="row-eliminada"' : '') + '>' +
@@ -2974,10 +2976,12 @@
     if (!s) return;
     if (s.estado === 'eliminada') { customAlert('Esta solicitud fue eliminada y ya no se puede editar.'); return; }
     certEditingId = s.id;
+    certEditingEstado = s.estado || '';
+    document.getElementById('btnGuardarCertificacion').textContent = s.estado === 'autorizada' ? 'Certificar solicitud' : 'Guardar cambios';
     certEditingCotizaciones = Array.isArray(s.cotizacion_urls) ? s.cotizacion_urls : [];
     renderCotizacionListaReadonly('cCotizacionLista', certEditingCotizaciones);
     hideMsg(document.getElementById('certificacionMsg'));
-    document.getElementById('certFormTitulo').textContent = 'Editar solicitud #' + s.id;
+    document.getElementById('certFormTitulo').textContent = (s.estado === 'autorizada' ? 'Certificar solicitud #' : 'Editar solicitud #') + s.id;
     document.getElementById('certFormTitulo').style.display = 'block';
     formCertificacion.style.display = 'block';
     poblarFondosTodos('cFondo');
@@ -3269,7 +3273,8 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', 'Cambios guardados correctamente.');
+        showMsg(msgEl, 'success', certEditingEstado === 'autorizada' ? 'Solicitud certificada. Ya puede desembolsarse desde "Desembolso de fondos".' : 'Cambios guardados correctamente.');
+        certEditingEstado = 'certificado';
         cargarSolicitudes();
       } else {
         showMsg(msgEl, 'error', r.error || 'No se pudieron guardar los cambios.');
