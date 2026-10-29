@@ -4,6 +4,7 @@
 const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 
+const gestiones = require('./gestiones');
 const TIPOS = ['caja_chica', 'circulante'];
 
 function sb(path, options) {
@@ -78,7 +79,18 @@ module.exports = async (req, res) => {
             administrador_ids: propias.filter((a) => a.es_administrador).map((a) => a.usuario_id)
           };
         });
-        res.status(200).json({ ok: rFondos.ok && rAsig.ok, fondos: conUsuarios });
+        res.status(200).json({ ok: rFondos.ok && rAsig.ok, fondos: conUsuarios, reglas: gestiones.reglasPublicas() });
+        return;
+      }
+
+      // Saldo real en efectivo y banco de un fondo (según los desembolsos).
+      if (action === 'saldo') {
+        if (!q.fondoId) { res.status(400).json({ ok: false, error: 'Falta el fondo.' }); return; }
+        try {
+          const saldo = await gestiones.calcularSaldoFondo(q.fondoId);
+          if (!saldo) { res.status(404).json({ ok: false, error: 'El fondo no existe.' }); return; }
+          res.status(200).json({ ok: true, saldo: saldo });
+        } catch (eS) { res.status(500).json({ ok: false, error: String((eS && eS.message) || eS) }); }
         return;
       }
 

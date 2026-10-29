@@ -670,6 +670,8 @@
           </div>
         </div>
 
+        <div id="sReglasAviso" class="regla-box" style="display:none"></div>
+
         <div class="section-title" style="margin-top:22px">Ítems</div>
         <div class="table-wrap">
           <table class="data-table items-table" id="sItemsTable">
@@ -685,6 +687,12 @@
         <label for="sCotizacionFile" style="margin-top:22px">Adjuntar cotizaciones (PDF) *</label>
         <input type="file" id="sCotizacionFile" accept="application/pdf" multiple />
         <div id="sCotizacionLista" class="cotizacion-lista"></div>
+
+        <div id="sAcuerdoWrap" style="display:none">
+          <label for="sAcuerdoFile" style="margin-top:22px">Acuerdo administrativo del Alcalde Municipal (PDF) *</label>
+          <input type="file" id="sAcuerdoFile" accept="application/pdf" />
+          <div id="sAcuerdoLista" class="cotizacion-lista"></div>
+        </div>
 
         <div class="btn-row">
           <button type="submit" id="btnGuardarSolicitud">Crear solicitud</button>
@@ -726,6 +734,7 @@
               <div class="doc-item wide"><span class="doc-label">Nombre del proceso</span><span class="doc-val" id="aNombreProceso">—</span></div>
               <div class="doc-item"><span class="doc-label">Clasificación del gasto</span><span class="doc-val" id="aClasificacion">—</span></div>
               <div class="doc-item"><span class="doc-label">Forma de pago</span><span class="doc-val" id="aFormaPago">—</span></div>
+              <div class="doc-item"><span class="doc-label">Compra excepcional</span><span class="doc-val" id="aExcepcional">—</span></div>
               <div class="doc-item wide"><span class="doc-label">Descripción</span><span class="doc-val text" id="aDescripcion">—</span></div>
               <div class="doc-item wide"><span class="doc-label">Justificación</span><span class="doc-val text" id="aJustificacion">—</span></div>
             </div>
@@ -927,6 +936,7 @@
               <div class="doc-item wide"><span class="doc-label">Nombre del proceso</span><span class="doc-val" id="dNombreProceso">—</span></div>
               <div class="doc-item"><span class="doc-label">Clasificación del gasto</span><span class="doc-val" id="dClasificacion">—</span></div>
               <div class="doc-item"><span class="doc-label">Forma de pago</span><span class="doc-val" id="dFormaPago">—</span></div>
+              <div class="doc-item"><span class="doc-label">Compra excepcional</span><span class="doc-val" id="dExcepcional">—</span></div>
               <div class="doc-item wide"><span class="doc-label">Descripción</span><span class="doc-val text" id="dDescripcion">—</span></div>
               <div class="doc-item wide"><span class="doc-label">Justificación</span><span class="doc-val text" id="dJustificacion">—</span></div>
             </div>
@@ -946,6 +956,13 @@
             <div class="doc-total">
               <span>Monto solicitado</span>
               <b id="dMontoSolicitado">$0.00</b>
+            </div>
+
+            <div id="dReglas" class="regla-box" style="display:none"></div>
+            <div id="dRetencionWrap" style="display:none">
+              <label for="dRetencion">N° de comprobante de retención (tramitado con Tesorería) *</label>
+              <input type="text" id="dRetencion" maxlength="60" placeholder="Ej. 000123" />
+              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional de caja chica: el comprobante de retención se tramita antes de la compra (Reglamento, Art. 8).</div>
             </div>
 
             <div class="doc-actions">
@@ -1411,6 +1428,13 @@
   var editingNumeroComprobante = '';
   var editingFacturaUrls = [];
 
+  // Límites del reglamento (el servidor manda los valores vigentes con la lista de
+  // fondos; estos son los de respaldo). El servidor es quien los hace cumplir.
+  var REGLAS_FONDOS = {
+    salarioMinimo: 408.80, excepcionMaxMonto: 8176,
+    circulante: { limiteCompra: 1000, efectivoMaxCompra: 500, efectivoPct: 40, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false },
+    caja_chica: { limiteCompra: 100, efectivoMaxCompra: null, efectivoPct: 100, excepcionMaxSalarios: null, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true }
+  };
   var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
   var gastosFiltrados = [];
 
@@ -2178,8 +2202,93 @@
       total += t;
     });
     document.getElementById('sItemsTotal').textContent = '$' + money(total);
+    evaluarCuantiaUI();
     return total;
   }
+  function totalItemsSolicitud() {
+    var t = 0;
+    document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
+      t += (parseFloat(tr.querySelector('.it-cantidad').value) || 0) * (parseFloat(tr.querySelector('.it-precio').value) || 0);
+    });
+    return Math.round(t * 100) / 100;
+  }
+  function fondoSeleccionadoSolicitud() {
+    var id = document.getElementById('sFondo').value;
+    return (typeof fondos !== 'undefined' && fondos ? fondos : []).find(function (x) { return String(x.id) === String(id); }) || null;
+  }
+  // Límites de compra, efectivo/banco y compras excepcionales (Reglamento Art. 6, 7, 8, 11 y 12).
+  // Solo orienta: el servidor vuelve a validar todo.
+  function evaluarCuantiaUI() {
+    var box = document.getElementById('sReglasAviso'), wrap = document.getElementById('sAcuerdoWrap');
+    var selP = document.getElementById('sFormaPago');
+    var f = fondoSeleccionadoSolicitud();
+    var R = f && REGLAS_FONDOS[f.tipo];
+    if (!R) {
+      box.style.display = 'none'; wrap.style.display = 'none';
+      Array.prototype.forEach.call(selP.options, function (o) { o.disabled = false; });
+      return;
+    }
+    var circ = f.tipo === 'circulante', total = totalItemsSolicitud();
+    // Formas de pago permitidas: caja chica = solo efectivo; circulante = efectivo solo hasta $500 por compra.
+    Array.prototype.forEach.call(selP.options, function (o) {
+      if (!o.value) { o.disabled = false; return; }
+      o.disabled = circ ? (o.value === 'efectivo' && total > R.efectivoMaxCompra) : (o.value !== 'efectivo');
+    });
+    if (selP.value && selP.options[selP.selectedIndex] && selP.options[selP.selectedIndex].disabled) selP.value = '';
+    if (!circ && !selP.value) selP.value = 'efectivo';
+    var exc = total > R.limiteCompra;
+    var html = '<div class="regla-t">Reglas del ' + (circ ? 'fondo circulante' : 'fondo de caja chica') + '</div>' + (circ
+      ? '<div>Compra ordinaria hasta <b>$' + money(R.limiteCompra) + '</b>. En <b>efectivo</b> solo hasta <b>$' + money(R.efectivoMaxCompra) + '</b> por compra; lo demás por <b>transferencia o cheque</b> (el 40% del fondo se mantiene en efectivo y el 60% en banco).</div>'
+      : '<div>Compra ordinaria hasta <b>$' + money(R.limiteCompra) + '</b>. La caja chica se maneja <b>toda en efectivo</b>.</div>');
+    if (exc) {
+      html += circ
+        ? '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + '): exige el <b>acuerdo administrativo del Alcalde Municipal en PDF</b> (adjúntalo más abajo), un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(REGLAS_FONDOS.excepcionMaxMonto) + ') y lo excepcional del mes no puede pasar el ' + R.excepcionMensualPct + '% de la referencia mensual del fondo (Art. 7).' +
+          (total > REGLAS_FONDOS.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>'
+        : '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + '): el total excepcional del mes no puede pasar el ' + R.excepcionMensualPct + '% de la referencia mensual del fondo y, <b>antes de la compra</b>, el administrador debe tramitar con Tesorería el <b>comprobante de retención</b>; su número se registra al desembolsar (Art. 8).</div>';
+    }
+    box.className = 'regla-box ' + (exc ? 'wait' : '');
+    box.innerHTML = html;
+    box.style.display = 'block';
+    var pedirAcuerdo = exc && circ;
+    wrap.style.display = pedirAcuerdo ? 'block' : 'none';
+    if (!pedirAcuerdo && sAcuerdo) { sAcuerdo = null; renderSAcuerdo(); }
+  }
+  document.getElementById('sFondo').addEventListener('change', evaluarCuantiaUI);
+  document.getElementById('sFormaPago').addEventListener('change', evaluarCuantiaUI);
+
+  // ---- Acuerdo administrativo (PDF), solo compras excepcionales de fondo circulante ----
+  var sAcuerdo = null; // { nombre, url, subiendo }
+  function renderSAcuerdo() {
+    var el = document.getElementById('sAcuerdoLista');
+    if (!sAcuerdo) { el.innerHTML = ''; return; }
+    el.innerHTML = sAcuerdo.subiendo
+      ? '<div class="cotizacion-item"><span class="subiendo">Subiendo "' + esc(sAcuerdo.nombre) + '"...</span></div>'
+      : '<div class="cotizacion-item"><a href="' + esc(sAcuerdo.url) + '" target="_blank" rel="noopener">' + esc(sAcuerdo.nombre) + '</a><button type="button" class="secondary" id="btnQuitarAcuerdo">Quitar</button></div>';
+    var q = document.getElementById('btnQuitarAcuerdo');
+    if (q) q.addEventListener('click', function () { sAcuerdo = null; renderSAcuerdo(); });
+  }
+  document.getElementById('sAcuerdoFile').addEventListener('change', function () {
+    var file = (this.files || [])[0];
+    this.value = '';
+    if (!file) return;
+    var msgEl = document.getElementById('solicitudMsg');
+    if (file.type !== 'application/pdf') { showMsg(msgEl, 'error', '"' + file.name + '" no es un PDF.'); return; }
+    if (file.size > 3 * 1024 * 1024) { showMsg(msgEl, 'error', '"' + file.name + '" pesa más de 3 MB.'); return; }
+    var entry = { nombre: file.name, url: '', subiendo: true };
+    sAcuerdo = entry; renderSAcuerdo();
+    leerArchivoBase64(file).then(function (base64) {
+      return apiCall('upload', { method: 'POST', body: { filename: file.name, contentType: file.type, dataBase64: base64 } });
+    }).then(function (r) {
+      if (sAcuerdo !== entry) return;
+      if (r.ok) sAcuerdo = { nombre: r.nombre, url: r.url, subiendo: false };
+      else { sAcuerdo = null; showMsg(msgEl, 'error', 'No se pudo subir "' + file.name + '": ' + (r.error || 'error desconocido')); }
+      renderSAcuerdo();
+    }).catch(function () {
+      if (sAcuerdo === entry) sAcuerdo = null;
+      showMsg(msgEl, 'error', 'Error de conexión al subir "' + file.name + '".');
+      renderSAcuerdo();
+    });
+  });
   document.getElementById('btnAgregarItem').addEventListener('click', function () {
     crearFilaItem();
     recalcularItemsTotal();
@@ -2267,6 +2376,9 @@
     prellenarAreaSolicitante();
     sCotizacionItems = [];
     renderSCotizacionLista();
+    sAcuerdo = null;
+    renderSAcuerdo();
+    evaluarCuantiaUI();
   }
 
   function initCrearSolicitud() {
@@ -2303,6 +2415,14 @@
       showMsg(msgEl, 'error', 'Adjunta al menos una cotización en PDF.');
       return;
     }
+    var fSel = fondoSeleccionadoSolicitud();
+    var RSel = fSel && REGLAS_FONDOS[fSel.tipo];
+    var esExcepcional = !!RSel && totalItemsSolicitud() > RSel.limiteCompra;
+    var requiereAcuerdo = esExcepcional && fSel.tipo === 'circulante';
+    if (requiereAcuerdo) {
+      if (sAcuerdo && sAcuerdo.subiendo) { showMsg(msgEl, 'error', 'Espera a que termine de subir el acuerdo administrativo.'); return; }
+      if (!sAcuerdo) { showMsg(msgEl, 'error', 'Esta compra supera el límite ordinario del fondo circulante: adjunta el acuerdo administrativo del Alcalde Municipal en PDF.'); return; }
+    }
 
     var items = [];
     document.querySelectorAll('#sItemsBody tr').forEach(function (tr) {
@@ -2328,6 +2448,7 @@
       clasificacion: document.getElementById('sClasificacion').value,
       forma_pago: document.getElementById('sFormaPago').value,
       cotizacion_urls: sCotizacionItems.map(function (c) { return { url: c.url, nombre: c.nombre }; }),
+      acuerdo_administrativo: (requiereAcuerdo && sAcuerdo) ? { url: sAcuerdo.url, nombre: sAcuerdo.nombre } : null,
       items: items
     };
     var btn = document.getElementById('btnGuardarSolicitud');
@@ -2730,6 +2851,12 @@
       (k.sub ? '<span class="kpi-sub">' + k.sub + '</span>' : '') + '</div>';
   }
 
+  function htmlExcepcional(s) {
+    if (!s.excepcional) return 'No';
+    return 'Sí' + (s.acuerdo_administrativo_url ? ' — <a href="' + esc(s.acuerdo_administrativo_url) + '" target="_blank" rel="noopener">Acuerdo administrativo (PDF)</a>' : '') +
+      (s.retencion_comprobante ? ' · Comprobante de retención N° ' + esc(s.retencion_comprobante) : '');
+  }
+
   function renderAutorizacionTabla() {
     var lista = solicitudes.filter(function (s) {
       if (isAdmin) return true;
@@ -2780,6 +2907,7 @@
     document.getElementById('aJustificacion').textContent = s.justificacion || '—';
     document.getElementById('aClasificacion').textContent = CLASIFICACION_LABEL[s.clasificacion] || s.clasificacion || '—';
     document.getElementById('aFormaPago').textContent = FORMA_PAGO_LABEL[s.forma_pago] || s.forma_pago || '—';
+    document.getElementById('aExcepcional').innerHTML = htmlExcepcional(s);
     document.getElementById('aEstado').innerHTML = '<span class="badge estado-' + esc(estado) + '">' + (SOLICITUD_ESTADO_LABEL[estado] || estado) + '</span>';
     document.getElementById('aCreador').textContent = s.created_by_nombre || '—';
     renderCotizacionListaReadonly('aCotizacionLista', s.cotizacion_urls);
@@ -3195,6 +3323,7 @@
     document.getElementById('dJustificacion').textContent = s.justificacion || '—';
     document.getElementById('dClasificacion').textContent = CLASIFICACION_LABEL[s.clasificacion] || s.clasificacion || '—';
     document.getElementById('dFormaPago').textContent = FORMA_PAGO_LABEL[s.forma_pago] || s.forma_pago || '—';
+    document.getElementById('dExcepcional').innerHTML = htmlExcepcional(s);
     document.getElementById('dEstado').innerHTML = '<span class="badge estado-' + esc(estado) + '">' + (SOLICITUD_ESTADO_LABEL[estado] || estado) + '</span>';
     document.getElementById('dCreador').textContent = s.created_by_nombre || '—';
     renderCotizacionListaReadonly('dCotizacionLista', s.cotizacion_urls);
@@ -3215,6 +3344,46 @@
 
     document.getElementById('dMontoSolicitado').textContent = '$' + money(s.monto_total);
     document.getElementById('btnDesembolsar').style.display = (estado === 'certificado') ? 'block' : 'none';
+    cargarPanelDesembolso(s);
+  }
+
+  // Saldo real en efectivo y banco del fondo antes de entregar el dinero.
+  function cargarPanelDesembolso(s) {
+    var box = document.getElementById('dReglas'), wrap = document.getElementById('dRetencionWrap'), inp = document.getElementById('dRetencion');
+    box.style.display = 'none'; wrap.style.display = 'none';
+    var f = fondos.find(function (x) { return String(x.id) === String(s.fondo_id); });
+    var R = f && REGLAS_FONDOS[f.tipo];
+    if (!R) return;
+    var porDesembolsar = (s.estado || 'pendiente') === 'certificado';
+    var exc = Number(s.monto_total) > R.limiteCompra;
+    inp.value = s.retencion_comprobante || '';
+    if (exc && R.exigeRetencion && porDesembolsar) wrap.style.display = 'block';
+    apiCall('fondos?action=saldo&fondoId=' + encodeURIComponent(s.fondo_id)).then(function (r) {
+      if (!r || !r.ok || !r.saldo) return;
+      var sd = r.saldo, circ = f.tipo === 'circulante';
+      var medio = s.forma_pago === 'efectivo' ? 'efectivo' : 'banco';
+      var necC = Math.round((Number(s.monto_total) || 0) * 100);
+      var dispC = medio === 'efectivo' ? sd.efectivoDispC : sd.bancoDispC;
+      var linea = '';
+      if (porDesembolsar) {
+        linea = necC <= dispC
+          ? '<div class="regla-estado ok">Alcanza: esta solicitud toma ' + centavos(necC) + ' de ' + (medio === 'efectivo' ? 'efectivo' : 'banco (' + esc(FORMA_PAGO_LABEL[s.forma_pago] || s.forma_pago) + ')') + ' y quedan ' + centavos(dispC - necC) + '.</div>'
+          : '<div class="regla-estado wait">No alcanza en ' + (medio === 'efectivo' ? 'efectivo' : 'banco') + ': disponible ' + centavos(Math.max(0, dispC)) + ' y esta solicitud necesita ' + centavos(necC) + '. Solicita el reintegro para reponer el fondo.</div>';
+      }
+      box.className = 'regla-box ' + (porDesembolsar ? (necC <= dispC ? 'ok' : 'wait') : '');
+      box.innerHTML = '<div class="regla-t">Saldo del fondo · referencia de ' + MESES_ES[sd.mes] + ' ' + centavos(sd.refC) + '</div>' +
+        '<div class="regla-grid">' +
+          '<div><span>Efectivo' + (circ ? ' (40%)' : '') + ': límite</span><b>' + centavos(sd.efectivoCapC) + '</b></div>' +
+          '<div><span>Efectivo en uso</span><b>' + centavos(sd.efectivoUsadoC) + '</b></div>' +
+          '<div><span>Efectivo disponible</span><b>' + centavos(Math.max(0, sd.efectivoDispC)) + '</b></div>' +
+          (circ
+            ? '<div><span>Banco (60%): límite</span><b>' + centavos(sd.bancoCapC) + '</b></div><div><span>Banco en uso</span><b>' + centavos(sd.bancoUsadoC) + '</b></div><div><span>Banco disponible</span><b>' + centavos(Math.max(0, sd.bancoDispC)) + '</b></div>'
+            : '<div><span>Banco</span><b>No aplica</b></div>') +
+        '</div>' + linea +
+        '<div class="gasto-line">Calculado con los desembolsos reales: cheque y transferencia afectan al banco; efectivo, al efectivo. Lo repuesto por un reintegro entregado ya no cuenta.</div>' +
+        (s.retencion_comprobante ? '<div class="gasto-line">Comprobante de retención N° <b>' + esc(s.retencion_comprobante) + '</b>.</div>' : '');
+      box.style.display = 'block';
+    }).catch(function () {});
   }
 
   function abrirDesembolsoDetalle(id) {
@@ -3361,13 +3530,20 @@
     if (!desembolsoActualId) return;
     var msgEl = document.getElementById('desembolsoMsg');
     hideMsg(msgEl);
+    var retWrap = document.getElementById('dRetencionWrap');
+    var retencion = document.getElementById('dRetencion').value.trim();
+    if (retWrap.style.display !== 'none' && !retencion) {
+      showMsg(msgEl, 'error', 'Compra excepcional de caja chica: registra el N° de comprobante de retención tramitado con Tesorería antes de desembolsar.');
+      document.getElementById('dRetencion').focus();
+      return;
+    }
     customConfirm('¿Desembolsar esta solicitud? Se generará y descargará automáticamente el comprobante en PDF.', { okText: 'Desembolsar' }).then(function (ok) {
       if (!ok) return;
       var btn = document.getElementById('btnDesembolsar');
       btn.disabled = true;
       apiCall('solicitudes', {
         method: 'POST',
-        body: { action: 'desembolsar', id: desembolsoActualId, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin }
+        body: { action: 'desembolsar', id: desembolsoActualId, retencion_comprobante: retencion, actor_id: currentUser.ID, actor_nombre: fullName(currentUser), actor_is_admin: isAdmin }
       }).then(function (r) {
         btn.disabled = false;
         if (r.ok) {
@@ -3878,6 +4054,7 @@
     document.getElementById('informeContent').innerHTML = '';
     // Un administrador de fondo ve TODOS los gastos de su fondo, sin importar
     // quién los registró: se pide todo (admin=1) y se filtra en el cliente.
+    cargarSaldoInforme(fondoId);
     return apiCall('gastos?action=list&admin=1').then(function (r) {
       document.getElementById('informeLoading').style.display = 'none';
       informeGastos = (r.gastos || []).filter(function (g) {
@@ -3912,6 +4089,25 @@
     return { refC: refC, umbralC: umbralC, montoC: montoC, docC: docC, faltaC: Math.max(0, umbralC - montoC), plazo: plazo, limite: limite, ok: montoC >= umbralC || plazo,
       sinDoc: gastosSel.filter(function (g) { return !g.documento_fisico_recibido; }) };
   }
+  var informeSaldo = null;
+  function cargarSaldoInforme(fondoId) {
+    informeSaldo = null;
+    return apiCall('fondos?action=saldo&fondoId=' + encodeURIComponent(fondoId)).then(function (r) {
+      if (r && r.ok) { informeSaldo = r.saldo; renderReglaReintegro(); }
+    }).catch(function () {});
+  }
+  function distribucionHtml(fondo, ev, efC, circ) {
+    var sd = (informeSaldo && String(informeSaldo.fondoId) === String(fondo.id)) ? informeSaldo : null;
+    if (!sd) {
+      return circ
+        ? '<b>Efectivo (40%) ' + centavos(efC) + '</b> · <b>Banco (60%) ' + centavos(ev.refC - efC) + '</b> (Reglamento, Art. 11).'
+        : '<b>Todo en efectivo ' + centavos(efC) + '</b> (Reglamento, Art. 12).';
+    }
+    return (circ
+      ? '<b>Efectivo</b> en uso ' + centavos(sd.efectivoUsadoC) + ' de ' + centavos(sd.efectivoCapC) + ' (disponible ' + centavos(Math.max(0, sd.efectivoDispC)) + ') · <b>Banco</b> en uso ' + centavos(sd.bancoUsadoC) + ' de ' + centavos(sd.bancoCapC) + ' (disponible ' + centavos(Math.max(0, sd.bancoDispC)) + ')'
+      : '<b>Todo en efectivo</b>: en uso ' + centavos(sd.efectivoUsadoC) + ' de ' + centavos(sd.efectivoCapC) + ' (disponible ' + centavos(Math.max(0, sd.efectivoDispC)) + ')') +
+      ' — según los desembolsos reales (cheque y transferencia afectan al banco; efectivo, al efectivo).';
+  }
   var MESES_ES = ['', 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
   function renderReglaReintegro() {
     var el = document.getElementById('informeRegla');
@@ -3937,9 +4133,7 @@
         '<div><span>Gastos seleccionados</span><b>' + centavos(ev.montoC) + '</b></div>' +
         '<div><span>Con documento físico recibido</span><b>' + centavos(ev.docC) + '</b></div>' +
       '</div>' + estado +
-      '<div class="gasto-line" style="margin-top:6px">Distribución del fondo en el mes: ' + (circ
-        ? '<b>Efectivo (40%) ' + centavos(efC) + '</b> · <b>Banco (60%) ' + centavos(ev.refC - efC) + '</b> (Reglamento, Art. 11).'
-        : '<b>Todo en efectivo ' + centavos(efC) + '</b> (Reglamento, Art. 12).') + '</div>' +
+      '<div class="gasto-line" style="margin-top:6px">Efectivo y banco del fondo: ' + distribucionHtml(fondo, ev, efC, circ) + '</div>' +
       '<div class="gasto-line">Un reintegro solo admite gastos con el documento físico ya recibido. La liquidación no tiene estas restricciones.</div>';
     el.style.display = 'block';
   }
@@ -4914,6 +5108,7 @@
       return Promise.all([apiCall('fondos?action=list'), apiCall('solicitudes?action=list'), apiCall('certificadores?action=list'), apiCall('tesoreria?action=list')]);
     }).then(function (resList) {
       fondos = resList[0].fondos || [];
+      if (resList[0].reglas) REGLAS_FONDOS = resList[0].reglas;
       solicitudes = resList[1].solicitudes || [];
       certificadores = resList[2].certificadores || [];
       tesoreria = resList[3].tesoreria || [];

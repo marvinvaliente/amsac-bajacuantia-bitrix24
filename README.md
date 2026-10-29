@@ -729,16 +729,42 @@ acción `crear`), no solo la pantalla.
   puede marcar el administrador del fondo (o un administrador del portal
   verificado contra Bitrix24) y solo mientras el gasto siga "registrado". Los
   gastos anteriores a esta regla quedan como "pendiente de recibir".
-- **Efectivo y banco** (Art. 11 y 12), solo informativo en pantalla: en el
-  **fondo circulante** el 40% de la referencia mensual se gira en cheque y se
-  mantiene en efectivo (gastos de hasta $500) y el 60% queda en la cuenta
-  bancaria (pagos por transferencia o cheque no negociable); la **caja chica**
-  se abre por cheque y se maneja **toda en efectivo**. El panel "Condiciones del
-  reintegro" muestra esa distribución. No se valida contra los pagos reales.
-- Otras cuantías del reglamento **no controladas** por el sistema todavía:
-  compra máxima por factura ($1,000 circulante, $100 caja chica, Art. 6),
-  efectivo hasta $500 (Art. 11) y plazo de 3 días hábiles para presentar
-  comprobantes (Art. 19).
+### Límites de compra, efectivo/banco y compras excepcionales
+
+Las valida el **servidor** (`api/gestiones.js`: `evaluarCuantia` y
+`calcularSaldoFondo`) al **crear** la solicitud, al **certificarla** si cambian
+los montos y al **desembolsar**. La pantalla de Crear Solicitud avisa en vivo,
+pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
+
+| | Fondo circulante | Caja chica |
+|---|---|---|
+| Compra ordinaria (Art. 6) | hasta **$1,000** | hasta **$100** |
+| Forma de pago | **efectivo** solo hasta **$500** por compra (Art. 11); transferencia o cheque sin tope | **solo efectivo** (Art. 12) |
+| Reparto del fondo | **40% efectivo / 60% banco** de la referencia mensual | 100% efectivo |
+| Compra excepcional (supera el límite ordinario) | exige el **acuerdo administrativo del Alcalde Municipal en PDF** (Art. 7); máximo **20 salarios mínimos** de comercio y servicios; lo excepcional del mes no pasa del **50%** de la referencia mensual | sin acuerdo; lo excepcional del mes no pasa del **50%** de la referencia mensual (Art. 8) y exige **comprobante de retención** tramitado con Tesorería antes de la compra |
+
+- **Efectivo y banco con gastos reales**: la forma de pago de cada solicitud
+  decide el medio — **efectivo** afecta al efectivo; **cheque y transferencia**
+  afectan al banco. El saldo de un fondo = (40% o 60% de la referencia del mes)
+  menos lo ya **desembolsado** (solicitudes desembolsadas o facturadas) que
+  **aún no fue repuesto** por un reintegro entregado o cerrado. Al desembolsar,
+  si el medio no alcanza, el servidor rechaza con lo disponible. Se muestra en
+  el detalle del Desembolso y en el panel de "Solicitud de reintegro o
+  liquidación" (`GET fondos?action=saldo&fondoId=`).
+- **Acuerdo administrativo (circulante)**: al crear, si el total supera
+  $1,000, aparece el campo para subir el PDF; sin él no se crea. Queda
+  guardado en la solicitud y se ve en Autorización y Desembolso. La solicitud
+  se marca `excepcional`.
+- **Comprobante de retención (caja chica)**: en una compra excepcional el
+  administrador registra el **N° de comprobante** en el Desembolso (queda con
+  quién y cuándo); sin él no se desembolsa.
+- **Salario mínimo** (Art. 7): $408.80 (comercio y servicios, vigente en 2026;
+  20 salarios = $8,176.00). Se puede cambiar con la variable de entorno
+  `SALARIO_MINIMO_COMERCIO` en Vercel si el Gobierno lo ajusta.
+- Las solicitudes anteriores a estas reglas no se tocan, pero una compra
+  excepcional de circulante sin acuerdo no se puede desembolsar.
+- Siguen **sin controlarse**: el plazo de 3 días hábiles para presentar
+  comprobantes (Art. 19) y la prohibición de fraccionar compras (Art. 21).
 
 Estados de `gastos_gestiones`: `pendiente` → `revisado` → (`entregado`) →
 `cerrado`. Columnas nuevas (migración `migracion-reintegro-v2.sql`):

@@ -153,6 +153,146 @@ function evaluarReintegro(montoAnual, gastos, hoy) {
 const fmtC = (c) => (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtFecha = (d) => String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4);
 
+// ---- Límites de compra, efectivo/banco y compras excepcionales ------------
+// Reglamento: Art. 6 (cuantías), 7 (excepción del Alcalde en circulante),
+// 8 (excepción en caja chica), 11 y 12 (efectivo y banco).
+//  - Circulante: compra ordinaria hasta $1,000; en efectivo solo hasta $500
+//    (el 40% del fondo se mantiene en efectivo, el 60% en banco). Por encima de
+//    $1,000 es excepcional: exige el acuerdo administrativo del Alcalde
+//    (PDF), máximo 20 salarios mínimos de comercio y servicios, y lo excepcional
+//    del mes no puede pasar el 50% de la referencia mensual.
+//  - Caja chica: ordinaria hasta $100, todo en efectivo. Por encima es
+//    excepcional: tope del 50% de la referencia mensual en el mes y comprobante
+//    de retención tramitado con Tesorería antes de la compra.
+// El salario mínimo se puede cambiar con la variable SALARIO_MINIMO_COMERCIO.
+const SALARIO_MINIMO = Number(process.env.SALARIO_MINIMO_COMERCIO) > 0 ? Number(process.env.SALARIO_MINIMO_COMERCIO) : 408.80;
+const REGLAS = {
+  circulante: { limiteCompra: 1000, efectivoMaxCompra: 500, efectivoPct: 40, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false },
+  caja_chica: { limiteCompra: 100, efectivoMaxCompra: null, efectivoPct: 100, excepcionMaxSalarios: null, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true }
+};
+function reglasPublicas() {
+  return {
+    salarioMinimo: SALARIO_MINIMO,
+    excepcionMaxMonto: Math.round(REGLAS.circulante.excepcionMaxSalarios * SALARIO_MINIMO * 100) / 100,
+    circulante: REGLAS.circulante, caja_chica: REGLAS.caja_chica
+  };
+}
+const centavosDe = (n) => Math.round((Number(n) || 0) * 100);
+const fechaLocalDe = (ts) => new Date(new Date(ts).getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
+// Inicio (UTC) del mes local de El Salvador al que pertenece una fecha local.
+function limitesMesUTC(fechaLocal) {
+  const y = parseInt(fechaLocal.slice(0, 4), 10), m = parseInt(fechaLocal.slice(5, 7), 10);
+  const ini = new Date(Date.UTC(y, m - 1, 1, 6, 0, 0)).toISOString();
+  const fin = new Date(Date.UTC(y, m, 1, 6, 0, 0)).toISOString();
+  return { ini, fin };
+}
+
+async function leerFondo(fondoId) {
+  const rF = await sb('gastos_fondos?id=eq.' + encodeURIComponent(fondoId) + '&select=id,tipo,monto_total,anio');
+  const f = await rF.json();
+  if (!rF.ok || !Array.isArray(f)) throw new Error('No se pudo leer el fondo.');
+  return f[0] || null;
+}
+
+// Valida una compra (solicitud) contra las reglas del fondo. Devuelve
+// { error } si no se permite; si no, { excepcional, acuerdoRequerido, retencionRequerida, ... }.
+//   datos: { fondoId, monto, formaPago, tieneAcuerdo, excluirId, fecha (AAAA-MM-DD local) }
+async function evaluarCuantia(datos) {
+  const f = await leerFondo(datos.fondoId);
+  if (!f) return { error: 'El fondo no existe.' };
+  const R_ = REGLAS[f.tipo];
+  if (!R_) return { excepcional: false, acuerdoRequerido: false, retencionRequerida: false };
+  const monto = Math.round((Number(datos.monto) || 0) * 100) / 100;
+
+  // Efectivo / banco (Art. 11 y 12)
+  if (f.tipo === 'caja_chica' && datos.formaPago !== 'efectivo') {
+    return { error: 'La caja chica se maneja toda en efectivo (Reglamento, Art. 12): la forma de pago debe ser Efectivo.' };
+  }
+  if (f.tipo === 'circulante' && datos.formaPago === 'efectivo' && monto > R_.efectivoMaxCompra) {
+    return { error: 'En fondo circulante el efectivo solo se usa en compras de hasta $' + R_.efectivoMaxCompra.toFixed(2) + ' (Reglamento, Art. 11). Esta compra es de $' + monto.toFixed(2) + ': debe pagarse por transferencia o cheque.' };
+  }
+
+  const excepcional = monto > R_.limiteCompra;
+  const out = { excepcional, acuerdoRequerido: excepcional && R_.exigeAcuerdo, retencionRequerida: excepcional && R_.exigeRetencion, tipo: f.tipo, limite: R_.limiteCompra };
+  if (!excepcional) return out;
+
+  if (f.tipo === 'circulante') {
+    const maxC = Math.round(R_.excepcionMaxSalarios * SALARIO_MINIMO * 100);
+    if (centavosDe(monto) > maxC) {
+      return { error: 'Esta compra de $' + monto.toFixed(2) + ' supera el máximo que el Alcalde puede autorizar de forma excepcional: ' + R_.excepcionMaxSalarios + ' salarios mínimos de comercio y servicios ($' + fmtC(maxC) + ') (Reglamento, Art. 7).' };
+    }
+    if (!datos.tieneAcuerdo) {
+      return { error: 'Esta compra supera el límite ordinario del fondo circulante ($' + R_.limiteCompra.toFixed(2) + ') y es excepcional: debes adjuntar el acuerdo administrativo del Alcalde Municipal en PDF (Reglamento, Art. 7).' };
+    }
+  }
+
+  // Tope mensual: lo excepcional del mes no puede pasar el 50% de la referencia
+  const fecha = datos.fecha || hoyLocal();
+  const mes = parseInt(fecha.slice(5, 7), 10);
+  const refC = referenciaMensualCentavos(f.monto_total, mes);
+  if (refC > 0) {
+    const topeC = Math.floor((refC * R_.excepcionMensualPct) / 100);
+    const { ini, fin } = limitesMesUTC(fecha);
+    const rS = await sb('gastos_solicitudes?fondo_id=eq.' + encodeURIComponent(datos.fondoId) + '&excepcional=eq.true&estado=not.in.(denegado,eliminada)' +
+      '&created_at=gte.' + encodeURIComponent(ini) + '&created_at=lt.' + encodeURIComponent(fin) + '&select=id,monto_total');
+    const ex = await rS.json();
+    if (!rS.ok || !Array.isArray(ex)) throw new Error('No se pudieron leer las compras excepcionales del mes.');
+    const usadoC = ex.filter((x) => String(x.id) !== String(datos.excluirId || '')).reduce((a, x) => a + centavosDe(x.monto_total), 0);
+    out.refC = refC; out.topeC = topeC; out.usadoC = usadoC;
+    if (usadoC + centavosDe(monto) > topeC) {
+      return { error: 'Las compras excepcionales del mes sumarían $' + fmtC(usadoC + centavosDe(monto)) + ' y el tope mensual es el ' + R_.excepcionMensualPct + '% de la referencia del fondo ($' + fmtC(refC) + ' → $' + fmtC(topeC) +
+        '); ya hay $' + fmtC(usadoC) + ' en compras excepcionales este mes' + (f.tipo === 'circulante' ? ' (Reglamento, Art. 7).' : ' (Reglamento, Art. 8).') + ' Lo no utilizado no se acumula para los meses siguientes.' };
+    }
+  }
+  return out;
+}
+
+// Saldo en efectivo y en banco de un fondo, calculado con los desembolsos
+// reales: lo desembolsado (solicitudes desembolsadas o facturadas) que aún no
+// fue repuesto por un reintegro entregado o cerrado. La forma de pago de cada
+// solicitud decide el medio: efectivo -> efectivo; cheque o transferencia -> banco.
+// Fondo circulante: 40% efectivo / 60% banco de la referencia mensual
+// (Art. 11); caja chica: 100% efectivo (Art. 12).
+async function calcularSaldoFondo(fondoId) {
+  const f = await leerFondo(fondoId);
+  if (!f) return null;
+  const hoy = hoyLocal();
+  const mes = parseInt(hoy.slice(5, 7), 10);
+  const refC = referenciaMensualCentavos(f.monto_total, mes);
+  const circ = f.tipo === 'circulante';
+  const efectivoCapC = circ ? Math.round(refC * 0.4) : refC;
+  const bancoCapC = refC - efectivoCapC;
+
+  const rS = await sb('gastos_solicitudes?fondo_id=eq.' + encodeURIComponent(fondoId) + '&estado=in.(desembolsado,facturado)&select=id,estado,forma_pago,monto_total');
+  const sols = await rS.json();
+  if (!rS.ok || !Array.isArray(sols)) throw new Error('No se pudieron leer los desembolsos del fondo.');
+  let repuestas = new Set();
+  const porSolicitud = {};
+  if (sols.length) {
+    const ids = sols.map((x) => x.id).join(',');
+    const rG = await sb('gastos_registros?solicitud_id=in.(' + ids + ')&estado=neq.eliminado&select=solicitud_id,gestion_id');
+    const gs = await rG.json();
+    if (!rG.ok || !Array.isArray(gs)) throw new Error('No se pudieron leer los gastos del fondo.');
+    gs.forEach((g) => { (porSolicitud[g.solicitud_id] = porSolicitud[g.solicitud_id] || []).push(g); });
+    const gIds = Array.from(new Set(gs.map((g) => g.gestion_id).filter((x) => x != null)));
+    if (gIds.length) {
+      const rE = await sb('gastos_gestiones?id=in.(' + gIds.join(',') + ')&estado=in.(entregado,cerrado)&select=id');
+      const es = await rE.json();
+      if (!rE.ok || !Array.isArray(es)) throw new Error('No se pudieron leer las gestiones del fondo.');
+      repuestas = new Set(es.map((e) => String(e.id)));
+    }
+  }
+  let efectivoUsadoC = 0, bancoUsadoC = 0;
+  sols.forEach((x) => {
+    const gs = porSolicitud[x.id] || [];
+    const repuesta = x.estado === 'facturado' && gs.length > 0 && gs.every((g) => g.gestion_id != null && repuestas.has(String(g.gestion_id)));
+    if (repuesta) return;
+    if (x.forma_pago === 'efectivo') efectivoUsadoC += centavosDe(x.monto_total); else bancoUsadoC += centavosDe(x.monto_total);
+  });
+  return { fondoId: f.id, tipo: f.tipo, mes, refC, efectivoCapC, bancoCapC, efectivoUsadoC, bancoUsadoC,
+    efectivoDispC: efectivoCapC - efectivoUsadoC, bancoDispC: bancoCapC - bancoUsadoC };
+}
+
 // Fondo circulante y caja chica: si el administrador de ese fondo tiene un
 // reintegro ya entregado por Tesorería y todavía no confirmó que lo recibió, no
 // puede usar el fondo (no se inicia un ciclo nuevo hasta confirmar). Devuelve
@@ -489,4 +629,9 @@ module.exports = async (req, res) => {
 
 module.exports.bloqueoCajaChica = bloqueoCajaChica;
 module.exports.evaluarReintegro = evaluarReintegro;
+module.exports.evaluarCuantia = evaluarCuantia;
+module.exports.calcularSaldoFondo = calcularSaldoFondo;
+module.exports.reglasPublicas = reglasPublicas;
+module.exports.fechaLocalDe = fechaLocalDe;
+module.exports.fmtC = fmtC;
 module.exports.referenciaMensualCentavos = referenciaMensualCentavos;

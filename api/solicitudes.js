@@ -162,6 +162,13 @@ function construirCotizaciones(input) {
   return limpios;
 }
 
+// Acuerdo administrativo (PDF ya subido a Storage por api/upload.js).
+function acuerdoValido(a) {
+  const url = String((a && a.url) || '').trim();
+  if (!url.startsWith(URL + '/storage/v1/object/public/')) return null;
+  return { url: url, nombre: String((a && a.nombre) || '').trim() || 'acuerdo-administrativo.pdf' };
+}
+
 function construirSolicitud(s, actorId, actorNombre, exigirPresupuestario, exigirCotizacion) {
   s = s || {};
   const fondoId = parseInt(s.fondo_id, 10);
@@ -239,6 +246,15 @@ module.exports = async (req, res) => {
       if (action === 'create') {
         const built = construirSolicitud(body.solicitud || {}, body.actor_id, body.actor_nombre, false, true);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        // Límites de compra, efectivo/banco y compras excepcionales (Reglamento).
+        const acuerdoIn = acuerdoValido((body.solicitud || {}).acuerdo_administrativo);
+        let evC;
+        try {
+          evC = await gestiones.evaluarCuantia({ fondoId: built.row.fondo_id, monto: built.row.monto_total, formaPago: built.row.forma_pago, tieneAcuerdo: !!acuerdoIn });
+        } catch (eC) { res.status(502).json({ ok: false, error: 'No se pudieron validar los límites del fondo: ' + String((eC && eC.message) || eC) }); return; }
+        if (evC.error) { res.status(400).json({ ok: false, error: evC.error }); return; }
+        built.row.excepcional = !!evC.excepcional;
+        if (evC.excepcional && acuerdoIn) { built.row.acuerdo_administrativo_url = acuerdoIn.url; built.row.acuerdo_administrativo_nombre = acuerdoIn.nombre; }
         // Solo se puede crear una solicitud contra un fondo al que el usuario
         // fue asignado en "Configurar usuarios".
         // Un administrador del portal (verificado contra Bitrix24) puede usar cualquier fondo.
@@ -305,7 +321,7 @@ module.exports = async (req, res) => {
           res.status(502).json({ ok: false, error: 'No se pudo verificar tu pertenencia al Departamento de Presupuesto: ' + String((ePers && ePers.message) || ePers) });
           return;
         }
-        const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado');
+        const actual = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado,created_at,acuerdo_administrativo_url,acuerdo_administrativo_nombre');
         const actualData = await actual.json();
         if (!actual.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualData), raw: actualData }); return; }
         if (!actualData || !actualData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
@@ -322,6 +338,16 @@ module.exports = async (req, res) => {
         const row = built.row;
         delete row.created_by_id;
         delete row.created_by_nombre;
+        // Si al certificar cambian los montos, se vuelven a validar los límites del fondo
+        // (el acuerdo administrativo es el que ya adjuntó el solicitante).
+        try {
+          const evU = await gestiones.evaluarCuantia({
+            fondoId: row.fondo_id, monto: row.monto_total, formaPago: row.forma_pago, excluirId: body.id,
+            tieneAcuerdo: !!actualData[0].acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(actualData[0].created_at)
+          });
+          if (evU.error) { res.status(400).json({ ok: false, error: evU.error }); return; }
+          row.excepcional = !!evU.excepcional;
+        } catch (eU) { res.status(502).json({ ok: false, error: 'No se pudieron validar los límites del fondo: ' + String((eU && eU.message) || eU) }); return; }
         // La certificación depende de lo aprobado por el Departamento de
         // Presupuesto (sistema Presupuesto, mismo Supabase). Si no se puede
         // consultar, no se certifica a ciegas.
@@ -365,7 +391,7 @@ module.exports = async (req, res) => {
 
       if (action === 'desembolsar') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
-        const actualE = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=estado,fondo_id');
+        const actualE = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id) + '&select=*');
         const actualEData = await actualE.json();
         if (!actualE.ok) { res.status(500).json({ ok: false, error: dbErrorMsg(actualEData), raw: actualEData }); return; }
         if (!actualEData || !actualEData[0]) { res.status(404).json({ ok: false, error: 'La solicitud no existe.' }); return; }
@@ -386,14 +412,54 @@ module.exports = async (req, res) => {
         }
         const bloqueoDes = await gestiones.bloqueoCajaChica(actualEData[0].fondo_id, body.actor_id);
         if (bloqueoDes) { res.status(409).json({ ok: false, error: 'Tienes un reintegro entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoDes }); return; }
+        // Reglas del reglamento al entregar el dinero: límites de compra y compras
+        // excepcionales, comprobante de retención (caja chica) y saldo real en
+        // efectivo o banco según la forma de pago de la solicitud.
+        const sol = actualEData[0];
+        const patchDes = {
+          estado: 'desembolsado',
+          desembolsado_at: new Date().toISOString(),
+          desembolsado_por_id: String(body.actor_id || ''),
+          desembolsado_por_nombre: body.actor_nombre || ''
+        };
+        try {
+          const evD = await gestiones.evaluarCuantia({
+            fondoId: sol.fondo_id, monto: sol.monto_total, formaPago: sol.forma_pago, excluirId: sol.id,
+            tieneAcuerdo: !!sol.acuerdo_administrativo_url, fecha: gestiones.fechaLocalDe(sol.created_at)
+          });
+          if (evD.error) { res.status(400).json({ ok: false, error: evD.error }); return; }
+          if (evD.retencionRequerida) {
+            const ret = String(body.retencion_comprobante || sol.retencion_comprobante || '').trim();
+            if (!ret) {
+              res.status(400).json({ ok: false, error: 'Compra excepcional de caja chica: antes de desembolsar debes tramitar con Tesorería el comprobante de retención y registrar su número (Reglamento, Art. 8).' });
+              return;
+            }
+            patchDes.retencion_comprobante = ret;
+            patchDes.retencion_tramitada_at = new Date().toISOString();
+            patchDes.retencion_tramitada_por_id = String(body.actor_id || '');
+            patchDes.retencion_tramitada_por_nombre = body.actor_nombre || '';
+          }
+          patchDes.excepcional = !!evD.excepcional;
+          const sal = await gestiones.calcularSaldoFondo(sol.fondo_id);
+          if (sal && sal.refC > 0) {
+            const medio = sol.forma_pago === 'efectivo' ? 'efectivo' : 'banco';
+            const dispC = medio === 'efectivo' ? sal.efectivoDispC : sal.bancoDispC;
+            const capC = medio === 'efectivo' ? sal.efectivoCapC : sal.bancoCapC;
+            const usadoC = medio === 'efectivo' ? sal.efectivoUsadoC : sal.bancoUsadoC;
+            const necC = Math.round((Number(sol.monto_total) || 0) * 100);
+            if (necC > dispC) {
+              res.status(400).json({ ok: false, error: 'No hay saldo suficiente en ' + (medio === 'efectivo' ? 'EFECTIVO' : 'BANCO') + ' del fondo para este desembolso: disponible $' + gestiones.fmtC(Math.max(0, dispC)) +
+                ' (límite $' + gestiones.fmtC(capC) + ', en uso $' + gestiones.fmtC(usadoC) + ') y esta solicitud necesita $' + gestiones.fmtC(necC) + ' por ' + (sol.forma_pago === 'efectivo' ? 'efectivo' : sol.forma_pago) + '. Solicita el reintegro para reponer el fondo.' });
+              return;
+            }
+          }
+        } catch (eD) {
+          res.status(502).json({ ok: false, error: 'No se pudieron validar las reglas del fondo: ' + String((eD && eD.message) || eD) });
+          return;
+        }
         const r = await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },
-          body: JSON.stringify({
-            estado: 'desembolsado',
-            desembolsado_at: new Date().toISOString(),
-            desembolsado_por_id: String(body.actor_id || ''),
-            desembolsado_por_nombre: body.actor_nombre || ''
-          })
+          body: JSON.stringify(patchDes)
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
