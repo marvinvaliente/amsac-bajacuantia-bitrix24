@@ -241,13 +241,15 @@ module.exports = async (req, res) => {
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         // Solo se puede crear una solicitud contra un fondo al que el usuario
         // fue asignado en "Configurar usuarios".
+        // Un administrador del portal (verificado contra Bitrix24) puede usar cualquier fondo.
+        const esAdminVerif = await presupuesto.esAdminPortal(body.actor_id, body.auth_token);
         const asig = await sb(
           'gastos_fondo_usuarios?fondo_id=eq.' + encodeURIComponent(built.row.fondo_id) +
           '&usuario_id=eq.' + encodeURIComponent(String(body.actor_id || '')) + '&select=id&limit=1'
         );
         const asigData = await asig.json();
         if (!asig.ok || !Array.isArray(asigData)) { res.status(502).json({ ok: false, error: 'No se pudo verificar tu asignación al fondo.' }); return; }
-        if (!asigData.length) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
+        if (!asigData.length && !esAdminVerif) { res.status(403).json({ ok: false, error: 'No tienes asignado este fondo. Pide a un administrador del portal que te asigne en "Configurar usuarios".' }); return; }
         // Caja chica: sin confirmar el reintegro recibido no se puede usar el fondo.
         const bloqueoCrear = await gestiones.bloqueoCajaChica(built.row.fondo_id, body.actor_id);
         if (bloqueoCrear) { res.status(409).json({ ok: false, error: 'Tienes un reintegro de caja chica entregado por Tesorería pendiente de confirmar. Confirma que lo recibiste para seguir usando el fondo.', bloqueo_gestion: bloqueoCrear }); return; }
@@ -295,8 +297,8 @@ module.exports = async (req, res) => {
         // Certificar solo lo puede hacer personal del Departamento de Presupuesto
         // (incluido su jefe); se verifica contra Bitrix24, no contra el navegador.
         try {
-          if (!(await presupuesto.esPersonalPresupuesto(body.actor_id))) {
-            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) puede certificar solicitudes.' });
+          if (!(await presupuesto.puedeComoPresupuesto(body))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) o un administrador del portal puede certificar solicitudes.' });
             return;
           }
         } catch (ePers) {

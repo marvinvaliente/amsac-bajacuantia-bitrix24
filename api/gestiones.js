@@ -249,8 +249,8 @@ module.exports = async (req, res) => {
         // Revisar/autorizar una gestión: solo personal del Departamento de
         // Presupuesto (incluido su jefe), verificado contra Bitrix24.
         try {
-          if (!(await presupuesto.esPersonalPresupuesto(body.actor_id))) {
-            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) puede revisar y autorizar una gestión.' });
+          if (!(await presupuesto.puedeComoPresupuesto(body))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Presupuesto (incluido su jefe) o un administrador del portal puede revisar y autorizar una gestión.' });
             return;
           }
         } catch (ePers) {
@@ -323,8 +323,8 @@ module.exports = async (req, res) => {
         // Liberar el reintegro (acuerdo + comprobante/voucher) solo lo hace el
         // personal del Departamento de Tesorería, verificado contra Bitrix24.
         try {
-          if (!(await presupuesto.esPersonalTesoreria(body.actor_id))) {
-            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería puede registrar el reintegro.' });
+          if (!(await presupuesto.puedeComoTesoreria(body))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería o un administrador del portal puede registrar el reintegro.' });
             return;
           }
         } catch (ePers) {
@@ -403,8 +403,8 @@ module.exports = async (req, res) => {
       if (action === 'cerrar') {
         if (!body.id) { res.status(400).json({ ok: false, error: 'Falta id.' }); return; }
         try {
-          if (!(await presupuesto.esPersonalTesoreria(body.actor_id))) {
-            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería puede cerrar una liquidación.' });
+          if (!(await presupuesto.puedeComoTesoreria(body))) {
+            res.status(403).json({ ok: false, error: 'Solo el personal del Departamento de Tesorería o un administrador del portal puede cerrar una liquidación.' });
             return;
           }
         } catch (ePers) {

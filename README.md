@@ -45,11 +45,12 @@ pertenezcan:
   presupuestaria**. Solo lo tienen los **miembros del "Departamento de
   Presupuesto" de Bitrix24, incluido su jefe** (activos). Ya no se asigna
   en Configurar usuarios: se deriva de la estructura de Bitrix24 y ahí
-  solo se muestra la lista informativa. Ni siquiera un administrador del
-  portal certifica si no es de ese departamento. El servidor lo verifica
-  contra Bitrix24 (webhook) al certificar, al revisar/autorizar un reintegro
-  y al corregir gastos informados (403 si no pertenece; 502 si no puede
-  consultar Bitrix24, sin asumir permiso). No depende de ningún fondo.
+  solo se muestra la lista informativa. Además, **el administrador del
+  portal de Bitrix24 también puede certificar** (ver "Administrador del
+  portal"). El servidor lo verifica contra Bitrix24 (webhook) al certificar,
+  al revisar/autorizar un reintegro y al corregir gastos informados (403 si
+  no pertenece; 502 si no puede consultar Bitrix24, sin asumir permiso). No
+  depende de ningún fondo.
 - **Administrador de fondo** — acceso a **Desembolso de fondos** e
   **Informe de Gastos**, pero **solo para el/los fondo(s) que administra**:
   es un subconjunto de los usuarios asignados a un fondo (no todos los que
@@ -77,10 +78,19 @@ pertenezcan:
   fondo**, que son quienes *piden* el reintegro o la liquidación desde
   Informe de Gastos y no usan este menú (salvo que además sean de Tesorería).
   Ya no se asigna en Configurar usuarios: se deriva de Bitrix24 y ahí solo
-  se muestra la lista informativa. Ni un administrador del portal entra si
-  no es de ese departamento. El servidor lo verifica contra Bitrix24 al
-  registrar un reintegro y al cerrar una liquidación (403 si no pertenece;
-  502 si no puede consultar Bitrix24).
+  se muestra la lista informativa. El administrador del portal también
+  entra (ver "Administrador del portal"). El servidor lo verifica contra
+  Bitrix24 al registrar un reintegro y al cerrar una liquidación (403 si no
+  pertenece; 502 si no puede consultar Bitrix24).
+- **Administrador del portal de Bitrix24** — ve **todas** las opciones de la
+  app (Crear Solicitud con cualquier fondo, Autorización, Desembolso,
+  Registrar factura, Certificación, Reintegro/liquidación, Tesorería,
+  Historial, Informe, Reportes, Dashboard y Configurar usuarios) y puede
+  usarlas. Para las acciones de Presupuesto y Tesorería (y para crear
+  solicitudes contra un fondo que no tiene asignado) el servidor no se fía
+  del navegador: recibe el token de sesión de Bitrix24 del usuario
+  (`BX24.getAuth()`), se lo pregunta a Bitrix24 (método `profile`) y solo
+  acepta si el ID coincide y `ADMIN` es verdadero.
 - **Gerencia responsable de una solicitud** — acceso a **Autorización de
   gerencia**, pero solo para autorizar o denegar las solicitudes donde esa
   persona específica fue elegida como "Gerencia responsable" al crearlas.

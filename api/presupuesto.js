@@ -197,6 +197,35 @@ const esPersonalPresupuesto = (userId) => esPersonalDepto(userId, 'departamento 
 const esPersonalTesoreria = (userId) => esPersonalDepto(userId, 'departamento de tesoreria');
 const usuariosTesoreria = () => usuariosDepto('departamento de tesoreria');
 
+// Administrador del portal, verificado contra Bitrix24: el navegador manda el
+// token de su sesión (BX24.getAuth) y se le pregunta a Bitrix24 quién es y si es
+// administrador (método profile). Un actor_is_admin escrito a mano no sirve.
+// Cualquier fallo se trata como "no es administrador".
+const cacheAdmin = {};
+async function esAdminPortal(userId, token) {
+  userId = String(userId || '').trim();
+  token = String(token || '').trim();
+  if (!userId || !token || !process.env.BITRIX24_WEBHOOK_URL) return false;
+  const k = userId + ':' + token;
+  const c = cacheAdmin[k];
+  if (c && Date.now() - c.t < 2 * 60 * 1000) return c.v;
+  let v = false;
+  try {
+    // (en este archivo "URL" es la de Supabase: se usa la clase de Node explícita)
+    const origin = new (require('url').URL)(process.env.BITRIX24_WEBHOOK_URL).origin;
+    const r = await fetch(origin + '/rest/profile.json', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: token }) });
+    const j = await r.json().catch(() => ({}));
+    const p = j && j.result;
+    v = !!(r.ok && p && String(p.ID) === userId && (p.ADMIN === true || p.ADMIN === 'true' || p.ADMIN === 'Y'));
+  } catch (e) { v = false; }
+  cacheAdmin[k] = { t: Date.now(), v };
+  return v;
+}
+// Certificar / revisar: personal de Presupuesto o administrador del portal.
+const puedeComoPresupuesto = async (body) => (await esAdminPortal(body.actor_id, body.auth_token)) || esPersonalPresupuesto(body.actor_id);
+// Liberar fondos / cerrar liquidaciones: personal de Tesorería o administrador del portal.
+const puedeComoTesoreria = async (body) => (await esAdminPortal(body.actor_id, body.auth_token)) || esPersonalTesoreria(body.actor_id);
+
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
   try {
@@ -219,3 +248,6 @@ module.exports.validarCertificacion = validarCertificacion;
 module.exports.esPersonalPresupuesto = esPersonalPresupuesto;
 module.exports.esPersonalTesoreria = esPersonalTesoreria;
 module.exports.usuariosTesoreria = usuariosTesoreria;
+module.exports.esAdminPortal = esAdminPortal;
+module.exports.puedeComoPresupuesto = puedeComoPresupuesto;
+module.exports.puedeComoTesoreria = puedeComoTesoreria;

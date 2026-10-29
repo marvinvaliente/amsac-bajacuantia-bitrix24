@@ -6,11 +6,11 @@ const KEY = process.env.SUPABASE_SECRET;
 const gestiones = require('./gestiones');
 const presupuesto = require('./presupuesto');
 
-// Personal de Presupuesto (verificado contra Bitrix24): puede corregir gastos
+// Personal de Presupuesto o administrador del portal (verificado contra Bitrix24): puede corregir gastos
 // ya informados. Si no se puede verificar, no se concede.
 async function esCertificadorVerificado(body) {
   if (!body.actor_es_certificador) return false;
-  try { return await presupuesto.esPersonalPresupuesto(body.actor_id); } catch (e) { return false; }
+  try { return await presupuesto.puedeComoPresupuesto(body); } catch (e) { return false; }
 }
 
 function sb(path, options) {

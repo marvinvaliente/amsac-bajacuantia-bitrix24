@@ -1129,11 +1129,11 @@
       <div id="fondosContent" style="display:none"></div>
 
       <div class="section-title" style="margin-top:22px">Certificación presupuestaria</div>
-      <div class="gasto-line" style="margin-bottom:10px">La certificación presupuestaria y la autorización de reintegros las hace <b>únicamente el personal del Departamento de Presupuesto</b>, incluido su jefe. Se toma de la estructura de Bitrix24 (no se configura aquí): para agregar o quitar a alguien, cámbialo en Bitrix24.</div>
+      <div class="gasto-line" style="margin-bottom:10px">La certificación presupuestaria y la autorización de reintegros las hace <b>únicamente el personal del Departamento de Presupuesto</b>, incluido su jefe (y los administradores del portal). Se toma de la estructura de Bitrix24 (no se configura aquí): para agregar o quitar a alguien, cámbialo en Bitrix24.</div>
       <div id="presupuestoPersonal" class="chip-row"></div>
 
       <div class="section-title" style="margin-top:22px">Tesorería</div>
-      <div class="gasto-line" style="margin-bottom:10px">El menú "Tesorería" (Reintegro de fondos / Liquidación de Fondos) lo usa <b>únicamente el personal del Departamento de Tesorería</b>, incluido su jefe: libera los fondos y sube el acuerdo municipal y el comprobante de transferencia (fondo circulante) o el voucher/cheque (caja chica). Es aparte de los administradores de fondo, que son quienes piden el reintegro o la liquidación. Se toma de la estructura de Bitrix24 (no se configura aquí).</div>
+      <div class="gasto-line" style="margin-bottom:10px">El menú "Tesorería" (Reintegro de fondos / Liquidación de Fondos) lo usa <b>únicamente el personal del Departamento de Tesorería</b>, incluido su jefe (y los administradores del portal): libera los fondos y sube el acuerdo municipal y el comprobante de transferencia (fondo circulante) o el voucher/cheque (caja chica). Es aparte de los administradores de fondo, que son quienes piden el reintegro o la liquidación. Se toma de la estructura de Bitrix24 (no se configura aquí).</div>
       <div id="tesoreriaPersonal" class="chip-row"></div>
     </div>
 
@@ -1467,12 +1467,20 @@
   }
 
   // ---- API propia (Vercel + Supabase) ----
+  // Token de la sesión de Bitrix24 del usuario: el servidor se lo pregunta a
+  // Bitrix24 para confirmar que es administrador del portal (no se fía de un
+  // "soy admin" escrito a mano).
+  function tokenSesion(body) {
+    if (!isAdmin || !body || typeof body !== 'object') return body;
+    try { var a = BX24.getAuth(); if (a && a.access_token) return Object.assign({}, body, { auth_token: a.access_token }); } catch (e) {}
+    return body;
+  }
   function apiCall(path, options) {
     options = options || {};
     return fetch('/api/' + path, {
       method: options.method || 'GET',
       headers: { 'Content-Type': 'application/json' },
-      body: options.body ? JSON.stringify(options.body) : undefined
+      body: options.body ? JSON.stringify(tokenSesion(options.body)) : undefined
     }).then(function (r) { return r.json(); }).then(function (data) {
       if (data && data.bloqueo_gestion && !options._reintento) {
         return confirmarRecepcionGestion(data.bloqueo_gestion).then(function (ok) {
@@ -1594,8 +1602,9 @@
   // Lista solo los fondos a los que pertenece quien está creando la solicitud;
   // si solo tiene uno, se autoselecciona.
   function poblarFondosUsuario() {
+    // El administrador del portal puede crear solicitudes contra cualquier fondo.
     var misFondos = fondos.filter(function (f) {
-      return (f.usuario_ids || []).some(function (id) { return String(id) === String(currentUser.ID); });
+      return isAdmin || (f.usuario_ids || []).some(function (id) { return String(id) === String(currentUser.ID); });
     });
     var sel = document.getElementById('sFondo');
     var actual = sel.value;
@@ -4100,7 +4109,7 @@
     // Certificar (y autorizar reintegros) solo lo hace el personal del
     // Departamento de Presupuesto de Bitrix24, incluido su jefe. El servidor lo
     // vuelve a verificar contra Bitrix24.
-    puedeCertificar = esPersonalPresupuestoId(currentUser.ID);
+    puedeCertificar = isAdmin || esPersonalPresupuestoId(currentUser.ID);
 
     fondosAdministrados = fondos
       .filter(function (f) { return (f.administrador_ids || []).some(function (id) { return String(id) === String(currentUser.ID); }); })
@@ -4115,7 +4124,7 @@
     // el personal del Departamento de Tesorería de Bitrix24, jefe incluido.
     // Los administradores de fondo piden los reintegros/liquidaciones desde
     // Informe de Gastos; no usan este menú. El servidor lo vuelve a verificar.
-    puedeTesoreria = esPersonalTesoreriaId(currentUser.ID);
+    puedeTesoreria = isAdmin || esPersonalTesoreriaId(currentUser.ID);
 
     // Autorizar/denegar una solicitud lo puede hacer específicamente quien
     // fue elegido como "Gerencia responsable" al crearla (no un grupo fijo
