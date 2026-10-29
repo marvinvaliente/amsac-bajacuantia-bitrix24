@@ -720,13 +720,14 @@
         <div class="table-wrap">
           <table class="data-table items-table" id="sItemsTable">
             <thead>
-              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario</th><th>Total</th><th></th></tr>
+              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario (con IVA)</th><th>Total</th><th></th></tr>
             </thead>
             <tbody id="sItemsBody"></tbody>
           </table>
         </div>
         <button type="button" id="btnAgregarItem" class="secondary">+ Agregar ítem</button>
-        <div class="items-total-row">Total de la solicitud: <b id="sItemsTotal">$0.00</b></div>
+        <div class="gasto-line" style="font-size:12.5px;color:#6b7a86;margin-top:6px">Los precios se ingresan con el <b>IVA incluido</b>; con ellos se calcula si la compra lleva retención de IVA.</div>
+        <div class="items-total-row">Total de la solicitud (IVA incluido): <b id="sItemsTotal">$0.00</b></div>
 
         <label for="sCotizacionFile" style="margin-top:22px">Adjuntar cotizaciones (PDF) *</label>
         <input type="file" id="sCotizacionFile" accept="application/pdf" multiple />
@@ -790,7 +791,7 @@
             <div class="table-wrap corp">
               <table class="data-table table-corp table-items" id="aItemsTable">
                 <thead>
-                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario</th><th class="num">Total</th></tr>
+                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario (con IVA)</th><th class="num">Total</th></tr>
                 </thead>
                 <tbody id="aItemsBody"></tbody>
               </table>
@@ -906,13 +907,14 @@
         <div class="table-wrap">
           <table class="data-table items-table" id="cItemsTable">
             <thead>
-              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario</th><th>Específico Presupuestario</th><th>CEP</th><th>Total</th><th></th></tr>
+              <tr><th>N°</th><th>Tipo</th><th>Cantidad</th><th>Descripción</th><th>Precio unitario (con IVA)</th><th>Específico Presupuestario</th><th>CEP</th><th>Total</th><th></th></tr>
             </thead>
             <tbody id="cItemsBody"></tbody>
           </table>
         </div>
         <button type="button" id="btnAgregarItemCert" class="secondary">+ Agregar ítem</button>
-        <div class="items-total-row">Total de la solicitud: <b id="cItemsTotal">$0.00</b></div>
+        <div class="gasto-line" style="font-size:12.5px;color:#6b7a86;margin-top:6px">Los precios se ingresan con el <b>IVA incluido</b>.</div>
+        <div class="items-total-row">Total de la solicitud (IVA incluido): <b id="cItemsTotal">$0.00</b></div>
 
         <div class="section-title" style="margin-top:18px">Disponibilidad presupuestaria</div>
         <div id="cDisponibilidad" class="gasto-line">Cargando...</div>
@@ -992,7 +994,7 @@
             <div class="table-wrap corp">
               <table class="data-table table-corp table-items" id="dItemsTable">
                 <thead>
-                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario</th><th>Específico</th><th>CEP</th><th class="num">Total</th></tr>
+                  <tr><th>N°</th><th>Tipo</th><th>Descripción</th><th class="num">Cantidad</th><th class="num">Precio unitario (con IVA)</th><th>Específico</th><th>CEP</th><th class="num">Total</th></tr>
                 </thead>
                 <tbody id="dItemsBody"></tbody>
               </table>
@@ -1006,7 +1008,7 @@
             <div id="dRetencionWrap" style="display:none">
               <label for="dRetencion">N° de comprobante de retención (tramitado con Tesorería) *</label>
               <input type="text" id="dRetencion" maxlength="60" placeholder="Ej. 000123" />
-              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional: el comprobante de retención (Ley de IVA de El Salvador) se tramita con Tesorería antes de la compra.</div>
+              <div class="gasto-line" id="dRetencionInfo" style="font-size:12.5px;color:#6b7a86"></div>
             </div>
 
             <div class="doc-actions">
@@ -1120,7 +1122,7 @@
           <table class="data-table items-table" id="facturaItemsTable">
             <thead>
               <tr>
-                <th>N°</th><th>Tipo</th><th>Descripción</th><th>Precio unitario</th><th>Específico</th><th>CEP</th>
+                <th>N°</th><th>Tipo</th><th>Descripción</th><th>Precio unitario (con IVA)</th><th>Específico</th><th>CEP</th>
                 <th>Fecha</th><th>N° Documento</th><th>Proveedor</th><th>Monto retenido</th>
                 <th>N° Comprobante de Retención</th><th>Monto total</th>
                 <th>Adjuntar factura o documento equivalente</th><th>Estado</th>
@@ -1526,12 +1528,12 @@
   // Límites del reglamento (el servidor manda los valores vigentes con la lista de
   // fondos; estos son los de respaldo). El servidor es quien los hace cumplir.
   var REGLAS_FONDOS = {
-    salarioMinimo: 408.80,
+    salarioMinimo: 408.80, ivaPct: 13,
     circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false, excepcionMaxMonto: 8176 },
     caja_chica: { montoMaximoAnual: 24000, limiteCompra: 100, formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
-      excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false, exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true, excepcionMaxMonto: 0 }
   };
   var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
@@ -1553,6 +1555,17 @@
     });
   }
   function money(n) { return (Number(n) || 0).toFixed(2); }
+  // Retención de anticipo de IVA (Código Tributario, Art. 162): los montos de las solicitudes incluyen IVA, así que
+  // se separa el IVA y, si el valor sin IVA llega al mínimo ($100), la alcaldía retiene el % (1%) de ese valor.
+  function calcRetencion(total, R) {
+    var iva = Number(REGLAS_FONDOS.ivaPct) > 0 ? Number(REGLAS_FONDOS.ivaPct) : 13;
+    var totalC = Math.round((Number(total) || 0) * 100);
+    var netoC = Math.round(totalC / (1 + iva / 100));
+    var pct = Number(R && R.retencionPct) || 0, minC = Math.round((Number(R && R.retencionMinimo) || 0) * 100);
+    var req = !!(R && R.exigeRetencion) && pct > 0 && netoC > 0 && netoC >= minC;
+    var retC = req ? Math.round(netoC * pct / 100) : 0;
+    return { requerida: req, iva: iva, pct: pct, minimo: minC / 100, total: totalC / 100, neto: netoC / 100, monto: retC / 100, pagoProveedor: (totalC - retC) / 100 };
+  }
   function todayStr() { return new Date().toISOString().slice(0, 10); }
   function fullName(u) { return [u.NAME, u.LAST_NAME].filter(Boolean).join(' ') || ('Usuario #' + u.ID); }
 
@@ -2388,9 +2401,14 @@
       if (R.exigeAcuerdo) reqs.push('el <b>acuerdo administrativo en PDF</b> (adjúntalo más abajo)');
       if (R.excepcionMaxSalarios > 0) reqs.push('un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(R.excepcionMaxMonto) + ')');
       if (R.excepcionMensualPct > 0) reqs.push('que lo excepcional del mes no pase del ' + R.excepcionMensualPct + '% de la referencia mensual del fondo');
-      if (R.exigeRetencion) reqs.push('tramitar con Tesorería el <b>comprobante de retención</b> conforme a la Ley de IVA de El Salvador, antes de la compra (su número se registra al desembolsar)');
       html += '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + ')' + (reqs.length ? ': exige ' + reqs.join('; ') + '.' : '.') +
         (R.excepcionMaxSalarios > 0 && total > R.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>';
+    }
+    var rt = calcRetencion(total, R);
+    if (R.exigeRetencion && total > 0) {
+      html += rt.requerida
+        ? '<div class="regla-estado wait">Retención de IVA: esta compra es de $' + money(rt.total) + ' con IVA ($' + money(rt.neto) + ' sin IVA). La alcaldía, como agente de retención, retiene el ' + rt.pct + '% de $' + money(rt.neto) + ' = <b>$' + money(rt.monto) + '</b>. Antes de desembolsar se tramita con Tesorería el <b>comprobante de retención</b> (su número se registra al desembolsar) y al proveedor se le pagan $' + money(rt.pagoProveedor) + '.</div>'
+        : '<div style="margin-top:4px">Retención de IVA: no aplica (' + '$' + money(rt.neto) + ' sin IVA; se retiene desde $' + money(rt.minimo) + ' sin IVA, es decir, desde $' + money(Math.ceil(rt.minimo * (1 + rt.iva / 100) * 100 - 1e-6) / 100) + ' con IVA).</div>';
     }
     box.className = 'regla-box ' + (exc ? 'wait' : '');
     box.innerHTML = html;
@@ -3012,9 +3030,9 @@
     return !(R && R.exigeAutorizacionGerencia === false);
   }
   function htmlExcepcional(s) {
-    if (!s.excepcional) return 'No';
-    return 'Sí' + (s.acuerdo_administrativo_url ? ' — <a href="' + esc(s.acuerdo_administrativo_url) + '" target="_blank" rel="noopener">Acuerdo administrativo (PDF)</a>' : '') +
-      (s.retencion_comprobante ? ' · Comprobante de retención N° ' + esc(s.retencion_comprobante) : '');
+    var ret = s.retencion_comprobante ? ' · Comprobante de retención N° ' + esc(s.retencion_comprobante) + (s.retencion_monto != null ? ' ($' + money(s.retencion_monto) + ')' : '') : '';
+    if (!s.excepcional) return 'No' + ret;
+    return 'Sí' + (s.acuerdo_administrativo_url ? ' — <a href="' + esc(s.acuerdo_administrativo_url) + '" target="_blank" rel="noopener">Acuerdo administrativo (PDF)</a>' : '') + ret;
   }
 
   function renderAutorizacionTabla() {
@@ -3518,9 +3536,12 @@
     var R = f && REGLAS_FONDOS[f.tipo];
     if (!R) return;
     var porDesembolsar = (s.estado || 'pendiente') === 'certificado';
-    var exc = Number(s.monto_total) > R.limiteCompra;
+    var rt = calcRetencion(s.monto_total, R);
     inp.value = s.retencion_comprobante || '';
-    if (exc && R.excepcionesPermitidas !== false && R.exigeRetencion && porDesembolsar) wrap.style.display = 'block';
+    document.getElementById('dRetencionInfo').innerHTML = rt.requerida
+      ? 'Compra de $' + money(rt.total) + ' con IVA ($' + money(rt.neto) + ' sin IVA): la alcaldía retiene el ' + rt.pct + '% = <b>$' + money(rt.monto) + '</b> (Código Tributario, Art. 162). El comprobante (Art. 112) se tramita con Tesorería antes de la compra; al proveedor se le pagan <b>$' + money(rt.pagoProveedor) + '</b>.'
+      : '';
+    if (rt.requerida && porDesembolsar) wrap.style.display = 'block';
     apiCall('fondos?action=saldo&fondoId=' + encodeURIComponent(s.fondo_id)).then(function (r) {
       if (!r || !r.ok || !r.saldo) return;
       var sd = r.saldo;
@@ -3546,7 +3567,7 @@
             : '<div><span>Banco</span><b>No aplica</b></div>') +
         '</div>' + linea +
         '<div class="gasto-line">Calculado con los desembolsos reales: cheque y transferencia afectan al banco; efectivo, al efectivo. Lo repuesto por un reintegro entregado ya no cuenta.</div>' +
-        (s.retencion_comprobante ? '<div class="gasto-line">Comprobante de retención N° <b>' + esc(s.retencion_comprobante) + '</b>.</div>' : '');
+        (s.retencion_comprobante ? '<div class="gasto-line">Comprobante de retención N° <b>' + esc(s.retencion_comprobante) + '</b>' + (s.retencion_monto != null ? ' · retenido $' + money(s.retencion_monto) + ' sobre $' + money(s.retencion_base) + ' sin IVA' : '') + '.</div>' : '');
       box.style.display = 'block';
     }).catch(function () {});
   }
@@ -4933,21 +4954,24 @@
       { k: 'excepcionesPermitidas', tipo: 'bool', l: 'Permitir compras excepcionales (sobre el límite ordinario)' },
       { k: 'exigeAcuerdo', tipo: 'bool', l: 'Exigir acuerdo administrativo en PDF' },
       { k: 'excepcionMaxSalarios', tipo: 'num', l: 'Máximo por compra excepcional (salarios mínimos)', h: '0 = sin tope. Se multiplica por el salario mínimo de referencia.' },
-      { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope mensual de compras excepcionales (% de la referencia mensual)', h: '0 = sin tope. Lo no utilizado no se acumula.' },
-      { k: 'exigeRetencion', tipo: 'bool', l: 'Exigir comprobante de retención (Ley de IVA de El Salvador) antes del desembolso' } ] },
+      { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope mensual de compras excepcionales (% de la referencia mensual)', h: '0 = sin tope. Lo no utilizado no se acumula.' } ] },
+    { t: 'Retención de IVA (la alcaldía es agente de retención)', c: [
+      { k: 'exigeRetencion', tipo: 'bool', l: 'Retener IVA y exigir el comprobante de retención antes del desembolso', h: 'Código Tributario, Art. 162 (retención) y Art. 112 (comprobante). Aplica a toda compra que llegue al mínimo, sea ordinaria o excepcional.' },
+      { k: 'retencionPct', tipo: 'num', l: 'Porcentaje a retener (%)', h: 'Se aplica sobre el valor de la compra SIN IVA.' },
+      { k: 'retencionMinimo', tipo: 'num', l: 'Valor mínimo de la compra, sin IVA, para retener ($)', h: 'La ley lo fija en $100. Como las solicitudes se ingresan con IVA incluido, el sistema separa el IVA y compara el valor sin IVA con este mínimo.' } ] },
     { t: 'Reintegro', c: [
       { k: 'reintegroPct', tipo: 'num', l: '% de la referencia mensual para poder solicitar el reintegro', h: 'Los gastos seleccionados deben alcanzar este porcentaje.' },
       { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },
       { k: 'reintegroExigeDocumento', tipo: 'bool', l: 'Exigir documento físico recibido para incluir un gasto en un reintegro' } ] }
   ];
-  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados adicionales', feriadosBitrix: 'Usar feriados de Bitrix24', descansoSemanalBitrix: 'Usar descanso semanal de Bitrix24' };
+  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', ivaPct: 'IVA (%)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados adicionales', feriadosBitrix: 'Usar feriados de Bitrix24', descansoSemanalBitrix: 'Usar descanso semanal de Bitrix24' };
   CAMPOS_REGLAS.forEach(function (sec) { sec.c.forEach(function (c) { ETIQUETAS_REGLAS[c.k] = c.l; }); });
   var FORMAS_REGLAS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque']];
   // Misma forma que entrega el servidor a la app (incluye el máximo excepcional en $).
   function reglasPublicasDesdeCfg(reglas) {
     var sm = Number(reglas.global.salarioMinimo) || 0;
     function conMax(t) { return Object.assign({}, reglas[t], { excepcionMaxMonto: Math.round((Number(reglas[t].excepcionMaxSalarios) || 0) * sm * 100) / 100 }); }
-    return { salarioMinimo: sm, circulante: conMax('circulante'), caja_chica: conMax('caja_chica') };
+    return { salarioMinimo: sm, ivaPct: Number(reglas.global.ivaPct) || 13, circulante: conMax('circulante'), caja_chica: conMax('caja_chica') };
   }
   function rgId(tipo, k) { return 'rg_' + tipo + '_' + k; }
 
@@ -4997,10 +5021,13 @@
   function renderReglas() {
     var cfg = reglasCfg;
     var gl = cfg.reglas.global;
-    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Parámetros generales: salario mínimo, plazo y feriados</div><div class="rg-body">' +
+    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Parámetros generales: salario mínimo, IVA, plazo y feriados</div><div class="rg-body">' +
       '<div class="rg-field"><label for="' + rgId('global', 'salarioMinimo') + '">Salario mínimo mensual de comercio y servicios ($)</label>' +
       '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(gl.salarioMinimo) + '" />' +
       '<div class="rg-help">Se usa para calcular el máximo de las compras excepcionales (salarios mínimos × este monto). Actualízalo cuando el Gobierno lo ajuste.</div></div>' +
+      '<div class="rg-field"><label for="' + rgId('global', 'ivaPct') + '">IVA (%)</label>' +
+      '<input type="number" id="' + rgId('global', 'ivaPct') + '" min="0" max="100" step="0.01" value="' + esc(gl.ivaPct != null ? gl.ivaPct : 13) + '" />' +
+      '<div class="rg-help">Los montos de las solicitudes incluyen IVA; con este porcentaje se separa el IVA para saber si la compra llega al mínimo de retención y calcular la retención.</div></div>' +
       '<div class="rg-field"><label for="' + rgId('global', 'plazoComprobantesDias') + '">Plazo para registrar la factura o documento equivalente (días hábiles)</label>' +
       '<input type="number" id="' + rgId('global', 'plazoComprobantesDias') + '" min="1" max="30" step="1" value="' + esc(gl.plazoComprobantesDias) + '" />' +
       '<div class="rg-help">Se cuenta desde el día del desembolso hasta el día en que se registra la factura. Si se supera, se notifica al solicitante y al administrador cada día y baja el score de cumplimiento.</div></div>' +
@@ -5032,6 +5059,7 @@
     if (tipo === 'global') {
       return {
         salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value),
+        ivaPct: parseFloat(document.getElementById(rgId('global', 'ivaPct')).value),
         plazoComprobantesDias: parseInt(document.getElementById(rgId('global', 'plazoComprobantesDias')).value, 10),
         feriados: document.getElementById(rgId('global', 'feriados')).value.split(/\s*\n\s*/).map(function (x) { return x.trim(); }).filter(Boolean),
         feriadosBitrix: document.getElementById(rgId('global', 'feriadosBitrix')).checked,

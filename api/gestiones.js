@@ -169,6 +169,7 @@ const DEFAULTS = {
   // Código de Trabajo de 2026 y 2027.
   global: {
     salarioMinimo: 408.80, plazoComprobantesDias: 3,
+    ivaPct: 13,
     feriadosBitrix: true, descansoSemanalBitrix: false,
     feriados: ['2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-08-06', '2026-09-15', '2026-11-02', '2026-12-25',
       '2027-01-01', '2027-03-25', '2027-03-26', '2027-05-01', '2027-08-06', '2027-09-15', '2027-11-02', '2027-12-25']
@@ -176,7 +177,8 @@ const DEFAULTS = {
   circulante: {
     montoMaximoAnual: 300000, limiteCompra: 1000,
     formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true,
+    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true,
+    exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
     reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true,
     exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false
   },
@@ -185,7 +187,8 @@ const DEFAULTS = {
   caja_chica: {
     montoMaximoAnual: 24000, limiteCompra: 100,
     formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
-    excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
+    excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false,
+    exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
     reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false,
     exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true
   }
@@ -230,7 +233,9 @@ function normalizarReglas(tipo, v) {
     const mal = fer.find((x) => !/^\d{4}-\d{2}-\d{2}$/.test(x) || isNaN(new Date(x + 'T00:00:00Z').getTime()));
     if (mal) return { error: 'Feriado inválido: "' + mal + '" (usa el formato AAAA-MM-DD, uno por línea).' };
     const bool = (x, def) => (typeof x === 'boolean' ? x : (x === 'true' ? true : (x === 'false' ? false : def)));
-    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, feriados: fer.sort(),
+    const iva = (v.ivaPct == null || v.ivaPct === '') ? DEFAULTS.global.ivaPct : Number(v.ivaPct);
+    if (!Number.isFinite(iva) || iva <= 0 || iva > 100) return { error: 'El IVA debe ser un porcentaje mayor que 0 y no mayor que 100.' };
+    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, ivaPct: Math.round(iva * 100) / 100, feriados: fer.sort(),
       feriadosBitrix: bool(v.feriadosBitrix, DEFAULTS.global.feriadosBitrix), descansoSemanalBitrix: bool(v.descansoSemanalBitrix, DEFAULTS.global.descansoSemanalBitrix) } };
   }
   const d = DEFAULTS[tipo];
@@ -256,6 +261,8 @@ function normalizarReglas(tipo, v) {
     excepcionMensualPct: num(v.excepcionMensualPct, d.excepcionMensualPct, 0, 100),
     exigeAcuerdo: bool(v.exigeAcuerdo, d.exigeAcuerdo),
     exigeRetencion: bool(v.exigeRetencion, d.exigeRetencion),
+    retencionPct: num(v.retencionPct, d.retencionPct, 0, 100),
+    retencionMinimo: num(v.retencionMinimo, d.retencionMinimo, 0, 1000000000),
     reintegroPct: num(v.reintegroPct, d.reintegroPct, 0, 100),
     reintegroFinDeMes: bool(v.reintegroFinDeMes, d.reintegroFinDeMes),
     reintegroExigeDocumento: bool(v.reintegroExigeDocumento, d.reintegroExigeDocumento),
@@ -295,7 +302,7 @@ async function reglasPublicas() {
   const { reglas, meta } = await cargarReglas();
   const sm = reglas.global.salarioMinimo;
   const conMax = (t) => Object.assign({}, reglas[t], { excepcionMaxMonto: Math.round((Number(reglas[t].excepcionMaxSalarios) || 0) * sm * 100) / 100 });
-  return { salarioMinimo: sm, plazoComprobantesDias: reglas.global.plazoComprobantesDias, circulante: conMax('circulante'), caja_chica: conMax('caja_chica'), meta: meta };
+  return { salarioMinimo: sm, ivaPct: reglas.global.ivaPct, plazoComprobantesDias: reglas.global.plazoComprobantesDias, circulante: conMax('circulante'), caja_chica: conMax('caja_chica'), meta: meta };
 }
 const centavosDe = (n) => Math.round((Number(n) || 0) * 100);
 const fechaLocalDe = (ts) => new Date(new Date(ts).getTime() - 6 * 3600 * 1000).toISOString().slice(0, 10);
@@ -314,6 +321,25 @@ async function leerFondo(fondoId) {
   return f[0] || null;
 }
 
+// Retención de anticipo de IVA (Código Tributario, Art. 162; comprobante: Art. 112). La alcaldía es agente de
+// retención: retiene el % configurado (1%) sobre el precio SIN IVA cuando la operación llega al monto mínimo
+// ($100). Los montos de las solicitudes incluyen IVA, así que primero se separa el IVA.
+//   monto: total de la solicitud (con IVA).  R_: reglas del tipo de fondo.  ivaPct: % de IVA (13).
+function calcularRetencion(monto, R_, ivaPct) {
+  const iva = Number(ivaPct) > 0 ? Number(ivaPct) : 13;
+  const totalC = centavosDe(monto);
+  const netoC = Math.round(totalC / (1 + iva / 100));
+  const pct = Number(R_ && R_.retencionPct) || 0;
+  const minC = centavosDe(R_ && R_.retencionMinimo);
+  const requerida = !!(R_ && R_.exigeRetencion) && pct > 0 && netoC > 0 && netoC >= minC;
+  const retC = requerida ? Math.round(netoC * pct / 100) : 0;
+  return {
+    requerida: requerida, ivaPct: iva, pct: pct, minimo: minC / 100,
+    total: totalC / 100, neto: netoC / 100, iva_monto: (totalC - netoC) / 100,
+    monto: retC / 100, pagoProveedor: (totalC - retC) / 100
+  };
+}
+
 // Valida una compra (solicitud) contra las reglas del fondo (parámetros vigentes).
 // Devuelve { error } si no se permite; si no, { excepcional, acuerdoRequerido, retencionRequerida, ... }.
 //   datos: { fondoId, monto, formaPago, tieneAcuerdo, excluirId, fecha (AAAA-MM-DD local) }
@@ -327,6 +353,7 @@ async function evaluarCuantia(datos) {
   const nom = f.tipo === 'circulante' ? 'el fondo circulante' : 'la caja chica';
   const nomDe = f.tipo === 'circulante' ? 'del fondo circulante' : 'de la caja chica';
   const monto = Math.round((Number(datos.monto) || 0) * 100) / 100;
+  const retencion = calcularRetencion(monto, R_, reglas.global.ivaPct);
 
   // Forma de pago (efectivo / banco)
   if (R_.formasPago.indexOf(datos.formaPago) === -1) {
@@ -340,7 +367,8 @@ async function evaluarCuantia(datos) {
   const out = {
     excepcional, tipo: f.tipo, limite: R_.limiteCompra,
     acuerdoRequerido: excepcional && R_.excepcionesPermitidas && !!R_.exigeAcuerdo,
-    retencionRequerida: excepcional && R_.excepcionesPermitidas && !!R_.exigeRetencion
+    // La retención del 1% del IVA depende del valor de la compra (sin IVA), no de que sea excepcional.
+    retencionRequerida: retencion.requerida, retencion: retencion
   };
   if (!excepcional) return out;
 
@@ -765,6 +793,7 @@ module.exports = async (req, res) => {
 module.exports.bloqueoCajaChica = bloqueoCajaChica;
 module.exports.evaluarReintegro = evaluarReintegro;
 module.exports.evaluarCuantia = evaluarCuantia;
+module.exports.calcularRetencion = calcularRetencion;
 module.exports.calcularSaldoFondo = calcularSaldoFondo;
 module.exports.reglasPublicas = reglasPublicas;
 module.exports.cargarReglas = cargarReglas;

@@ -753,7 +753,10 @@ de fondo (circulante y caja chica) más el salario mínimo de referencia.
 | Exigir acuerdo administrativo (PDF) | para compras excepcionales |
 | Máximo excepcional (salarios mínimos) | × salario mínimo de referencia (0 = sin tope) |
 | Tope mensual excepcional (% de la referencia) | 0 = sin tope |
-| Exigir comprobante de retención (Ley de IVA) | antes del desembolso de una compra excepcional; activo en ambos tipos de fondo |
+| Retener IVA y exigir comprobante de retención | antes del desembolso de toda compra que llegue al mínimo (ordinaria o excepcional); activo en ambos tipos de fondo |
+| Porcentaje a retener | 1%, sobre el valor sin IVA |
+| Valor mínimo para retener (sin IVA) | $100 |
+| IVA (%) (parámetros generales) | 13; los montos de las solicitudes incluyen IVA y con esto se separa |
 | % de la referencia para poder pedir reintegro | umbral del reintegro |
 | Permitir reintegro al cierre del mes | aunque no se llegue al % |
 | Exigir documento físico recibido | para incluir un gasto en un reintegro |
@@ -882,9 +885,19 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
   $1,000, aparece el campo para subir el PDF; sin él no se crea. Queda
   guardado en la solicitud y se ve en Autorización y Desembolso. La solicitud
   se marca `excepcional`.
-- **Comprobante de retención (caja chica y circulante)**: conforme a la Ley de
-  IVA de El Salvador, en una compra excepcional el administrador registra el **N° de comprobante** en el Desembolso (queda con
-  quién y cuándo); sin él no se desembolsa.
+- **Retención de anticipo de IVA (caja chica y circulante)**: la alcaldía es
+  agente de retención (Código Tributario, **Art. 162**; el comprobante, **Art. 112**.
+  La Ley de IVA tiene derogados sus arts. 36 a 38, 80 y 101 y remite al Código).
+  Los montos de las solicitudes se ingresan **con IVA incluido** (así se indica
+  en "Precio unitario (con IVA)"). El sistema separa el IVA (13%): si el valor
+  **sin IVA es de $100 o más**, retiene el **1% de ese valor**. Ejemplo: $113.00
+  con IVA = $100.00 sin IVA → retención $1.00, y al proveedor se le pagan $112.00.
+  Esto aplica a toda compra, sea ordinaria o excepcional. Al crear la solicitud
+  se avisa si lleva retención; en el Desembolso el administrador registra el
+  **N° de comprobante** (tramitado con Tesorería) y queda guardado con la base,
+  el monto retenido y quién y cuándo lo registró; sin él no se desembolsa.
+  Porcentaje, mínimo e IVA se cambian en "Reglas de fondos". El sistema no
+  mueve el saldo del fondo por la retención (el gasto sigue siendo el total).
 - **Salario mínimo** (Art. 7): inicia en $408.80 (comercio y servicios, vigente
   en 2026; 20 salarios = $8,176.00). Se cambia en "Reglas de fondos" si el
   Gobierno lo ajusta (ya no se usa la variable de entorno).

@@ -459,10 +459,12 @@ module.exports = async (req, res) => {
           if (evD.retencionRequerida) {
             const ret = String(body.retencion_comprobante || sol.retencion_comprobante || '').trim();
             if (!ret) {
-              res.status(400).json({ ok: false, error: 'Compra excepcional: antes de desembolsar debes tramitar con Tesorería el comprobante de retención (Ley de IVA de El Salvador) y registrar su número.' });
+              res.status(400).json({ ok: false, error: 'Esta compra es de $' + evD.retencion.total.toFixed(2) + ' con IVA ($' + evD.retencion.neto.toFixed(2) + ' sin IVA; se retiene desde $' + evD.retencion.minimo.toFixed(2) + ' sin IVA) y la alcaldía, como agente de retención, debe retener el ' + evD.retencion.pct + '% del valor sin IVA, como anticipo de IVA: $' + evD.retencion.monto.toFixed(2) + '. Antes de desembolsar tramita con Tesorería el comprobante de retención (Código Tributario, Art. 162 y 112) y registra su número.' });
               return;
             }
             patchDes.retencion_comprobante = ret;
+            patchDes.retencion_base = evD.retencion.neto;
+            patchDes.retencion_monto = evD.retencion.monto;
             patchDes.retencion_tramitada_at = new Date().toISOString();
             patchDes.retencion_tramitada_por_id = String(body.actor_id || '');
             patchDes.retencion_tramitada_por_nombre = body.actor_nombre || '';
