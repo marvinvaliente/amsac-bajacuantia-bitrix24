@@ -43,9 +43,62 @@ function addDias(fecha, n) {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
-function esHabil(fecha, feriados) {
+// "cal" es un calendario con esHabil(fecha) (ver construirCalendario) o, por compatibilidad, un Set de feriados.
+function esHabil(fecha, cal) {
+  if (cal && typeof cal.esHabil === 'function') return cal.esHabil(fecha);
   const dow = new Date(fecha + 'T00:00:00Z').getUTCDay();
-  return dow !== 0 && dow !== 6 && !feriados.has(fecha);
+  return dow !== 0 && dow !== 6 && !(cal && cal.has && cal.has(fecha));
+}
+
+// ---- Calendario laboral de Bitrix24 (Calendario → Configuración) ----
+// Los feriados se toman de ahí (calendar.settings.get): "year_holidays" son días y
+// meses que se repiten cada año (dd.mm), "year_workdays" son días laborables aunque
+// figuren como feriado o fin de semana, y "week_holidays" el descanso semanal.
+let cacheBx = null, cacheBxT = 0;
+async function leerCalendarioBitrix(forzar) {
+  const hook = process.env.BITRIX24_WEBHOOK_URL;
+  if (!hook) return { error: 'Falta configurar BITRIX24_WEBHOOK_URL en el servidor.' };
+  if (!forzar && cacheBx && Date.now() - cacheBxT < 10 * 60 * 1000) return cacheBx;
+  try {
+    const base = hook.endsWith('/') ? hook : hook + '/';
+    const r = await fetch(base + 'calendar.settings.get', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const j = await r.json();
+    if (!r.ok || j.error || !j.result) throw new Error(j.error_description || j.error || ('HTTP ' + r.status));
+    const tokens = (x) => String(x || '').split(/[\s,;]+/).filter(Boolean);
+    const norm = (t) => { const m = t.match(/^(\d{1,2})\.(\d{1,2})$/); return m ? m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0') : null; }; // dd.mm -> MM-DD
+    cacheBx = {
+      holidays: Array.from(new Set(tokens(j.result.year_holidays).map(norm).filter(Boolean))).sort(),
+      workdays: Array.from(new Set(tokens(j.result.year_workdays).map(norm).filter(Boolean))).sort(),
+      weekHolidays: Array.isArray(j.result.week_holidays) ? j.result.week_holidays : tokens(j.result.week_holidays),
+      leido: new Date().toISOString()
+    };
+    cacheBxT = Date.now();
+    return cacheBx;
+  } catch (e) {
+    if (cacheBx) return Object.assign({}, cacheBx, { obsoleto: true });  // último calendario conocido
+    return { error: String((e && e.message) || e) };
+  }
+}
+const DOW_BX = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+// Calendario hábil: lunes a viernes (o el descanso semanal de Bitrix24 si se activa), sin los
+// feriados de Bitrix24 (si se usan) ni los feriados adicionales cargados en "Reglas de fondos".
+function construirCalendario(g, bx) {
+  const manual = new Set((g && g.feriados) || []);
+  const usaBx = !!g && g.feriadosBitrix !== false && !!bx && !bx.error;
+  const hol = new Set(usaBx ? bx.holidays : []);
+  const trab = new Set(usaBx ? bx.workdays : []);
+  const descanso = (usaBx && g.descansoSemanalBitrix === true && (bx.weekHolidays || []).length)
+    ? new Set(bx.weekHolidays.map((x) => DOW_BX[x]).filter((x) => x != null)) : new Set([0, 6]);
+  return {
+    usaBitrix: usaBx, manual,
+    esHabil(f) {
+      if (manual.has(f)) return false;
+      const mmdd = f.slice(5);
+      if (trab.has(mmdd)) return true;
+      if (descanso.has(new Date(f + 'T00:00:00Z').getUTCDay())) return false;
+      return !hol.has(mmdd);
+    }
+  };
 }
 // Fecha en que vence el plazo: el N-ésimo día hábil después de la fecha de partida.
 function sumarHabiles(fecha, n, feriados) {
@@ -63,7 +116,9 @@ function habilesEntre(desde, hasta, feriados) {
 async function configPlazo() {
   const g = (await gestiones.cargarReglas()).reglas.global || {};
   const dias = Number.isInteger(Number(g.plazoComprobantesDias)) && Number(g.plazoComprobantesDias) > 0 ? Number(g.plazoComprobantesDias) : 3;
-  return { dias, feriados: new Set(Array.isArray(g.feriados) ? g.feriados : []) };
+  const bx = g.feriadosBitrix !== false ? await leerCalendarioBitrix() : null;
+  // "feriados" es el calendario hábil (esHabil); "manual" los feriados adicionales de Reglas de fondos
+  return { dias, feriados: construirCalendario(g, bx), manual: Array.isArray(g.feriados) ? g.feriados : [], bitrix: bx, global: g };
 }
 
 // ---- Ciclo de vida de un plazo ----
@@ -185,7 +240,7 @@ module.exports = async (req, res) => {
     if (!actor) { res.status(400).json({ ok: false, error: 'Falta el usuario.' }); return; }
     const cfg = await configPlazo();
     const hoy = hoyLocal();
-    const reglas = { dias: cfg.dias, feriados: Array.from(cfg.feriados).sort() };
+    const reglas = { dias: cfg.dias, feriados: cfg.manual.slice().sort(), usaBitrix: cfg.feriados.usaBitrix, bitrixError: cfg.bitrix && cfg.bitrix.error ? cfg.bitrix.error : null };
     const esAdmin = await presupuesto.esAdminPortal(actor, body.auth_token);
 
     // Enviar los recordatorios ahora (solo administrador del portal verificado).
@@ -244,4 +299,6 @@ module.exports.procesarRecordatorios = procesarRecordatorios;
 module.exports.sumarHabiles = sumarHabiles;
 module.exports.habilesEntre = habilesEntre;
 module.exports.esHabil = esHabil;
+module.exports.leerCalendarioBitrix = leerCalendarioBitrix;
+module.exports.construirCalendario = construirCalendario;
 module.exports.resumir = resumir;

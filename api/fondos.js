@@ -6,6 +6,7 @@ const KEY = process.env.SUPABASE_SECRET;
 
 const gestiones = require('./gestiones');
 const presupuesto = require('./presupuesto');
+const plazos = require('./plazos');
 const TIPOS = ['caja_chica', 'circulante'];
 
 function sb(path, options) {
@@ -97,7 +98,7 @@ module.exports = async (req, res) => {
       // Parámetros de las reglas de uso de los fondos (pantalla "Reglas de fondos").
       if (action === 'reglas') {
         const cfg = await gestiones.cargarReglas(true);
-        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, defaults: gestiones.DEFAULTS, historial: await gestiones.historialReglas(20) });
+        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, defaults: gestiones.DEFAULTS, historial: await gestiones.historialReglas(20), calendarioBitrix: await plazos.leerCalendarioBitrix(true) });
         return;
       }
 
@@ -129,7 +130,7 @@ module.exports = async (req, res) => {
         const g = await gestiones.guardarReglas(String(body.tipo || ''), body.valores, { id: body.actor_id, nombre: body.actor_nombre });
         if (g.error) { res.status(400).json({ ok: false, error: g.error }); return; }
         const cfg = await gestiones.cargarReglas(true);
-        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, historial: await gestiones.historialReglas(20) });
+        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, historial: await gestiones.historialReglas(20), calendarioBitrix: await plazos.leerCalendarioBitrix(true) });
         return;
       }
 

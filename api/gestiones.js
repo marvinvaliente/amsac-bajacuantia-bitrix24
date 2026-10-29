@@ -163,11 +163,13 @@ const fmtFecha = (d) => String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '
 // nuevos que aún no estén guardados).
 //   0 en un tope = sin tope.
 const DEFAULTS = {
-  // Plazo (días hábiles) para registrar la factura o documento equivalente y feriados que no cuentan
-  // como hábiles. Los feriados son los del Código de Trabajo (1 ene, Jueves y Viernes Santo, 1 may,
-  // 6 ago, 15 sep, 2 nov, 25 dic); agrega los locales (p. ej. fiestas patronales) en "Reglas de fondos".
+  // Plazo (días hábiles) para registrar la factura o documento equivalente. Los feriados se toman del
+  // calendario de Bitrix24 (feriadosBitrix) y se les suman estos "feriados adicionales" con fecha
+  // exacta (p. ej. Semana Santa, que cambia cada año): por defecto Jueves y Viernes Santo y los del
+  // Código de Trabajo de 2026 y 2027.
   global: {
     salarioMinimo: 408.80, plazoComprobantesDias: 3,
+    feriadosBitrix: true, descansoSemanalBitrix: false,
     feriados: ['2026-01-01', '2026-04-02', '2026-04-03', '2026-05-01', '2026-08-06', '2026-09-15', '2026-11-02', '2026-12-25',
       '2027-01-01', '2027-03-25', '2027-03-26', '2027-05-01', '2027-08-06', '2027-09-15', '2027-11-02', '2027-12-25']
   },
@@ -227,7 +229,9 @@ function normalizarReglas(tipo, v) {
     const fer = Array.isArray(v.feriados) ? Array.from(new Set(v.feriados.map((x) => String(x).trim()).filter(Boolean))) : DEFAULTS.global.feriados.slice();
     const mal = fer.find((x) => !/^\d{4}-\d{2}-\d{2}$/.test(x) || isNaN(new Date(x + 'T00:00:00Z').getTime()));
     if (mal) return { error: 'Feriado inválido: "' + mal + '" (usa el formato AAAA-MM-DD, uno por línea).' };
-    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, feriados: fer.sort() } };
+    const bool = (x, def) => (typeof x === 'boolean' ? x : (x === 'true' ? true : (x === 'false' ? false : def)));
+    return { valor: { salarioMinimo: Math.round(sm * 100) / 100, plazoComprobantesDias: dias, feriados: fer.sort(),
+      feriadosBitrix: bool(v.feriadosBitrix, DEFAULTS.global.feriadosBitrix), descansoSemanalBitrix: bool(v.descansoSemanalBitrix, DEFAULTS.global.descansoSemanalBitrix) } };
   }
   const d = DEFAULTS[tipo];
   if (!d) return { error: 'Tipo de reglas inválido.' };

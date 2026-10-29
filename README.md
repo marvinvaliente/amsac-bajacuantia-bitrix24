@@ -798,11 +798,33 @@ tabla `gastos_plazos`, migración `migracion-plazos-comprobantes.sql`):
   administrador del portal ve a **todos** (con ranking por solicitante), el
   administrador de fondo ve a los de **sus fondos**, y los demás solo lo suyo
   (calculado en el servidor).
-- **Parámetros** (Reglas de fondos → parámetros generales): días del plazo (3)
-  y la lista de **feriados**. Vienen cargados los del Código de Trabajo para
-  2026 y 2027 (1 ene, Jueves y Viernes Santo, 1 may, 6 ago, 15 sep, 2 nov,
-  25 dic); **agrega los asuetos locales** (p. ej. fiestas patronales) y los de
-  años siguientes.
+- **Feriados homologados con Bitrix24**: los días no hábiles se leen del
+  **calendario de Bitrix24** (Calendario → Configuración; método REST
+  `calendar.settings.get` con el webhook `BITRIX24_WEBHOOK_URL`, alcance
+  `calendar`), así el plazo usa los mismos feriados que el resto de la empresa:
+  - **Feriados** (`year_holidays`, día y mes que se repiten **cada año**, p. ej.
+    23–26 de julio de las fiestas de Santa Ana, 24–31 de diciembre, 1 de
+    enero, 1 de mayo, 6 de agosto…).
+  - **Días laborables** (`year_workdays`): cuentan como hábiles aunque estén en
+    la lista de feriados (hoy 31 de diciembre).
+  - Se consulta al calcular (con caché de 10 min; si Bitrix24 no responde usa el
+    último calendario leído, o solo los feriados adicionales). El vencimiento de
+    cada plazo se guarda al desembolsar, así que cambiar el calendario no mueve
+    plazos ya iniciados.
+  - **Feriados adicionales** (Reglas de fondos): fechas exactas `AAAA-MM-DD` que
+    se **suman** a las de Bitrix24; sirven para lo que cambia cada año.
+    Vienen cargados Jueves y Viernes Santo y los del Código de Trabajo de 2026
+    y 2027.
+  - **Atención con la Semana Santa**: en Bitrix24 los feriados no llevan año, así
+    que la Semana Santa queda fija en el día y mes que se haya cargado (hoy
+    13–19 de abril, que son las de 2025; en 2026 es del 29 de marzo al 4 de
+    abril). Hay que corregirla cada año en Bitrix24, o quitarla de allí y
+    dejarla en "Feriados adicionales".
+  - **Descanso semanal**: por defecto sábado y domingo no son hábiles. La casilla
+    "Usar también el descanso semanal de Bitrix24" adopta el de su calendario
+    (hoy solo **domingo**, o sea, el sábado contaría como hábil).
+  - Los interruptores y la lista de adicionales están en Reglas de fondos →
+    parámetros generales, junto con los días del plazo (3).
 - Solo se controlan los desembolsos **posteriores a esta función** (no se
   penaliza retroactivamente).
 

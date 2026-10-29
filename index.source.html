@@ -4940,7 +4940,7 @@
       { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },
       { k: 'reintegroExigeDocumento', tipo: 'bool', l: 'Exigir documento físico recibido para incluir un gasto en un reintegro' } ] }
   ];
-  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados (días no hábiles)' };
+  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados adicionales', feriadosBitrix: 'Usar feriados de Bitrix24', descansoSemanalBitrix: 'Usar descanso semanal de Bitrix24' };
   CAMPOS_REGLAS.forEach(function (sec) { sec.c.forEach(function (c) { ETIQUETAS_REGLAS[c.k] = c.l; }); });
   var FORMAS_REGLAS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque']];
   // Misma forma que entrega el servidor a la app (incluye el máximo excepcional en $).
@@ -4975,6 +4975,20 @@
       return '<label class="rg-check"><input type="checkbox" id="' + rgId(tipo, 'forma_' + f[0]) + '"' + ((v.formasPago || []).indexOf(f[0]) !== -1 ? ' checked' : '') + ' /><span>' + f[1] + '</span></label>';
     }).join('') + '</div>' + ayuda + '</div>';
   }
+  var DIAS_BX = { SU: 'domingo', MO: 'lunes', TU: 'martes', WE: 'miércoles', TH: 'jueves', FR: 'viernes', SA: 'sábado' };
+  function textoDescansoBitrix(cal) {
+    if (!cal || cal.error) return 'No se pudo leer el calendario de Bitrix24.';
+    return 'En Bitrix24 el descanso semanal es: ' + ((cal.weekHolidays || []).map(function (d) { return DIAS_BX[d] || d; }).join(' y ') || 'ninguno') + '.';
+  }
+  function htmlCalendarioBitrix(cal) {
+    if (!cal) return '';
+    if (cal.error) return '<div class="msg error" style="display:block;margin:8px 0">No se pudo leer el calendario de Bitrix24: ' + esc(cal.error) + '. Mientras tanto solo se usan los feriados adicionales.</div>';
+    function fmt(l) { return (l || []).map(function (k) { return k.slice(3) + '/' + k.slice(0, 2); }).join(', ') || 'ninguno'; }
+    return '<div class="regla-box" style="margin:8px 0 12px"><div class="regla-t">Feriados leídos de Bitrix24 (se repiten cada año)</div>' +
+      '<div style="font-size:13px">' + esc(fmt(cal.holidays)) + '</div>' +
+      (cal.workdays && cal.workdays.length ? '<div class="rg-help">Días laborables aunque figuren como feriado: ' + esc(fmt(cal.workdays)) + '.</div>' : '') +
+      '<div class="rg-help"><b>Ojo:</b> la Semana Santa cambia de fecha cada año y en Bitrix24 queda fija en el día y mes que se haya cargado. Revisa que sean las fechas del año en curso, o desmarca esos días en Bitrix24 y agrégalos abajo con su fecha exacta.</div></div>';
+  }
   function textoMetaRegla(meta) {
     if (!meta) return 'Valores iniciales del reglamento (nunca modificados).';
     return 'Última modificación: ' + (meta.updated_at ? new Date(meta.updated_at).toLocaleString('es-HN') : '—') + ' · ' + esc(meta.updated_by_nombre || '—');
@@ -4983,16 +4997,19 @@
   function renderReglas() {
     var cfg = reglasCfg;
     var gl = cfg.reglas.global;
-    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Parámetros generales: salario mínimo y plazo de comprobantes</div><div class="rg-body">' +
+    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Parámetros generales: salario mínimo, plazo y feriados</div><div class="rg-body">' +
       '<div class="rg-field"><label for="' + rgId('global', 'salarioMinimo') + '">Salario mínimo mensual de comercio y servicios ($)</label>' +
       '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(gl.salarioMinimo) + '" />' +
       '<div class="rg-help">Se usa para calcular el máximo de las compras excepcionales (salarios mínimos × este monto). Actualízalo cuando el Gobierno lo ajuste.</div></div>' +
       '<div class="rg-field"><label for="' + rgId('global', 'plazoComprobantesDias') + '">Plazo para registrar la factura o documento equivalente (días hábiles)</label>' +
       '<input type="number" id="' + rgId('global', 'plazoComprobantesDias') + '" min="1" max="30" step="1" value="' + esc(gl.plazoComprobantesDias) + '" />' +
       '<div class="rg-help">Se cuenta desde el día del desembolso hasta el día en que se registra la factura. Si se supera, se notifica al solicitante y al administrador cada día y baja el score de cumplimiento.</div></div>' +
-      '<div class="rg-field"><label for="' + rgId('global', 'feriados') + '">Feriados (días no hábiles), uno por línea con formato AAAA-MM-DD</label>' +
+      '<label class="rg-check"><input type="checkbox" id="' + rgId('global', 'feriadosBitrix') + '"' + (gl.feriadosBitrix !== false ? ' checked' : '') + ' /><span>Tomar los feriados del calendario de Bitrix24 (Calendario → Configuración)<span class="rg-help" style="display:block">Los feriados se mantienen en Bitrix24 y se repiten cada año; así el plazo usa los mismos días no hábiles que el resto de la empresa.</span></span></label>' +
+      htmlCalendarioBitrix(cfg.calendarioBitrix) +
+      '<label class="rg-check"><input type="checkbox" id="' + rgId('global', 'descansoSemanalBitrix') + '"' + (gl.descansoSemanalBitrix ? ' checked' : '') + ' /><span>Usar también el descanso semanal de Bitrix24<span class="rg-help" style="display:block">' + esc(textoDescansoBitrix(cfg.calendarioBitrix)) + ' Si no lo marcas, sábado y domingo no son hábiles.</span></span></label>' +
+      '<div class="rg-field"><label for="' + rgId('global', 'feriados') + '">Feriados adicionales (fecha exacta), uno por línea con formato AAAA-MM-DD</label>' +
       '<textarea id="' + rgId('global', 'feriados') + '" rows="8" style="font-size:13px;min-height:120px">' + esc((gl.feriados || []).join('\n')) + '</textarea>' +
-      '<div class="rg-help">Además de sábados y domingos. Incluye aquí los asuetos locales (p. ej. fiestas patronales) y los de cada año nuevo.</div></div>' +
+      '<div class="rg-help">Se suman a los de Bitrix24. Úsalo para fechas que cambian cada año, como la Semana Santa, que en Bitrix24 no se puede registrar por año.</div></div>' +
       '<div class="rg-meta">' + textoMetaRegla(cfg.meta && cfg.meta.global) + '</div>' +
       '<div class="rg-actions"><button type="button" data-rg-guardar="global">Guardar parámetros generales</button></div></div></div>';
     var tipos = [['circulante', 'Fondo circulante'], ['caja_chica', 'Fondo de caja chica']];
@@ -5016,7 +5033,9 @@
       return {
         salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value),
         plazoComprobantesDias: parseInt(document.getElementById(rgId('global', 'plazoComprobantesDias')).value, 10),
-        feriados: document.getElementById(rgId('global', 'feriados')).value.split(/\s*\n\s*/).map(function (x) { return x.trim(); }).filter(Boolean)
+        feriados: document.getElementById(rgId('global', 'feriados')).value.split(/\s*\n\s*/).map(function (x) { return x.trim(); }).filter(Boolean),
+        feriadosBitrix: document.getElementById(rgId('global', 'feriadosBitrix')).checked,
+        descansoSemanalBitrix: document.getElementById(rgId('global', 'descansoSemanalBitrix')).checked
       };
     }
     var v = {};
@@ -5051,7 +5070,7 @@
       if (!ok) return;
       apiCall('fondos', { method: 'POST', body: { action: 'guardar_reglas', tipo: tipo, valores: leerReglasForm(tipo), actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
         if (!r.ok) { showMsg(msgEl, 'error', r.error || 'No se pudieron guardar las reglas.'); return; }
-        reglasCfg = Object.assign({}, reglasCfg, { reglas: r.reglas, meta: r.meta, historial: r.historial });
+        reglasCfg = Object.assign({}, reglasCfg, { reglas: r.reglas, meta: r.meta, historial: r.historial, calendarioBitrix: r.calendarioBitrix || reglasCfg.calendarioBitrix });
         renderReglas();
         showMsg(msgEl, 'success', 'Reglas guardadas y aplicadas.');
         // el resto de la app toma los nuevos valores sin recargar
