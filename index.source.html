@@ -630,6 +630,7 @@
         <div class="drawer-user-name" id="drawerUserName">—</div>
         <div class="drawer-user-role" id="drawerUserRole">—</div>
         <div class="drawer-user-score" id="drawerUserScore"></div>
+        <div class="drawer-user-score" id="drawerAcceso" style="display:none;white-space:normal;line-height:1.35"></div>
       </div>
     </div>
   </nav>
@@ -4847,6 +4848,17 @@
     }).catch(function () {});
   }
   document.getElementById('scoreChip').addEventListener('click', function () { activarTab('cumplimiento'); });
+  // Para pruebas: muestra si el servidor reconoce tu acceso de administrador (el servidor es quien lo hace cumplir).
+  function verificarAccesoServidor() {
+    var el = document.getElementById('drawerAcceso');
+    if (!el || !isAdmin) { if (el) el.style.display = 'none'; return; }
+    apiCall('fondos', { method: 'POST', body: { action: 'mi_acceso', actor_id: currentUser.ID } }).then(function (r) {
+      if (!r || !r.ok) { el.style.display = 'none'; return; }
+      el.style.display = 'block';
+      if (r.admin && r.admin.verificado) { el.style.color = ''; el.textContent = 'Acceso total verificado por el servidor ✓'; }
+      else { el.style.color = '#ffb4ab'; el.textContent = '⚠ El servidor NO reconoce tu acceso de administrador: ' + ((r.admin && r.admin.motivo) || 'motivo desconocido') + ' Sin eso, el servidor te negará acciones de otros roles.'; }
+    }).catch(function () { el.style.display = 'none'; });
+  }
 
   function fechaCortaPlazo(d) { return d ? String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4) : '—'; }
   function fechaHoraCorta(ts) { return ts ? new Date(ts).toLocaleDateString('es-HN') : '—'; }
@@ -5634,6 +5646,7 @@
       poblarSolicitudesSelectores();
       pintarUsuarioMenu();
       cargarScoreCumplimiento();
+      verificarAccesoServidor();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 

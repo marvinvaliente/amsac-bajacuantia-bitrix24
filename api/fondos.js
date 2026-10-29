@@ -121,6 +121,13 @@ module.exports = async (req, res) => {
       const body = await readBody(req);
       const action = body.action;
 
+      // Qué acceso reconoce el servidor para este usuario (solo informativo, para pruebas).
+      if (action === 'mi_acceso') {
+        const adm = await presupuesto.diagnosticarAdmin(body.actor_id, body.auth_token);
+        res.status(200).json({ ok: true, admin: adm, presupuesto: !!(await presupuesto.esPersonalPresupuesto(body.actor_id)), tesoreria: !!(await presupuesto.esPersonalTesoreria(body.actor_id)) });
+        return;
+      }
+
       // Guardar los parámetros de las reglas: solo un administrador del portal, verificado contra Bitrix24.
       if (action === 'guardar_reglas') {
         if (!(await presupuesto.esAdminPortal(body.actor_id, body.auth_token))) {

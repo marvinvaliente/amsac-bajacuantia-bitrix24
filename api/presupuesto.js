@@ -221,6 +221,25 @@ async function esAdminPortal(userId, token) {
   cacheAdmin[k] = { t: Date.now(), v };
   return v;
 }
+// Diagnóstico para la pantalla: dice si el servidor reconoce al usuario como administrador del portal y, si no,
+// por qué (sin token, token rechazado, usuario distinto, no es administrador...). No usa caché.
+async function diagnosticarAdmin(userId, token) {
+  userId = String(userId || '').trim();
+  token = String(token || '').trim();
+  if (!process.env.BITRIX24_WEBHOOK_URL) return { verificado: false, motivo: 'Falta la variable BITRIX24_WEBHOOK_URL en el servidor.' };
+  if (!userId) return { verificado: false, motivo: 'La app no envió el usuario.' };
+  if (!token) return { verificado: false, motivo: 'La app no envió el token de sesión de Bitrix24; abre la app desde dentro de Bitrix24.' };
+  try {
+    const origin = new (require('url').URL)(process.env.BITRIX24_WEBHOOK_URL).origin;
+    const r = await fetch(origin + '/rest/profile.json', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: token }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || !j || !j.result) return { verificado: false, motivo: 'Bitrix24 rechazó el token de sesión (' + ((j && (j.error_description || j.error)) || ('HTTP ' + r.status)) + ').' };
+    const pr = j.result;
+    if (String(pr.ID) !== userId) return { verificado: false, motivo: 'El token pertenece a otro usuario (' + pr.ID + ' en vez de ' + userId + ').' };
+    if (!(pr.ADMIN === true || pr.ADMIN === 'true' || pr.ADMIN === 'Y')) return { verificado: false, motivo: 'Bitrix24 indica que tu usuario no es administrador del portal.' };
+    return { verificado: true, motivo: '' };
+  } catch (e) { return { verificado: false, motivo: 'No se pudo consultar Bitrix24: ' + String((e && e.message) || e) }; }
+}
 // Certificar / revisar: personal de Presupuesto o administrador del portal.
 const puedeComoPresupuesto = async (body) => (await esAdminPortal(body.actor_id, body.auth_token)) || esPersonalPresupuesto(body.actor_id);
 // Liberar fondos / cerrar liquidaciones: personal de Tesorería o administrador del portal.
@@ -249,5 +268,6 @@ module.exports.esPersonalPresupuesto = esPersonalPresupuesto;
 module.exports.esPersonalTesoreria = esPersonalTesoreria;
 module.exports.usuariosTesoreria = usuariosTesoreria;
 module.exports.esAdminPortal = esAdminPortal;
+module.exports.diagnosticarAdmin = diagnosticarAdmin;
 module.exports.puedeComoPresupuesto = puedeComoPresupuesto;
 module.exports.puedeComoTesoreria = puedeComoTesoreria;
