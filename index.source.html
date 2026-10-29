@@ -423,7 +423,6 @@
   .rg-formas { display: flex; flex-wrap: wrap; gap: 4px 20px; }
   .rg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
   .rg-actions button { width: auto; margin: 0; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 4px; }
-  .banner-pruebas { background: #b3261e; color: #fff; text-align: center; font-size: 12.5px; font-weight: 600; padding: 6px 12px; letter-spacing: .02em; }
   .score-chip { margin: 0 12px 0 auto; width: auto; padding: 5px 13px; font-size: 12px; font-weight: 600; border-radius: 16px; background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.28); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; letter-spacing: .02em; }
   .score-chip:hover { background: rgba(255,255,255,.2); }
   .score-chip b { font-size: 13.5px; }
@@ -497,7 +496,6 @@
 </style>
 </head>
 <body>
-<div id="bannerPruebas" class="banner-pruebas" style="display:none">MODO DE PRUEBAS ACTIVO: los administradores del portal pueden hacer todo; las reglas del reglamento solo avisan. Desactívalo en Reglas de fondos antes de salir a producción.</div>
 <header class="app-header">
   <button type="button" id="menuToggle" class="menu-toggle" aria-label="Abrir menú">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -1530,7 +1528,7 @@
   // Límites del reglamento (el servidor manda los valores vigentes con la lista de
   // fondos; estos son los de respaldo). El servidor es quien los hace cumplir.
   var REGLAS_FONDOS = {
-    salarioMinimo: 408.80, ivaPct: 13, modoPruebas: false,
+    salarioMinimo: 408.80, ivaPct: 13,
     circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
       excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, excepcionPorCiclo: true, facturasMargenPct: 0, exigeAcuerdo: true, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false, excepcionMaxMonto: 8176 },
@@ -1557,8 +1555,6 @@
     });
   }
   function money(n) { return (Number(n) || 0).toFixed(2); }
-  function actualizarBannerPruebas() { var b = document.getElementById('bannerPruebas'); if (b) b.style.display = REGLAS_FONDOS && REGLAS_FONDOS.modoPruebas ? 'block' : 'none'; }
-  function enModoPruebasAdmin() { return !!(REGLAS_FONDOS && REGLAS_FONDOS.modoPruebas && isAdmin); }
   // Retención de anticipo de IVA (Código Tributario, Art. 162): los montos de las solicitudes incluyen IVA, así que
   // se separa el IVA y, si el valor sin IVA llega al mínimo ($100), la alcaldía retiene el % (1%) de ese valor.
   function calcRetencion(total, R) {
@@ -2382,7 +2378,7 @@
     // Formas de pago permitidas por las reglas del fondo (y tope de efectivo por compra).
     Array.prototype.forEach.call(selP.options, function (o) {
       if (!o.value) { o.disabled = false; return; }
-      o.disabled = enModoPruebasAdmin() ? false : (formasOk.indexOf(o.value) === -1 || (o.value === 'efectivo' && R.efectivoMaxCompra > 0 && total > R.efectivoMaxCompra));
+      o.disabled = formasOk.indexOf(o.value) === -1 || (o.value === 'efectivo' && R.efectivoMaxCompra > 0 && total > R.efectivoMaxCompra);
     });
     if (selP.value && selP.options[selP.selectedIndex] && selP.options[selP.selectedIndex].disabled) selP.value = '';
     var habil = Array.prototype.filter.call(selP.options, function (o) { return o.value && !o.disabled; });
@@ -2633,10 +2629,9 @@
     }).then(function (r) {
       btn.disabled = false;
       if (r.ok) {
-        showMsg(msgEl, 'success', ((r.solicitud && r.solicitud.estado === 'autorizada')
+        showMsg(msgEl, 'success', (r.solicitud && r.solicitud.estado === 'autorizada')
           ? 'Solicitud creada. Como este fondo no requiere autorización de gerencia, ya está lista para la certificación presupuestaria.'
-          : 'Solicitud creada correctamente. Certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.') +
-          (r.advertencias && r.advertencias.length ? ' [MODO DE PRUEBAS] Se omitieron estas reglas: ' + r.advertencias.join(' | ') : ''));
+          : 'Solicitud creada correctamente. Certifícala desde "Certificación presupuestaria" para poder registrar facturas contra ella.');
         limpiarFormSolicitud();
         cargarSolicitudes();
       } else {
@@ -4972,14 +4967,14 @@
       { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },
       { k: 'reintegroExigeDocumento', tipo: 'bool', l: 'Exigir documento físico recibido para incluir un gasto en un reintegro' } ] }
   ];
-  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', modoPruebas: 'Modo de pruebas', ivaPct: 'IVA (%)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados adicionales', feriadosBitrix: 'Usar feriados de Bitrix24', descansoSemanalBitrix: 'Usar descanso semanal de Bitrix24' };
+  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', ivaPct: 'IVA (%)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados adicionales', feriadosBitrix: 'Usar feriados de Bitrix24', descansoSemanalBitrix: 'Usar descanso semanal de Bitrix24' };
   CAMPOS_REGLAS.forEach(function (sec) { sec.c.forEach(function (c) { ETIQUETAS_REGLAS[c.k] = c.l; }); });
   var FORMAS_REGLAS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque']];
   // Misma forma que entrega el servidor a la app (incluye el máximo excepcional en $).
   function reglasPublicasDesdeCfg(reglas) {
     var sm = Number(reglas.global.salarioMinimo) || 0;
     function conMax(t) { return Object.assign({}, reglas[t], { excepcionMaxMonto: Math.round((Number(reglas[t].excepcionMaxSalarios) || 0) * sm * 100) / 100 }); }
-    return { salarioMinimo: sm, ivaPct: Number(reglas.global.ivaPct) || 13, modoPruebas: !!reglas.global.modoPruebas, circulante: conMax('circulante'), caja_chica: conMax('caja_chica') };
+    return { salarioMinimo: sm, ivaPct: Number(reglas.global.ivaPct) || 13, circulante: conMax('circulante'), caja_chica: conMax('caja_chica') };
   }
   function rgId(tipo, k) { return 'rg_' + tipo + '_' + k; }
 
@@ -4990,7 +4985,7 @@
     apiCall('fondos?action=reglas').then(function (r) {
       if (!r || !r.ok) { document.getElementById('reglasLoading').textContent = (r && r.error) || 'No se pudieron cargar las reglas.'; return; }
       reglasCfg = r;
-      REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas); actualizarBannerPruebas();
+      REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas);
       document.getElementById('reglasLoading').style.display = 'none';
       document.getElementById('reglasContent').style.display = 'block';
       hideMsg(document.getElementById('reglasMsg'));
@@ -5033,7 +5028,6 @@
       '<div class="rg-field"><label for="' + rgId('global', 'salarioMinimo') + '">Salario mínimo mensual de comercio y servicios ($)</label>' +
       '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(gl.salarioMinimo) + '" />' +
       '<div class="rg-help">Se usa para calcular el máximo de las compras excepcionales (salarios mínimos × este monto). Actualízalo cuando el Gobierno lo ajuste.</div></div>' +
-      '<label class="rg-check" style="background:#fdecea;border:1px solid #b3261e;border-radius:8px;padding:10px 12px"><input type="checkbox" id="' + rgId('global', 'modoPruebas') + '"' + (gl.modoPruebas ? ' checked' : '') + ' /><span><b>MODO DE PRUEBAS (solo desarrollo)</b><span class="rg-help" style="display:block">Los administradores del portal pueden hacer todo: las reglas (límites, topes, retención, saldo, facturas, bloqueos, disponibilidad presupuestaria y requisitos del reintegro) dejan de bloquearlos y solo se muestran como advertencias. Los demás usuarios siguen con las reglas normales. <b>Desactívalo antes de salir a producción.</b></span></span></label>' +
       '<div class="rg-field"><label for="' + rgId('global', 'ivaPct') + '">IVA (%)</label>' +
       '<input type="number" id="' + rgId('global', 'ivaPct') + '" min="0" max="100" step="0.01" value="' + esc(gl.ivaPct != null ? gl.ivaPct : 13) + '" />' +
       '<div class="rg-help">Los montos de las solicitudes incluyen IVA; con este porcentaje se separa el IVA para saber si la compra llega al mínimo de retención y calcular la retención.</div></div>' +
@@ -5068,7 +5062,6 @@
     if (tipo === 'global') {
       return {
         salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value),
-        modoPruebas: document.getElementById(rgId('global', 'modoPruebas')).checked,
         ivaPct: parseFloat(document.getElementById(rgId('global', 'ivaPct')).value),
         plazoComprobantesDias: parseInt(document.getElementById(rgId('global', 'plazoComprobantesDias')).value, 10),
         feriados: document.getElementById(rgId('global', 'feriados')).value.split(/\s*\n\s*/).map(function (x) { return x.trim(); }).filter(Boolean),
@@ -5112,7 +5105,7 @@
         renderReglas();
         showMsg(msgEl, 'success', 'Reglas guardadas y aplicadas.');
         // el resto de la app toma los nuevos valores sin recargar
-        REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas); actualizarBannerPruebas();
+        REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas);
       }).catch(function () { showMsg(msgEl, 'error', 'Error de conexión al guardar.'); });
     });
   }
@@ -5634,7 +5627,6 @@
     }).then(function (resList) {
       fondos = resList[0].fondos || [];
       if (resList[0].reglas) REGLAS_FONDOS = resList[0].reglas;
-      actualizarBannerPruebas();
       solicitudes = resList[1].solicitudes || [];
       certificadores = resList[2].certificadores || [];
       tesoreria = resList[3].tesoreria || [];

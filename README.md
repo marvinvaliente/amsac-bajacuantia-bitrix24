@@ -914,18 +914,6 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
   desembolsado (más el margen configurable, 0% por defecto); así una compra
   no se infla al facturarla. Un gasto real mayor requiere una solicitud
   adicional con su certificación.
-- **Modo de pruebas (solo desarrollo)**: en "Reglas de fondos" → parámetros
-  generales hay un interruptor que un administrador del portal puede activar.
-  Mientras está activo, **los administradores del portal** (verificados contra
-  Bitrix24 con su token) pueden hacer todo: además de actuar en cualquier rol
-  (que ya podían), las reglas del reglamento dejan de bloquearlos y solo se
-  muestran como advertencias: forma de pago, límites y tope de excepcionales,
-  acuerdo, comprobante de retención, saldo en efectivo/banco, facturas dentro
-  de lo autorizado, bloqueo por reintegro pendiente de confirmar, disponibilidad
-  presupuestaria al certificar y requisitos del reintegro (60 %, documento
-  físico). Los demás usuarios siguen con las reglas normales. Se muestra una
-  franja roja en toda la app y el cambio queda en el historial de reglas.
-  **Debe desactivarse antes de salir a producción.**
 - **Salario mínimo** (Art. 7): inicia en $408.80 (comercio y servicios, vigente
   en 2026; 20 salarios = $8,176.00). Se cambia en "Reglas de fondos" si el
   Gobierno lo ajusta (ya no se usa la variable de entorno).
