@@ -176,7 +176,7 @@ const DEFAULTS = {
   circulante: {
     montoMaximoAnual: 300000, limiteCompra: 1000,
     formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false,
+    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true,
     reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true,
     exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false
   },

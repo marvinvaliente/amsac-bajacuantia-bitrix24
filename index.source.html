@@ -1006,7 +1006,7 @@
             <div id="dRetencionWrap" style="display:none">
               <label for="dRetencion">N° de comprobante de retención (tramitado con Tesorería) *</label>
               <input type="text" id="dRetencion" maxlength="60" placeholder="Ej. 000123" />
-              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional: el comprobante de retención se tramita con Tesorería antes de la compra.</div>
+              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional: el comprobante de retención (Ley de IVA de El Salvador) se tramita con Tesorería antes de la compra.</div>
             </div>
 
             <div class="doc-actions">
@@ -1528,7 +1528,7 @@
   var REGLAS_FONDOS = {
     salarioMinimo: 408.80,
     circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false, excepcionMaxMonto: 8176 },
     caja_chica: { montoMaximoAnual: 24000, limiteCompra: 100, formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
       excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
@@ -2388,7 +2388,7 @@
       if (R.exigeAcuerdo) reqs.push('el <b>acuerdo administrativo en PDF</b> (adjúntalo más abajo)');
       if (R.excepcionMaxSalarios > 0) reqs.push('un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(R.excepcionMaxMonto) + ')');
       if (R.excepcionMensualPct > 0) reqs.push('que lo excepcional del mes no pase del ' + R.excepcionMensualPct + '% de la referencia mensual del fondo');
-      if (R.exigeRetencion) reqs.push('tramitar con Tesorería el <b>comprobante de retención</b> antes de la compra (su número se registra al desembolsar)');
+      if (R.exigeRetencion) reqs.push('tramitar con Tesorería el <b>comprobante de retención</b> conforme a la Ley de IVA de El Salvador, antes de la compra (su número se registra al desembolsar)');
       html += '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + ')' + (reqs.length ? ': exige ' + reqs.join('; ') + '.' : '.') +
         (R.excepcionMaxSalarios > 0 && total > R.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>';
     }
@@ -4934,7 +4934,7 @@
       { k: 'exigeAcuerdo', tipo: 'bool', l: 'Exigir acuerdo administrativo en PDF' },
       { k: 'excepcionMaxSalarios', tipo: 'num', l: 'Máximo por compra excepcional (salarios mínimos)', h: '0 = sin tope. Se multiplica por el salario mínimo de referencia.' },
       { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope mensual de compras excepcionales (% de la referencia mensual)', h: '0 = sin tope. Lo no utilizado no se acumula.' },
-      { k: 'exigeRetencion', tipo: 'bool', l: 'Exigir comprobante de retención antes del desembolso' } ] },
+      { k: 'exigeRetencion', tipo: 'bool', l: 'Exigir comprobante de retención (Ley de IVA de El Salvador) antes del desembolso' } ] },
     { t: 'Reintegro', c: [
       { k: 'reintegroPct', tipo: 'num', l: '% de la referencia mensual para poder solicitar el reintegro', h: 'Los gastos seleccionados deben alcanzar este porcentaje.' },
       { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },

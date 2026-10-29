@@ -459,7 +459,7 @@ module.exports = async (req, res) => {
           if (evD.retencionRequerida) {
             const ret = String(body.retencion_comprobante || sol.retencion_comprobante || '').trim();
             if (!ret) {
-              res.status(400).json({ ok: false, error: 'Compra excepcional de caja chica: antes de desembolsar debes tramitar con Tesorería el comprobante de retención y registrar su número (Reglamento, Art. 8).' });
+              res.status(400).json({ ok: false, error: 'Compra excepcional: antes de desembolsar debes tramitar con Tesorería el comprobante de retención (Ley de IVA de El Salvador) y registrar su número.' });
               return;
             }
             patchDes.retencion_comprobante = ret;

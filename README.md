@@ -753,7 +753,7 @@ de fondo (circulante y caja chica) más el salario mínimo de referencia.
 | Exigir acuerdo administrativo (PDF) | para compras excepcionales |
 | Máximo excepcional (salarios mínimos) | × salario mínimo de referencia (0 = sin tope) |
 | Tope mensual excepcional (% de la referencia) | 0 = sin tope |
-| Exigir comprobante de retención | antes del desembolso de una compra excepcional |
+| Exigir comprobante de retención (Ley de IVA) | antes del desembolso de una compra excepcional; activo en ambos tipos de fondo |
 | % de la referencia para poder pedir reintegro | umbral del reintegro |
 | Permitir reintegro al cierre del mes | aunque no se llegue al % |
 | Exigir documento físico recibido | para incluir un gasto en un reintegro |
@@ -882,8 +882,8 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
   $1,000, aparece el campo para subir el PDF; sin él no se crea. Queda
   guardado en la solicitud y se ve en Autorización y Desembolso. La solicitud
   se marca `excepcional`.
-- **Comprobante de retención (caja chica)**: en una compra excepcional el
-  administrador registra el **N° de comprobante** en el Desembolso (queda con
+- **Comprobante de retención (caja chica y circulante)**: conforme a la Ley de
+  IVA de El Salvador, en una compra excepcional el administrador registra el **N° de comprobante** en el Desembolso (queda con
   quién y cuándo); sin él no se desembolsa.
 - **Salario mínimo** (Art. 7): inicia en $408.80 (comercio y servicios, vigente
   en 2026; 20 salarios = $8,176.00). Se cambia en "Reglas de fondos" si el
