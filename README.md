@@ -752,7 +752,9 @@ de fondo (circulante y caja chica) más el salario mínimo de referencia.
 | Permitir compras excepcionales | si no, toda compra sobre el límite se rechaza |
 | Exigir acuerdo administrativo (PDF) | para compras excepcionales |
 | Máximo excepcional (salarios mínimos) | × salario mínimo de referencia (0 = sin tope) |
-| Tope mensual excepcional (% de la referencia) | 0 = sin tope |
+| Tope de lo excepcional (% de la referencia mensual) | una sola compra excepcional o varias no pueden sumar más; 0 = sin tope |
+| Contar el tope por ciclo | si está activo (por defecto) el tope rige por ciclo del fondo, hasta que Tesorería entrega el reintegro; si no, por mes calendario |
+| Margen de las facturas sobre lo autorizado (%) | las facturas de una solicitud no pueden sumar más que su monto (0 = exacto) |
 | Retener IVA y exigir comprobante de retención | antes del desembolso de toda compra que llegue al mínimo (ordinaria o excepcional); activo en ambos tipos de fondo |
 | Porcentaje a retener | 1%, sobre el valor sin IVA |
 | Valor mínimo para retener (sin IVA) | $100 |
@@ -871,7 +873,7 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
 | Compra ordinaria (Art. 6) | hasta **$1,000** | hasta **$100** |
 | Forma de pago | **efectivo** solo hasta **$500** por compra (Art. 11); transferencia o cheque sin tope | **solo efectivo** (Art. 12) |
 | Reparto del fondo | **40% efectivo / 60% banco** de la referencia mensual | 100% efectivo |
-| Compra excepcional (supera el límite ordinario) | exige el **acuerdo administrativo del Alcalde Municipal en PDF** (Art. 7); máximo **20 salarios mínimos** de comercio y servicios; lo excepcional del mes no pasa del **50%** de la referencia mensual | sin acuerdo; lo excepcional del mes no pasa del **50%** de la referencia mensual (Art. 8) y exige **comprobante de retención** tramitado con Tesorería antes de la compra |
+| Compra excepcional (supera el límite ordinario) | exige el **acuerdo administrativo del Alcalde Municipal en PDF** (Art. 7); máximo **20 salarios mínimos** de comercio y servicios; lo excepcional de cada ciclo no pasa del **50%** de la referencia mensual | sin acuerdo; lo excepcional de cada ciclo no pasa del **50%** de la referencia mensual (Art. 8) y exige **comprobante de retención** tramitado con Tesorería antes de la compra |
 
 - **Efectivo y banco con gastos reales**: la forma de pago de cada solicitud
   decide el medio — **efectivo** afecta al efectivo; **cheque y transferencia**
@@ -898,6 +900,20 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
   el monto retenido y quién y cuándo lo registró; sin él no se desembolsa.
   Porcentaje, mínimo e IVA se cambian en "Reglas de fondos". El sistema no
   mueve el saldo del fondo por la retención (el gasto sigue siendo el total).
+- **Tope del 50% por ciclo**: una sola compra excepcional, o varias compras
+  excepcionales individuales, no pueden sumar más del 50% de la referencia
+  mensual del fondo en cada ciclo. El ciclo empieza cuando Tesorería entrega
+  el reintegro que repone el fondo: lo excepcional ya repuesto deja de contar
+  y el tope se renueva. Lo comprometido sigue contando aunque aún no se
+  desembolse (solicitudes pendientes, autorizadas o certificadas) y lo
+  desembolsado o facturado cuenta hasta que lo reponga un reintegro entregado.
+  El panel del Desembolso muestra el tope, lo usado y lo disponible. Se puede
+  volver al conteo por mes calendario desmarcando "Contar ese tope por ciclo".
+- **Facturas dentro de lo autorizado**: al registrar una factura, las de esa
+  solicitud (una o varias) no pueden sumar más que su monto autorizado y
+  desembolsado (más el margen configurable, 0% por defecto); así una compra
+  no se infla al facturarla. Un gasto real mayor requiere una solicitud
+  adicional con su certificación.
 - **Salario mínimo** (Art. 7): inicia en $408.80 (comercio y servicios, vigente
   en 2026; 20 salarios = $8,176.00). Se cambia en "Reglas de fondos" si el
   Gobierno lo ajusta (ya no se usa la variable de entorno).

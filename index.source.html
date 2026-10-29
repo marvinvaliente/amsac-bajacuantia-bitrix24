@@ -1530,10 +1530,10 @@
   var REGLAS_FONDOS = {
     salarioMinimo: 408.80, ivaPct: 13,
     circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, excepcionPorCiclo: true, facturasMargenPct: 0, exigeAcuerdo: true, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false, excepcionMaxMonto: 8176 },
     caja_chica: { montoMaximoAnual: 24000, limiteCompra: 100, formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
-      excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, excepcionPorCiclo: true, facturasMargenPct: 0, exigeAcuerdo: false, exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
       reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false, exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true, excepcionMaxMonto: 0 }
   };
   var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
@@ -2400,7 +2400,7 @@
       var reqs = [];
       if (R.exigeAcuerdo) reqs.push('el <b>acuerdo administrativo en PDF</b> (adjúntalo más abajo)');
       if (R.excepcionMaxSalarios > 0) reqs.push('un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(R.excepcionMaxMonto) + ')');
-      if (R.excepcionMensualPct > 0) reqs.push('que lo excepcional del mes no pase del ' + R.excepcionMensualPct + '% de la referencia mensual del fondo');
+      if (R.excepcionMensualPct > 0) reqs.push('que lo excepcional ' + (R.excepcionPorCiclo !== false ? 'de cada ciclo (hasta el próximo reintegro)' : 'del mes') + ' no pase del ' + R.excepcionMensualPct + '% de la referencia mensual del fondo, ya sea en una sola compra o en varias compras excepcionales');
       html += '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + ')' + (reqs.length ? ': exige ' + reqs.join('; ') + '.' : '.') +
         (R.excepcionMaxSalarios > 0 && total > R.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>';
     }
@@ -3562,6 +3562,7 @@
           '<div><span>Efectivo' + (conBanco ? ' (' + pctEf + '%)' : '') + ': límite</span><b>' + centavos(sd.efectivoCapC) + '</b></div>' +
           '<div><span>Efectivo en uso</span><b>' + centavos(sd.efectivoUsadoC) + '</b></div>' +
           '<div><span>Efectivo disponible</span><b>' + centavos(Math.max(0, sd.efectivoDispC)) + '</b></div>' +
+          (sd.excepcionalTopeC > 0 ? '<div><span>Compras excepcionales ' + (sd.excepcionalPorCiclo === false ? 'del mes' : 'del ciclo') + ': tope</span><b>' + centavos(sd.excepcionalTopeC) + '</b></div><div><span>Excepcionales en uso</span><b>' + centavos(sd.excepcionalUsadoC) + '</b></div><div><span>Excepcionales disponibles</span><b>' + centavos(Math.max(0, sd.excepcionalTopeC - sd.excepcionalUsadoC)) + '</b></div>' : '') +
           (conBanco
             ? '<div><span>Banco (' + (Math.round((100 - pctEf) * 100) / 100) + '%): límite</span><b>' + centavos(sd.bancoCapC) + '</b></div><div><span>Banco en uso</span><b>' + centavos(sd.bancoUsadoC) + '</b></div><div><span>Banco disponible</span><b>' + centavos(Math.max(0, sd.bancoDispC)) + '</b></div>'
             : '<div><span>Banco</span><b>No aplica</b></div>') +
@@ -4945,7 +4946,8 @@
       { k: 'exigeAutorizacionGerencia', tipo: 'bool', l: 'Exigir autorización de la gerencia responsable', h: 'Si no, la solicitud nace autorizada y pasa directo a Presupuesto.' } ] },
     { t: 'Montos y cuantías', c: [
       { k: 'montoMaximoAnual', tipo: 'num', l: 'Monto máximo anual del fondo ($)', h: 'Tope al crear o editar un fondo de este tipo. 0 = sin tope. La referencia mensual del fondo es su monto entre 12.' },
-      { k: 'limiteCompra', tipo: 'num', l: 'Límite de compra ordinaria ($, impuestos incluidos)', h: 'Una compra que lo supera es excepcional.' } ] },
+      { k: 'limiteCompra', tipo: 'num', l: 'Límite de compra ordinaria ($, impuestos incluidos)', h: 'Una compra que lo supera es excepcional.' },
+      { k: 'facturasMargenPct', tipo: 'num', l: 'Margen de las facturas sobre lo autorizado (%)', h: 'Las facturas de una solicitud (una o varias) no pueden sumar más que su monto autorizado más este margen. 0 = exacto.' } ] },
     { t: 'Formas de pago y reparto efectivo / banco', c: [
       { k: 'formasPago', tipo: 'formas', l: 'Formas de pago permitidas', h: 'Efectivo afecta al efectivo del fondo; transferencia y cheque afectan al banco.' },
       { k: 'efectivoMaxCompra', tipo: 'num', l: 'Efectivo: máximo por compra ($)', h: '0 = sin tope.' },
@@ -4954,7 +4956,8 @@
       { k: 'excepcionesPermitidas', tipo: 'bool', l: 'Permitir compras excepcionales (sobre el límite ordinario)' },
       { k: 'exigeAcuerdo', tipo: 'bool', l: 'Exigir acuerdo administrativo en PDF' },
       { k: 'excepcionMaxSalarios', tipo: 'num', l: 'Máximo por compra excepcional (salarios mínimos)', h: '0 = sin tope. Se multiplica por el salario mínimo de referencia.' },
-      { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope mensual de compras excepcionales (% de la referencia mensual)', h: '0 = sin tope. Lo no utilizado no se acumula.' } ] },
+      { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope de lo excepcional (% de la referencia mensual)', h: 'Una sola compra excepcional, o varias compras excepcionales, no pueden sumar más que este % de la referencia mensual. 0 = sin tope. Lo no utilizado no se acumula.' },
+      { k: 'excepcionPorCiclo', tipo: 'bool', l: 'Contar ese tope por ciclo del fondo (hasta que Tesorería entregue el reintegro) y no por mes calendario' } ] },
     { t: 'Retención de IVA (la alcaldía es agente de retención)', c: [
       { k: 'exigeRetencion', tipo: 'bool', l: 'Retener IVA y exigir el comprobante de retención antes del desembolso', h: 'Código Tributario, Art. 162 (retención) y Art. 112 (comprobante). Aplica a toda compra que llegue al mínimo, sea ordinaria o excepcional.' },
       { k: 'retencionPct', tipo: 'num', l: 'Porcentaje a retener (%)', h: 'Se aplica sobre el valor de la compra SIN IVA.' },

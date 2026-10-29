@@ -177,7 +177,7 @@ const DEFAULTS = {
   circulante: {
     montoMaximoAnual: 300000, limiteCompra: 1000,
     formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
-    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true,
+    excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, excepcionPorCiclo: true, facturasMargenPct: 0, exigeAcuerdo: true,
     exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
     reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true,
     exigeAutorizacionGerencia: true, solicitanteEsAdministrador: false
@@ -187,7 +187,7 @@ const DEFAULTS = {
   caja_chica: {
     montoMaximoAnual: 24000, limiteCompra: 100,
     formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
-    excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false,
+    excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, excepcionPorCiclo: true, facturasMargenPct: 0, exigeAcuerdo: false,
     exigeRetencion: true, retencionPct: 1, retencionMinimo: 100,
     reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: false,
     exigeAutorizacionGerencia: false, solicitanteEsAdministrador: true
@@ -259,6 +259,8 @@ function normalizarReglas(tipo, v) {
     excepcionesPermitidas: bool(v.excepcionesPermitidas, d.excepcionesPermitidas),
     excepcionMaxSalarios: num(v.excepcionMaxSalarios, d.excepcionMaxSalarios, 0, 100000),
     excepcionMensualPct: num(v.excepcionMensualPct, d.excepcionMensualPct, 0, 100),
+    excepcionPorCiclo: bool(v.excepcionPorCiclo, d.excepcionPorCiclo),
+    facturasMargenPct: num(v.facturasMargenPct, d.facturasMargenPct, 0, 100),
     exigeAcuerdo: bool(v.exigeAcuerdo, d.exigeAcuerdo),
     exigeRetencion: bool(v.exigeRetencion, d.exigeRetencion),
     retencionPct: num(v.retencionPct, d.retencionPct, 0, 100),
@@ -385,27 +387,92 @@ async function evaluarCuantia(datos) {
     return { error: 'Esta compra supera el límite ordinario ' + nomDe + ' ($' + R_.limiteCompra.toFixed(2) + ') y es excepcional: debes adjuntar el acuerdo administrativo en PDF.' };
   }
 
-  // Tope mensual: lo excepcional del mes no puede pasar el % de la referencia mensual
+  // Tope de lo excepcional: una sola compra excepcional o varias compras excepcionales individuales no pueden
+  // sumar más del % de la referencia mensual en cada CICLO del fondo (hasta que el reintegro se entrega y repone
+  // el fondo) o, si el fondo se configura por mes, en el mes calendario.
   if (R_.excepcionMensualPct > 0) {
     const fecha = datos.fecha || hoyLocal();
-    const mes = parseInt(fecha.slice(5, 7), 10);
-    const refC = referenciaMensualCentavos(f.monto_total, mes);
-    if (refC > 0) {
-      const topeC = Math.floor((refC * Math.round(R_.excepcionMensualPct * 100)) / 10000);
-      const { ini, fin } = limitesMesUTC(fecha);
-      const rS = await sb('gastos_solicitudes?fondo_id=eq.' + encodeURIComponent(datos.fondoId) + '&excepcional=eq.true&estado=not.in.(denegado,eliminada)' +
-        '&created_at=gte.' + encodeURIComponent(ini) + '&created_at=lt.' + encodeURIComponent(fin) + '&select=id,monto_total');
-      const ex = await rS.json();
-      if (!rS.ok || !Array.isArray(ex)) throw new Error('No se pudieron leer las compras excepcionales del mes.');
-      const usadoC = ex.filter((x) => String(x.id) !== String(datos.excluirId || '')).reduce((a, x) => a + centavosDe(x.monto_total), 0);
-      out.refC = refC; out.topeC = topeC; out.usadoC = usadoC;
-      if (usadoC + centavosDe(monto) > topeC) {
-        return { error: 'Las compras excepcionales del mes sumarían $' + fmtC(usadoC + centavosDe(monto)) + ' y el tope mensual es el ' + R_.excepcionMensualPct + '% de la referencia del fondo ($' + fmtC(refC) + ' → $' + fmtC(topeC) +
-          '); ya hay $' + fmtC(usadoC) + ' en compras excepcionales este mes. Lo no utilizado no se acumula para los meses siguientes.' };
+    const uso = await usoExcepcionalC(f, R_, fecha, datos.excluirId);
+    if (uso && uso.refC > 0) {
+      out.refC = uso.refC; out.topeC = uso.topeC; out.usadoC = uso.usadoC; out.porCiclo = uso.porCiclo;
+      if (uso.usadoC + centavosDe(monto) > uso.topeC) {
+        return { error: 'Las compras excepcionales ' + (uso.porCiclo ? 'de este ciclo del fondo (desde el último reintegro)' : 'del mes') + ' sumarían $' + fmtC(uso.usadoC + centavosDe(monto)) + ' y el tope es el ' + R_.excepcionMensualPct + '% de la referencia mensual del fondo ($' + fmtC(uso.refC) + ' → $' + fmtC(uso.topeC) +
+          '); ya hay $' + fmtC(uso.usadoC) + ' en compras excepcionales ' + (uso.porCiclo ? 'en este ciclo. El tope se renueva cuando Tesorería entrega el reintegro y se repone el fondo' : 'este mes. Lo no utilizado no se acumula para los meses siguientes') + '.' };
       }
     }
   }
   return out;
+}
+
+// Solicitudes ya repuestas por un reintegro entregado o cerrado (todas sus facturas están en una gestión así).
+async function idsRepuestas(sols) {
+  const out = new Set();
+  const fact = sols.filter((x) => x.estado === 'facturado');
+  if (!fact.length) return out;
+  const rG = await sb('gastos_registros?solicitud_id=in.(' + fact.map((x) => x.id).join(',') + ')&estado=neq.eliminado&select=solicitud_id,gestion_id');
+  const gs = await rG.json();
+  if (!rG.ok || !Array.isArray(gs)) throw new Error('No se pudieron leer los gastos del fondo.');
+  const por = {};
+  gs.forEach((g) => { (por[g.solicitud_id] = por[g.solicitud_id] || []).push(g); });
+  const gIds = Array.from(new Set(gs.map((g) => g.gestion_id).filter((x) => x != null)));
+  let rep = new Set();
+  if (gIds.length) {
+    const rE = await sb('gastos_gestiones?id=in.(' + gIds.join(',') + ')&estado=in.(entregado,cerrado)&select=id');
+    const es = await rE.json();
+    if (!rE.ok || !Array.isArray(es)) throw new Error('No se pudieron leer las gestiones del fondo.');
+    rep = new Set(es.map((e) => String(e.id)));
+  }
+  fact.forEach((x) => {
+    const g = por[x.id] || [];
+    if (g.length && g.every((y) => y.gestion_id != null && rep.has(String(y.gestion_id)))) out.add(String(x.id));
+  });
+  return out;
+}
+
+// Cuánto se lleva usado de lo excepcional (compras que superan el límite ordinario) frente a su tope
+// (% de la referencia mensual). Por ciclo: cuenta lo excepcional que aún no repuso un reintegro entregado.
+async function usoExcepcionalC(f, R_, fecha, excluirId) {
+  if (!R_ || !(R_.excepcionMensualPct > 0)) return null;
+  fecha = fecha || hoyLocal();
+  const mes = parseInt(fecha.slice(5, 7), 10);
+  const refC = referenciaMensualCentavos(f.monto_total, mes);
+  if (!(refC > 0)) return null;
+  const topeC = Math.floor((refC * Math.round(R_.excepcionMensualPct * 100)) / 10000);
+  const porCiclo = R_.excepcionPorCiclo !== false;
+  let path = 'gastos_solicitudes?fondo_id=eq.' + encodeURIComponent(f.id) + '&excepcional=eq.true&estado=not.in.(denegado,eliminada)';
+  if (!porCiclo) {
+    const { ini, fin } = limitesMesUTC(fecha);
+    path += '&created_at=gte.' + encodeURIComponent(ini) + '&created_at=lt.' + encodeURIComponent(fin);
+  }
+  const rS = await sb(path + '&select=id,estado,monto_total');
+  let ex = await rS.json();
+  if (!rS.ok || !Array.isArray(ex)) throw new Error('No se pudieron leer las compras excepcionales del fondo.');
+  ex = ex.filter((x) => String(x.id) !== String(excluirId || ''));
+  if (porCiclo) { const rep = await idsRepuestas(ex); ex = ex.filter((x) => !rep.has(String(x.id))); }
+  const usadoC = ex.reduce((a, x) => a + centavosDe(x.monto_total), 0);
+  return { refC, topeC, usadoC, porCiclo };
+}
+
+// Una compra no puede gastar más de lo autorizado y desembolsado: las facturas registradas de una solicitud
+// (una o varias) no pueden sumar más que su monto (más el margen que se configure). Así una compra
+// ordinaria o excepcional no se infla con las facturas.
+async function validarFacturasSolicitud(solicitud, montoNuevo, excluirGastoId) {
+  const total = Number(solicitud && solicitud.monto_total);
+  if (!solicitud || !(total > 0)) return null;
+  const f = await leerFondo(solicitud.fondo_id);
+  if (!f) return null;
+  const { reglas } = await cargarReglas();
+  const R_ = reglas[f.tipo];
+  const margen = Number(R_ && R_.facturasMargenPct) || 0;
+  const maxC = Math.floor(centavosDe(total) * (1 + margen / 100));
+  const rG = await sb('gastos_registros?solicitud_id=eq.' + encodeURIComponent(solicitud.id) + '&estado=neq.eliminado&select=id,monto_total');
+  const gs = await rG.json();
+  if (!rG.ok || !Array.isArray(gs)) throw new Error('No se pudieron leer las facturas de la solicitud.');
+  const previoC = gs.filter((x) => String(x.id) !== String(excluirGastoId || '')).reduce((a, x) => a + centavosDe(x.monto_total), 0);
+  const nuevoC = centavosDe(montoNuevo);
+  if (previoC + nuevoC <= maxC) return null;
+  return 'Las facturas de esta solicitud sumarían $' + fmtC(previoC + nuevoC) + ' y lo autorizado y desembolsado es $' + fmtC(centavosDe(total)) + (margen > 0 ? ' (con un margen del ' + margen + '%: $' + fmtC(maxC) + ')' : '') +
+    '. Una compra no puede gastar más de lo autorizado: si el gasto real es mayor, se tramita una solicitud adicional con su certificación' + (f.tipo === 'caja_chica' ? ' (y si supera $' + Number(R_.limiteCompra).toFixed(2) + ', es compra excepcional con su tope)' : '') + '.';
 }
 
 // Saldo en efectivo y en banco de un fondo, calculado con los desembolsos
@@ -451,8 +518,11 @@ async function calcularSaldoFondo(fondoId) {
     if (repuesta) return;
     if (x.forma_pago === 'efectivo') efectivoUsadoC += centavosDe(x.monto_total); else bancoUsadoC += centavosDe(x.monto_total);
   });
+  let excepcional = null;
+  try { excepcional = await usoExcepcionalC(f, R_, hoy, null); } catch (e) { /* informativo */ }
   return { fondoId: f.id, tipo: f.tipo, mes, refC, efectivoCapC, bancoCapC, efectivoUsadoC, bancoUsadoC,
-    efectivoDispC: efectivoCapC - efectivoUsadoC, bancoDispC: bancoCapC - bancoUsadoC };
+    efectivoDispC: efectivoCapC - efectivoUsadoC, bancoDispC: bancoCapC - bancoUsadoC,
+    excepcionalTopeC: excepcional ? excepcional.topeC : 0, excepcionalUsadoC: excepcional ? excepcional.usadoC : 0, excepcionalPorCiclo: excepcional ? excepcional.porCiclo : true };
 }
 
 // Fondo circulante y caja chica: si el administrador de ese fondo tiene un
@@ -794,6 +864,7 @@ module.exports.bloqueoCajaChica = bloqueoCajaChica;
 module.exports.evaluarReintegro = evaluarReintegro;
 module.exports.evaluarCuantia = evaluarCuantia;
 module.exports.calcularRetencion = calcularRetencion;
+module.exports.validarFacturasSolicitud = validarFacturasSolicitud;
 module.exports.calcularSaldoFondo = calcularSaldoFondo;
 module.exports.reglasPublicas = reglasPublicas;
 module.exports.cargarReglas = cargarReglas;

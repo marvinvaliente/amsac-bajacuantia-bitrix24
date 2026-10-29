@@ -75,7 +75,7 @@ function construirArchivos(input) {
 async function buscarSolicitud(solicitudIdRaw) {
   const solicitudId = parseInt(solicitudIdRaw, 10);
   if (!Number.isInteger(solicitudId)) return { error: 'Debes seleccionar la solicitud a la que pertenece este gasto.' };
-  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado,items');
+  const r = await sb('gastos_solicitudes?id=eq.' + solicitudId + '&select=id,fondo_id,area_solicitante,nombre_proceso,descripcion,justificacion,estado,items,monto_total');
   const data = await r.json();
   if (!r.ok) return { error: dbErrorMsg(data) };
   if (!data || !data[0]) return { error: 'La solicitud seleccionada no existe.' };
@@ -311,6 +311,13 @@ module.exports = async (req, res) => {
         const built = construirFila(body.gasto || {}, solRes.solicitud, body.actor_id, body.actor_nombre);
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
         const row = built.row;
+        try {
+          const errFact = await gestiones.validarFacturasSolicitud(solRes.solicitud, row.monto_total, body.id);
+          if (errFact) { res.status(400).json({ ok: false, error: errFact }); return; }
+        } catch (eF) {
+          res.status(502).json({ ok: false, error: 'No se pudo validar el monto de la factura: ' + String((eF && eF.message) || eF) });
+          return;
+        }
 
         let data, r;
         if (body.id) {
