@@ -1,5 +1,14 @@
 {
   "rewrites": [
-    { "source": "/index.html", "destination": "/api/handler" }
+    {
+      "source": "/index.html",
+      "destination": "/api/handler"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/plazos",
+      "schedule": "0 14 * * *"
+    }
   ]
 }

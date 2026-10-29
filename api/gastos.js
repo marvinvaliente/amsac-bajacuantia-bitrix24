@@ -5,6 +5,7 @@ const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 const gestiones = require('./gestiones');
 const presupuesto = require('./presupuesto');
+const plazos = require('./plazos');
 
 // Personal de Presupuesto o administrador del portal (verificado contra Bitrix24): puede corregir gastos
 // ya informados. Si no se puede verificar, no se concede.
@@ -173,6 +174,8 @@ async function sincronizarEstadoSolicitud(solicitudId) {
   await sb('gastos_solicitudes?id=eq.' + encodeURIComponent(solicitudId), {
     method: 'PATCH', headers: { Prefer: 'return=minimal' }, body: JSON.stringify({ estado: nuevoEstado })
   });
+  // Con todas las facturas registradas se cierra el plazo de días hábiles (a tiempo o con atraso).
+  if (nuevoEstado === 'facturado') await plazos.cerrarPlazo(solicitudId);
 }
 
 async function puedeModificar(id, actorId, isAdmin, esCertificador) {

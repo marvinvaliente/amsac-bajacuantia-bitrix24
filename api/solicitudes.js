@@ -5,6 +5,7 @@ const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 const presupuesto = require('./presupuesto');
 const gestiones = require('./gestiones');
+const plazos = require('./plazos');
 
 function sb(path, options) {
   options = options || {};
@@ -490,6 +491,8 @@ module.exports = async (req, res) => {
         });
         const data = await r.json();
         if (!r.ok || !data[0]) { res.status(500).json({ ok: false, error: dbErrorMsg(data), raw: data }); return; }
+        // Empieza a correr el plazo (días hábiles) para registrar la factura o documento equivalente.
+        await plazos.iniciarPlazo(data[0], body.actor_id, body.actor_nombre);
         res.status(200).json({ ok: true, solicitud: data[0] });
         return;
       }

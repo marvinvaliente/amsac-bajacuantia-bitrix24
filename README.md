@@ -764,6 +764,48 @@ iniciales están también en `api/gestiones.js` (`DEFAULTS`) y sirven de respald
 si la tabla no se puede leer. Migración: `migracion-reglas-parametros.sql`.
 API: `GET fondos?action=reglas` y `POST fondos` con `action=guardar_reglas`.
 
+### Plazo para registrar la factura (días hábiles), recordatorios y score de cumplimiento
+
+Reglamento Art. 19: el solicitante tiene **3 días hábiles** para presentar la
+factura o documento equivalente. Se controla así (módulo `api/plazos.js`,
+tabla `gastos_plazos`, migración `migracion-plazos-comprobantes.sql`):
+
+- **Punto de partida**: el día del **desembolso**. Al desembolsar se crea el
+  plazo y se calcula la **fecha de vencimiento** = el 3.er día hábil después
+  (hábil = lunes a viernes sin feriados; hora de El Salvador). Si el
+  desembolso es en sábado o domingo, el conteo empieza el lunes.
+- **Llegada**: el día en que se registra la factura del **último ítem** de la
+  solicitud (cuando pasa a "facturado"). Si ese día es **menor o igual** a la
+  fecha de vencimiento, el solicitante **cumple**; si la supera, **incumple**
+  (con los días hábiles de atraso). Solo se cierra la primera vez.
+- **Notificaciones**: si el plazo vence sin registrar la factura, se envía una
+  notificación de Bitrix24 al **solicitante** y al **administrador del fondo**
+  (una sola si son la misma persona, como en caja chica) y se repite **una vez
+  por día** mientras siga pendiente (máximo una por solicitud al día). Lo hace
+  una función programada diaria (`vercel.json` → `crons`: 14:00 UTC = 8:00 a. m.
+  hora de El Salvador, `GET /api/plazos`). Si defines la variable
+  `CRON_SECRET` en Vercel, solo Vercel puede invocarla. Un administrador del
+  portal también puede pulsar **"Enviar recordatorios ahora"** en la pantalla
+  de cumplimiento.
+- **Historial de incumplimientos y score**: menú **Solicitante → Cumplimiento
+  de plazos**. **Score = a tiempo ÷ (a tiempo + incumplidos + vencidos sin
+  registrar)**; lo que sigue dentro del plazo no cuenta todavía. Niveles:
+  **Excelente ≥ 90%**, **Bueno ≥ 75%**, **En riesgo** por debajo. El score propio
+  está **siempre visible** en la barra superior (círculo de color + %) y en la
+  tarjeta de usuario del menú; en "Registrar factura" cada solicitud muestra
+  su plazo (a tiempo / vence el dd/mm / vencido). La pantalla muestra la
+  tarjeta de score, el historial de incumplimientos y todos los plazos; el
+  administrador del portal ve a **todos** (con ranking por solicitante), el
+  administrador de fondo ve a los de **sus fondos**, y los demás solo lo suyo
+  (calculado en el servidor).
+- **Parámetros** (Reglas de fondos → parámetros generales): días del plazo (3)
+  y la lista de **feriados**. Vienen cargados los del Código de Trabajo para
+  2026 y 2027 (1 ene, Jueves y Viernes Santo, 1 may, 6 ago, 15 sep, 2 nov,
+  25 dic); **agrega los asuetos locales** (p. ej. fiestas patronales) y los de
+  años siguientes.
+- Solo se controlan los desembolsos **posteriores a esta función** (no se
+  penaliza retroactivamente).
+
 ### Caja chica: solicitante = administrador, sin autorización de gerencia
 
 En **caja chica** el solicitante y el administrador del fondo son **siempre la

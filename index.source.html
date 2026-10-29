@@ -423,6 +423,25 @@
   .rg-formas { display: flex; flex-wrap: wrap; gap: 4px 20px; }
   .rg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
   .rg-actions button { width: auto; margin: 0; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 4px; }
+  .score-chip { margin: 0 12px 0 auto; width: auto; padding: 5px 13px; font-size: 12px; font-weight: 600; border-radius: 16px; background: rgba(255,255,255,.1); color: #fff; border: 1px solid rgba(255,255,255,.28); display: inline-flex; align-items: center; gap: 7px; cursor: pointer; letter-spacing: .02em; }
+  .score-chip:hover { background: rgba(255,255,255,.2); }
+  .score-chip b { font-size: 13.5px; }
+  .score-dot { width: 9px; height: 9px; border-radius: 50%; background: #9aa5bd; flex: none; }
+  .score-chip.nivel-excelente .score-dot { background: #3cb96a; }
+  .score-chip.nivel-bueno .score-dot { background: #e0a100; }
+  .score-chip.nivel-en_riesgo .score-dot { background: #e64a4a; }
+  @media (max-width: 520px) { .score-chip .score-txt { display: none; } .score-chip { margin-right: 8px; } }
+  .drawer-user-score { font-size: 11px; font-weight: 700; margin-top: 2px; color: #9db0d3; }
+  .drawer-user-score.nivel-excelente { color: #5fd08a; } .drawer-user-score.nivel-bueno { color: #f0bf3a; } .drawer-user-score.nivel-en_riesgo { color: #ff7d7d; }
+  .score-hero { display: flex; align-items: center; gap: 22px; border: 1px solid var(--border); border-left: 4px solid var(--primary); border-radius: 6px; padding: 18px 22px; margin-bottom: 16px; background: #fff; box-shadow: 0 1px 3px rgba(14, 24, 48, .06); flex-wrap: wrap; }
+  .score-ring { width: 108px; height: 108px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; flex-direction: column; border: 9px solid #cfd6e4; background: #fff; }
+  .score-ring b { font-size: 30px; line-height: 1; color: var(--primary-dark); font-variant-numeric: tabular-nums; }
+  .score-ring small { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #6b7a86; margin-top: 3px; font-weight: 700; }
+  .score-ring.nivel-excelente { border-color: #3cb96a; } .score-ring.nivel-bueno { border-color: #e0a100; } .score-ring.nivel-en_riesgo { border-color: #e64a4a; }
+  .score-info { flex: 1; min-width: 230px; font-size: 13.5px; line-height: 1.6; color: #2a3650; }
+  .score-info .score-nivel { font-size: 18px; font-weight: 700; color: var(--primary-dark); }
+  .score-info .score-sub { color: #6b7a86; font-size: 12.5px; margin-top: 4px; }
+  .badge.pz-ok { background: #e8f8ee; color: #1f7a41; } .badge.pz-mal { background: #fdecec; color: #a92626; } .badge.pz-espera { background: #fff4e5; color: #a86500; }
   .btn-back {
     width: auto; margin: 0 0 14px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: #fff; color: var(--primary);
     border: 1px solid var(--border); border-radius: 4px;
@@ -485,6 +504,7 @@
     <strong>Gastos de Baja Cuantía</strong>
     <small>Registro y control de compras</small>
   </div>
+  <button type="button" id="scoreChip" class="score-chip nivel-sin_datos" style="display:none" title="Mi cumplimiento de plazos para registrar facturas"><span class="score-dot"></span><span class="score-txt">Cumplimiento</span> <b>—</b></button>
 </header>
 
 <div id="drawerOverlay" class="drawer-overlay"></div>
@@ -511,6 +531,10 @@
           <li class="tab hidden" id="tabHistorialBtn" data-tab="historial">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.6" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>
             <span>Historial</span>
+          </li>
+          <li class="tab hidden" id="tabCumplimientoBtn" data-tab="cumplimiento">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></svg>
+            <span>Cumplimiento de plazos</span>
           </li>
         </ul>
       </li>
@@ -605,6 +629,7 @@
       <div class="drawer-user-info">
         <div class="drawer-user-name" id="drawerUserName">—</div>
         <div class="drawer-user-role" id="drawerUserRole">—</div>
+        <div class="drawer-user-score" id="drawerUserScore"></div>
       </div>
     </div>
   </nav>
@@ -1081,7 +1106,7 @@
       <div class="table-wrap" style="max-height:480px; overflow-y:auto">
         <table class="data-table" id="facturaTable">
           <thead>
-            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Total</th><th>Facturación</th><th>Acciones</th></tr>
+            <tr><th>Fecha</th><th>Fondo</th><th>Área solicitante</th><th>Descripción</th><th>Total</th><th>Facturación</th><th>Plazo</th><th>Acciones</th></tr>
           </thead>
           <tbody id="facturaTableBody"></tbody>
         </table>
@@ -1326,6 +1351,41 @@
           </div>
           <div id="repDetalleVacio" class="empty-state" style="display:none">No hay gastos que coincidan con los filtros.</div>
         </div>
+      </div>
+    </div>
+
+    <!-- ---- Cumplimiento de plazos (Reglamento Art. 19) ---- -->
+    <div id="viewCumplimiento" class="card" style="display:none">
+      <div class="page-head">
+        <div class="page-title">Cumplimiento de plazos</div>
+        <div class="page-sub" id="cumpSub">—</div>
+      </div>
+      <div id="cumpLoading" class="loading">Cargando...</div>
+      <div id="cumpContent" style="display:none">
+        <div id="cumpMsg" class="msg"></div>
+        <div class="score-hero" id="cumpScoreCard"></div>
+        <div id="cumpKpis" class="kpi-row"></div>
+        <div id="cumpRankingWrap" style="display:none">
+          <div class="doc-section">Cumplimiento por solicitante</div>
+          <div class="table-wrap corp" style="max-height:340px; overflow-y:auto">
+            <table class="data-table table-corp">
+              <thead><tr><th>Solicitante</th><th class="num">Score</th><th class="num">A tiempo</th><th class="num">Incumplidos</th><th class="num">Vencidos sin registrar</th><th class="num">En plazo</th></tr></thead>
+              <tbody id="cumpRankingBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="seg" style="margin-top:22px" role="tablist">
+          <button type="button" class="seg-btn active" data-cump-vista="incumplimientos">Historial de incumplimientos</button>
+          <button type="button" class="seg-btn" data-cump-vista="todos">Todos los plazos</button>
+        </div>
+        <div class="pane-actions"><button type="button" id="btnCumpRecordar" class="secondary" style="display:none">Enviar recordatorios ahora</button></div>
+        <div class="table-wrap corp" style="max-height:480px; overflow-y:auto">
+          <table class="data-table table-corp">
+            <thead><tr><th>Solicitud</th><th>Solicitante</th><th>Desembolso</th><th>Vence</th><th>Registrada</th><th class="num">Días hábiles</th><th>Resultado</th><th class="num">Recordatorios</th></tr></thead>
+            <tbody id="cumpBody"></tbody>
+          </table>
+        </div>
+        <div id="cumpVacio" class="empty-state" style="display:none"></div>
       </div>
     </div>
 
@@ -1822,7 +1882,7 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'config', 'reglas', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
+  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'config', 'reglas', 'cumplimiento', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
@@ -1838,6 +1898,7 @@
     if (name === 'reportes') initReportes();
     if (name === 'config') { initConfigTab(); }
     if (name === 'reglas') initReglas();
+    if (name === 'cumplimiento') initCumplimiento();
     if (name === 'tesoreriaReintegro') initTesoreriaVista('reintegro');
     if (name === 'tesoreriaLiquidacion') initTesoreriaVista('liquidacion');
   }
@@ -1994,9 +2055,16 @@
   var facturaGastosCache = [];
   var facturaSolicitudAbierta = null;
 
+  var plazosPorSolicitud = {};
   function cargarGastosParaFactura() {
-    return apiCall('gastos?action=list&admin=1').then(function (r) {
+    return Promise.all([
+      apiCall('gastos?action=list&admin=1'),
+      apiCall('plazos', { method: 'POST', body: { action: 'resumen', actor_id: currentUser.ID } }).catch(function () { return null; })
+    ]).then(function (rs) {
+      var r = rs[0];
       facturaGastosCache = (r.gastos || []).filter(function (g) { return g.estado !== 'eliminado'; });
+      plazosPorSolicitud = {};
+      if (rs[1] && rs[1].ok) { (rs[1].filas || []).forEach(function (f) { plazosPorSolicitud[f.solicitud_id] = f; }); pintarScore(rs[1].mio); }
       renderFacturaTabla();
       if (facturaSolicitudAbierta) {
         var abierta = solicitudes.find(function (x) { return String(x.id) === String(facturaSolicitudAbierta); });
@@ -2027,6 +2095,7 @@
         '<td>' + esc((s.descripcion || '').slice(0, 60)) + '</td>' +
         '<td>$' + money(s.monto_total) + '</td>' +
         '<td><span class="badge ' + (completa ? 'estado-certificado' : 'estado-pendiente') + '">' + facturados + '/' + items.length + ' ítems</span></td>' +
+        '<td>' + (plazosPorSolicitud[s.id] ? badgePlazo(plazosPorSolicitud[s.id]) + (plazosPorSolicitud[s.id].estado_calc === 'en_plazo' || plazosPorSolicitud[s.id].estado_calc === 'vencido' ? '<div class="gasto-line" style="margin:2px 0 0">Vence: ' + fechaCortaPlazo(plazosPorSolicitud[s.id].fecha_limite) + '</div>' : '') : '<span class="badge ajeno">—</span>') + '</td>' +
         '<td><div class="row-actions"><button type="button" class="secondary" data-ver-items="' + s.id + '">Ver ítems</button></div></td>' +
         '</tr>';
     }).join('');
@@ -4733,6 +4802,119 @@
   });
 
   // ==================================================================
+  // Cumplimiento de plazos: días hábiles entre el desembolso y el registro de la factura (Art. 19)
+  // ==================================================================
+  var cumpDatos = null;
+  var cumpVista = 'incumplimientos';
+  var NIVEL_TXT = { excelente: 'Excelente', bueno: 'Bueno', en_riesgo: 'En riesgo', sin_datos: 'Sin historial' };
+
+  // Score propio: se muestra siempre en la barra superior y en la tarjeta del menú.
+  function pintarScore(mio) {
+    var chip = document.getElementById('scoreChip');
+    var nivel = (mio && mio.nivel) || 'sin_datos';
+    chip.className = 'score-chip nivel-' + nivel;
+    chip.querySelector('b').textContent = (mio && mio.score != null) ? mio.score + '%' : '—';
+    chip.style.display = (canLoad || isAdmin) ? 'inline-flex' : 'none';
+    var d = document.getElementById('drawerUserScore');
+    d.className = 'drawer-user-score nivel-' + nivel;
+    d.textContent = (canLoad || isAdmin) ? 'Cumplimiento: ' + ((mio && mio.score != null) ? mio.score + '% · ' : '') + NIVEL_TXT[nivel] : '';
+  }
+  function cargarScoreCumplimiento() {
+    return apiCall('plazos', { method: 'POST', body: { action: 'mio', actor_id: currentUser.ID } }).then(function (r) {
+      if (r && r.ok) pintarScore(r.mio);
+    }).catch(function () {});
+  }
+  document.getElementById('scoreChip').addEventListener('click', function () { activarTab('cumplimiento'); });
+
+  function fechaCortaPlazo(d) { return d ? String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4) : '—'; }
+  function fechaHoraCorta(ts) { return ts ? new Date(ts).toLocaleDateString('es-HN') : '—'; }
+  function badgePlazo(p) {
+    if (p.estado_calc === 'cumplio') return '<span class="badge pz-ok">A tiempo</span>';
+    if (p.estado_calc === 'incumplio') return '<span class="badge pz-mal">Incumplió · +' + (p.dias_atraso || 0) + ' d. háb.</span>';
+    if (p.estado_calc === 'vencido') return '<span class="badge pz-mal">Vencido · +' + (p.dias_atraso || 0) + ' d. háb.</span>';
+    return '<span class="badge pz-espera">En plazo · quedan ' + (p.dias_restantes == null ? '—' : p.dias_restantes) + ' d. háb.</span>';
+  }
+
+  function initCumplimiento() {
+    document.getElementById('cumpLoading').style.display = 'block';
+    document.getElementById('cumpLoading').textContent = 'Cargando...';
+    document.getElementById('cumpContent').style.display = 'none';
+    apiCall('plazos', { method: 'POST', body: { action: 'resumen', actor_id: currentUser.ID } }).then(function (r) {
+      if (!r || !r.ok) { document.getElementById('cumpLoading').textContent = (r && r.error) || 'No se pudo cargar el cumplimiento.'; return; }
+      cumpDatos = r;
+      pintarScore(r.mio);
+      document.getElementById('cumpLoading').style.display = 'none';
+      document.getElementById('cumpContent').style.display = 'block';
+      hideMsg(document.getElementById('cumpMsg'));
+      renderCumplimiento();
+    }).catch(function () { document.getElementById('cumpLoading').textContent = 'Error de conexión al cargar el cumplimiento.'; });
+  }
+
+  function renderCumplimiento() {
+    var r = cumpDatos, m = r.mio;
+    var dias = r.reglas.dias;
+    document.getElementById('cumpSub').textContent = 'Plazo de ' + dias + ' días hábiles contados desde el desembolso hasta el registro de la factura o documento equivalente (lunes a viernes, sin feriados). ' +
+      (r.alcance === 'todos' ? 'Mostrando a todos los solicitantes.' : (r.alcance === 'fondos' ? 'Mostrando a los solicitantes de los fondos que administras y tu propio cumplimiento.' : 'Mostrando tu cumplimiento.'));
+    document.getElementById('cumpScoreCard').innerHTML =
+      '<div class="score-ring nivel-' + m.nivel + '"><b>' + (m.score != null ? m.score + '%' : '—') + '</b><small>Score</small></div>' +
+      '<div class="score-info"><div class="score-nivel">Mi cumplimiento: ' + NIVEL_TXT[m.nivel] + '</div>' +
+      '<div>Registraste a tiempo <b>' + m.cumplio + '</b> de <b>' + (m.cumplio + m.incumplio + m.vencidas) + '</b> solicitudes con plazo cumplido o vencido' + (m.enPlazo ? ' (más <b>' + m.enPlazo + '</b> aún dentro del plazo)' : '') + '.</div>' +
+      '<div class="score-sub">Score = solicitudes registradas a tiempo ÷ (a tiempo + incumplidas + vencidas sin registrar). Excelente desde 90%, Bueno desde 75%. Si te pasas del plazo recibes una notificación diaria hasta registrar la factura.</div></div>';
+    document.getElementById('cumpKpis').innerHTML = [
+      { label: 'A tiempo', val: m.cumplio, cls: 'ok' },
+      { label: 'Incumplidos', val: m.incumplio, cls: 'bad' },
+      { label: 'Vencidos sin registrar', val: m.vencidas, cls: 'bad' },
+      { label: 'Dentro del plazo', val: m.enPlazo, cls: 'warn' }
+    ].map(kpiHtml).join('');
+
+    var rw = document.getElementById('cumpRankingWrap');
+    if (r.ranking && r.ranking.length) {
+      rw.style.display = 'block';
+      document.getElementById('cumpRankingBody').innerHTML = r.ranking.map(function (x) {
+        return '<tr><td>' + esc(x.nombre || nombreDe(x.id)) + '</td><td class="num"><span class="badge ' + (x.nivel === 'excelente' ? 'pz-ok' : (x.nivel === 'bueno' ? 'pz-espera' : (x.nivel === 'en_riesgo' ? 'pz-mal' : 'ajeno'))) + '">' + (x.score != null ? x.score + '%' : '—') + '</span></td>' +
+          '<td class="num">' + x.cumplio + '</td><td class="num">' + x.incumplio + '</td><td class="num">' + x.vencidas + '</td><td class="num">' + x.enPlazo + '</td></tr>';
+      }).join('');
+    } else rw.style.display = 'none';
+
+    document.getElementById('btnCumpRecordar').style.display = isAdmin ? 'inline-block' : 'none';
+    renderCumplimientoTabla();
+  }
+
+  function renderCumplimientoTabla() {
+    var filas = (cumpDatos.filas || []).filter(function (f) {
+      return cumpVista === 'todos' || f.estado_calc === 'incumplio' || f.estado_calc === 'vencido';
+    });
+    document.getElementById('cumpBody').innerHTML = filas.map(function (f) {
+      return '<tr><td class="col-desc"><b>#' + f.solicitud_id + '</b> ' + esc((f.descripcion || '').slice(0, 70)) + '</td>' +
+        '<td>' + esc(f.solicitante_nombre || nombreDe(f.solicitante_id)) + '</td>' +
+        '<td>' + fechaHoraCorta(f.desembolsado_at) + '</td><td>' + fechaCortaPlazo(f.fecha_limite) + '</td>' +
+        '<td>' + fechaHoraCorta(f.cumplido_at) + '</td>' +
+        '<td class="num">' + (f.dias_habiles != null ? f.dias_habiles : '—') + '</td>' +
+        '<td>' + badgePlazo(f) + '</td><td class="num">' + (f.recordatorios || 0) + '</td></tr>';
+    }).join('');
+    var vacio = document.getElementById('cumpVacio');
+    vacio.style.display = filas.length ? 'none' : 'block';
+    vacio.textContent = cumpVista === 'todos' ? 'Todavía no hay solicitudes desembolsadas con plazo.' : 'No hay incumplimientos registrados. ¡Buen trabajo!';
+  }
+  document.querySelectorAll('[data-cump-vista]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      cumpVista = b.getAttribute('data-cump-vista');
+      document.querySelectorAll('[data-cump-vista]').forEach(function (x) { x.classList.toggle('active', x === b); });
+      renderCumplimientoTabla();
+    });
+  });
+  document.getElementById('btnCumpRecordar').addEventListener('click', function () {
+    var msgEl = document.getElementById('cumpMsg');
+    customConfirm('¿Enviar ahora los recordatorios de plazos vencidos? Se notifica al solicitante y al administrador del fondo (máximo una vez por día por solicitud).', { okText: 'Enviar' }).then(function (ok) {
+      if (!ok) return;
+      apiCall('plazos', { method: 'POST', body: { action: 'recordar', actor_id: currentUser.ID } }).then(function (r) {
+        if (r.ok) { showMsg(msgEl, 'success', 'Revisión hecha: ' + r.vencidos + ' plazo(s) vencido(s), ' + r.notificaciones + ' notificación(es) enviada(s).'); initCumplimiento(); }
+        else showMsg(msgEl, 'error', r.error || 'No se pudieron enviar los recordatorios.');
+      }).catch(function () { showMsg(msgEl, 'error', 'Error de conexión.'); });
+    });
+  });
+
+  // ==================================================================
   // Reglas de fondos (parámetros del reglamento, solo administrador del portal)
   // ==================================================================
   var reglasCfg = null; // { reglas, meta, defaults, historial }
@@ -4758,7 +4940,7 @@
       { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },
       { k: 'reintegroExigeDocumento', tipo: 'bool', l: 'Exigir documento físico recibido para incluir un gasto en un reintegro' } ] }
   ];
-  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)' };
+  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)', plazoComprobantesDias: 'Plazo para registrar la factura (días hábiles)', feriados: 'Feriados (días no hábiles)' };
   CAMPOS_REGLAS.forEach(function (sec) { sec.c.forEach(function (c) { ETIQUETAS_REGLAS[c.k] = c.l; }); });
   var FORMAS_REGLAS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque']];
   // Misma forma que entrega el servidor a la app (incluye el máximo excepcional en $).
@@ -4800,12 +4982,19 @@
 
   function renderReglas() {
     var cfg = reglasCfg;
-    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Salario mínimo de referencia</div><div class="rg-body">' +
+    var gl = cfg.reglas.global;
+    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Parámetros generales: salario mínimo y plazo de comprobantes</div><div class="rg-body">' +
       '<div class="rg-field"><label for="' + rgId('global', 'salarioMinimo') + '">Salario mínimo mensual de comercio y servicios ($)</label>' +
-      '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(cfg.reglas.global.salarioMinimo) + '" />' +
+      '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(gl.salarioMinimo) + '" />' +
       '<div class="rg-help">Se usa para calcular el máximo de las compras excepcionales (salarios mínimos × este monto). Actualízalo cuando el Gobierno lo ajuste.</div></div>' +
+      '<div class="rg-field"><label for="' + rgId('global', 'plazoComprobantesDias') + '">Plazo para registrar la factura o documento equivalente (días hábiles)</label>' +
+      '<input type="number" id="' + rgId('global', 'plazoComprobantesDias') + '" min="1" max="30" step="1" value="' + esc(gl.plazoComprobantesDias) + '" />' +
+      '<div class="rg-help">Se cuenta desde el día del desembolso hasta el día en que se registra la factura. Si se supera, se notifica al solicitante y al administrador cada día y baja el score de cumplimiento.</div></div>' +
+      '<div class="rg-field"><label for="' + rgId('global', 'feriados') + '">Feriados (días no hábiles), uno por línea con formato AAAA-MM-DD</label>' +
+      '<textarea id="' + rgId('global', 'feriados') + '" rows="8" style="font-size:13px;min-height:120px">' + esc((gl.feriados || []).join('\n')) + '</textarea>' +
+      '<div class="rg-help">Además de sábados y domingos. Incluye aquí los asuetos locales (p. ej. fiestas patronales) y los de cada año nuevo.</div></div>' +
       '<div class="rg-meta">' + textoMetaRegla(cfg.meta && cfg.meta.global) + '</div>' +
-      '<div class="rg-actions"><button type="button" data-rg-guardar="global">Guardar salario mínimo</button></div></div></div>';
+      '<div class="rg-actions"><button type="button" data-rg-guardar="global">Guardar parámetros generales</button></div></div></div>';
     var tipos = [['circulante', 'Fondo circulante'], ['caja_chica', 'Fondo de caja chica']];
     document.getElementById('reglasTipos').innerHTML = tipos.map(function (t) {
       var v = cfg.reglas[t[0]];
@@ -4823,7 +5012,13 @@
   }
 
   function leerReglasForm(tipo) {
-    if (tipo === 'global') return { salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value) };
+    if (tipo === 'global') {
+      return {
+        salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value),
+        plazoComprobantesDias: parseInt(document.getElementById(rgId('global', 'plazoComprobantesDias')).value, 10),
+        feriados: document.getElementById(rgId('global', 'feriados')).value.split(/\s*\n\s*/).map(function (x) { return x.trim(); }).filter(Boolean)
+      };
+    }
     var v = {};
     CAMPOS_REGLAS.forEach(function (sec) {
       sec.c.forEach(function (c) {
@@ -4851,7 +5046,7 @@
   function guardarReglasTipo(tipo) {
     var msgEl = document.getElementById('reglasMsg');
     hideMsg(msgEl);
-    var nombre = tipo === 'global' ? 'el salario mínimo' : (tipo === 'circulante' ? 'las reglas del fondo circulante' : 'las reglas de la caja chica');
+    var nombre = tipo === 'global' ? 'los parámetros generales (salario mínimo, plazo y feriados)' : (tipo === 'circulante' ? 'las reglas del fondo circulante' : 'las reglas de la caja chica');
     customConfirm('¿Guardar ' + nombre + '? Se aplican de inmediato a nuevas solicitudes, desembolsos y reintegros, y queda registrado quién lo cambió.', { okText: 'Guardar' }).then(function (ok) {
       if (!ok) return;
       apiCall('fondos', { method: 'POST', body: { action: 'guardar_reglas', tipo: tipo, valores: leerReglasForm(tipo), actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
@@ -4868,7 +5063,7 @@
   function valorReglaTxt(k, v) {
     if (v === undefined || v === null) return '—';
     if (typeof v === 'boolean') return v ? 'Sí' : 'No';
-    if (Array.isArray(v)) return v.join(', ') || '—';
+    if (Array.isArray(v)) return k === 'feriados' ? v.length + ' fecha(s)' : (v.join(', ') || '—');
     return String(v);
   }
   function resumenCambiosReglas(h) {
@@ -5327,6 +5522,7 @@
     ocultar('tabCrearSolicitudBtn', !canLoad);
     ocultar('tabRegistrarBtn', !canLoad);
     ocultar('tabHistorialBtn', !(canLoad || isAdmin));
+    ocultar('tabCumplimientoBtn', !(canLoad || isAdmin));
     // Gerencia responsable
     ocultar('tabAutorizacionBtn', !puedeAutorizarAlgo);
     // Presupuesto
@@ -5387,6 +5583,7 @@
       recalcularAutorizacion();
       poblarSolicitudesSelectores();
       pintarUsuarioMenu();
+      cargarScoreCumplimiento();
 
       document.getElementById('viewInicioLoading').style.display = 'none';
 
