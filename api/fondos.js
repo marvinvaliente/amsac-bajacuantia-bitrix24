@@ -5,6 +5,7 @@ const URL = process.env.SUPABASE_URL;
 const KEY = process.env.SUPABASE_SECRET;
 
 const gestiones = require('./gestiones');
+const presupuesto = require('./presupuesto');
 const TIPOS = ['caja_chica', 'circulante'];
 
 function sb(path, options) {
@@ -56,6 +57,16 @@ function validarFondo(f) {
   return { row: { tipo: tipo, monto_total: montoTotal, anio: anio } };
 }
 
+// El monto anual de un fondo no puede pasar el máximo fijado en "Reglas de fondos" (0 = sin tope).
+async function validarMontoMaximo(row) {
+  const cfg = await gestiones.cargarReglas();
+  const R_ = cfg.reglas[row.tipo];
+  if (R_ && R_.montoMaximoAnual > 0 && row.monto_total > R_.montoMaximoAnual) {
+    return 'El monto máximo anual permitido para ' + (row.tipo === 'circulante' ? 'un fondo circulante' : 'una caja chica') + ' es $' + Number(R_.montoMaximoAnual).toFixed(2) + ' (según "Reglas de fondos").';
+  }
+  return null;
+}
+
 module.exports = async (req, res) => {
   if (!URL || !KEY) { res.status(500).json({ error: 'Faltan variables de entorno del servidor.' }); return; }
 
@@ -79,7 +90,14 @@ module.exports = async (req, res) => {
             administrador_ids: propias.filter((a) => a.es_administrador).map((a) => a.usuario_id)
           };
         });
-        res.status(200).json({ ok: rFondos.ok && rAsig.ok, fondos: conUsuarios, reglas: gestiones.reglasPublicas() });
+        res.status(200).json({ ok: rFondos.ok && rAsig.ok, fondos: conUsuarios, reglas: await gestiones.reglasPublicas() });
+        return;
+      }
+
+      // Parámetros de las reglas de uso de los fondos (pantalla "Reglas de fondos").
+      if (action === 'reglas') {
+        const cfg = await gestiones.cargarReglas(true);
+        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, defaults: gestiones.DEFAULTS, historial: await gestiones.historialReglas(20) });
         return;
       }
 
@@ -102,9 +120,24 @@ module.exports = async (req, res) => {
       const body = await readBody(req);
       const action = body.action;
 
+      // Guardar los parámetros de las reglas: solo un administrador del portal, verificado contra Bitrix24.
+      if (action === 'guardar_reglas') {
+        if (!(await presupuesto.esAdminPortal(body.actor_id, body.auth_token))) {
+          res.status(403).json({ ok: false, error: 'Solo un administrador del portal puede modificar las reglas de los fondos.' });
+          return;
+        }
+        const g = await gestiones.guardarReglas(String(body.tipo || ''), body.valores, { id: body.actor_id, nombre: body.actor_nombre });
+        if (g.error) { res.status(400).json({ ok: false, error: g.error }); return; }
+        const cfg = await gestiones.cargarReglas(true);
+        res.status(200).json({ ok: true, reglas: cfg.reglas, meta: cfg.meta, historial: await gestiones.historialReglas(20) });
+        return;
+      }
+
       if (action === 'create') {
         const built = validarFondo(body.fondo || {});
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        const errMax = await validarMontoMaximo(built.row);
+        if (errMax) { res.status(400).json({ ok: false, error: errMax }); return; }
 
         const r = await sb('gastos_fondos', {
           method: 'POST', headers: { Prefer: 'return=representation' },
@@ -120,6 +153,8 @@ module.exports = async (req, res) => {
         if (!body.id) { res.status(400).json({ error: 'Falta id.' }); return; }
         const built = validarFondo(body.fondo || {});
         if (built.error) { res.status(400).json({ ok: false, error: built.error }); return; }
+        const errMaxU = await validarMontoMaximo(built.row);
+        if (errMaxU) { res.status(400).json({ ok: false, error: errMaxU }); return; }
 
         const r = await sb('gastos_fondos?id=eq.' + encodeURIComponent(body.id), {
           method: 'PATCH', headers: { Prefer: 'return=representation' },

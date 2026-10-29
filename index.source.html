@@ -408,6 +408,21 @@
   .regla-estado.ok { color: #1f7a41; } .regla-estado.wait { color: #a86500; }
   .doc-fisico { font-size: 12.5px; margin: 3px 0; }
   .doc-fisico.si { color: #1f7a41; font-weight: 600; } .doc-fisico.no { color: #a86500; font-weight: 600; }
+  .reglas-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .reglas-grid { grid-template-columns: 1fr; } }
+  .rg-card { border: 1px solid var(--border); border-top: 3px solid var(--accent); border-radius: 6px; background: #fff; box-shadow: 0 1px 3px rgba(14, 24, 48, .06); margin-bottom: 16px; }
+  .rg-head { background: var(--primary); color: #fff; padding: 11px 16px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; border-radius: 3px 3px 0 0; }
+  .rg-body { padding: 4px 16px 16px; }
+  .rg-meta { font-size: 12px; color: #6b7a86; margin: 10px 0 0; }
+  .rg-sec { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary); margin: 18px 0 4px; padding-bottom: 5px; border-bottom: 1px solid var(--border); }
+  .rg-field label { font-size: 12.5px; font-weight: 600; margin: 10px 0 4px; }
+  .rg-field input { padding: 8px 10px; font-size: 14px; max-width: 220px; }
+  .rg-help { font-size: 11.5px; color: #6b7a86; margin-top: 3px; line-height: 1.4; }
+  .rg-check { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; font-weight: 500; margin: 9px 0 0; cursor: pointer; }
+  .rg-check input { width: auto; flex: none; margin: 3px 0 0; }
+  .rg-formas { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+  .rg-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+  .rg-actions button { width: auto; margin: 0; padding: 9px 18px; font-size: 13px; font-weight: 600; border-radius: 4px; }
   .btn-back {
     width: auto; margin: 0 0 14px; padding: 8px 14px; font-size: 13px; font-weight: 600; background: #fff; color: var(--primary);
     border: 1px solid var(--border); border-radius: 4px;
@@ -577,6 +592,10 @@
           <li class="tab hidden" id="tabConfigBtn" data-tab="config">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
             <span>Configurar usuarios</span>
+          </li>
+          <li class="tab hidden" id="tabReglasBtn" data-tab="reglas">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>
+            <span>Reglas de fondos</span>
           </li>
         </ul>
       </li>
@@ -962,7 +981,7 @@
             <div id="dRetencionWrap" style="display:none">
               <label for="dRetencion">N° de comprobante de retención (tramitado con Tesorería) *</label>
               <input type="text" id="dRetencion" maxlength="60" placeholder="Ej. 000123" />
-              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional de caja chica: el comprobante de retención se tramita antes de la compra (Reglamento, Art. 8).</div>
+              <div class="gasto-line" style="font-size:12.5px;color:#6b7a86">Compra excepcional: el comprobante de retención se tramita con Tesorería antes de la compra.</div>
             </div>
 
             <div class="doc-actions">
@@ -1310,6 +1329,22 @@
       </div>
     </div>
 
+    <!-- ---- Reglas de fondos (parámetros del reglamento) ---- -->
+    <div id="viewReglas" class="card" style="display:none">
+      <div class="page-head">
+        <div class="page-title">Reglas de fondos</div>
+        <div class="page-sub">Parámetros del reglamento para fondo circulante y caja chica. Si el reglamento se reforma, cámbialos aquí: se aplican de inmediato a nuevas solicitudes, desembolsos y reintegros, y cada cambio queda registrado.</div>
+      </div>
+      <div id="reglasLoading" class="loading">Cargando...</div>
+      <div id="reglasContent" style="display:none">
+        <div id="reglasMsg" class="msg"></div>
+        <div id="reglasGlobal"></div>
+        <div class="reglas-grid" id="reglasTipos"></div>
+        <div class="doc-section" style="margin-top:26px">Historial de cambios</div>
+        <div id="reglasHistorial"></div>
+      </div>
+    </div>
+
     <!-- ---- Configurar usuarios / Fondos ---- -->
     <div id="viewConfig" class="card" style="display:none">
       <div class="section-title" id="fondoFormTitulo">Crear fondo</div>
@@ -1431,9 +1466,13 @@
   // Límites del reglamento (el servidor manda los valores vigentes con la lista de
   // fondos; estos son los de respaldo). El servidor es quien los hace cumplir.
   var REGLAS_FONDOS = {
-    salarioMinimo: 408.80, excepcionMaxMonto: 8176,
-    circulante: { limiteCompra: 1000, efectivoMaxCompra: 500, efectivoPct: 40, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false },
-    caja_chica: { limiteCompra: 100, efectivoMaxCompra: null, efectivoPct: 100, excepcionMaxSalarios: null, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true }
+    salarioMinimo: 408.80,
+    circulante: { montoMaximoAnual: 300000, limiteCompra: 1000, formasPago: ['efectivo', 'transferencia', 'cheque'], efectivoMaxCompra: 500, efectivoPct: 40,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 20, excepcionMensualPct: 50, exigeAcuerdo: true, exigeRetencion: false,
+      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, excepcionMaxMonto: 8176 },
+    caja_chica: { montoMaximoAnual: 24000, limiteCompra: 100, formasPago: ['efectivo'], efectivoMaxCompra: 0, efectivoPct: 100,
+      excepcionesPermitidas: true, excepcionMaxSalarios: 0, excepcionMensualPct: 50, exigeAcuerdo: false, exigeRetencion: true,
+      reintegroPct: 60, reintegroFinDeMes: true, reintegroExigeDocumento: true, excepcionMaxMonto: 0 }
   };
   var todosLosGastos = [];      // cache para Reportes (ya filtrado por alcance en el servidor)
   var gastosFiltrados = [];
@@ -1760,7 +1799,7 @@
   });
   drawerOverlayEl.addEventListener('click', closeDrawer);
 
-  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'config', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
+  var VIEWS = ['crearSolicitud', 'autorizacion', 'certificacion', 'reintegroLiquidacion', 'desembolso', 'registrar', 'historial', 'informe', 'reportes', 'config', 'reglas', 'tesoreriaReintegro', 'tesoreriaLiquidacion'];
   function activarTab(name) {
     document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.getAttribute('data-tab') === name); });
     VIEWS.forEach(function (v) { document.getElementById('view' + v.charAt(0).toUpperCase() + v.slice(1)).style.display = (v === name ? 'block' : 'none'); });
@@ -1775,6 +1814,7 @@
     if (name === 'informe') initInforme();
     if (name === 'reportes') initReportes();
     if (name === 'config') { initConfigTab(); }
+    if (name === 'reglas') initReglas();
     if (name === 'tesoreriaReintegro') initTesoreriaVista('reintegro');
     if (name === 'tesoreriaLiquidacion') initTesoreriaVista('liquidacion');
   }
@@ -2216,8 +2256,8 @@
     var id = document.getElementById('sFondo').value;
     return (typeof fondos !== 'undefined' && fondos ? fondos : []).find(function (x) { return String(x.id) === String(id); }) || null;
   }
-  // Límites de compra, efectivo/banco y compras excepcionales (Reglamento Art. 6, 7, 8, 11 y 12).
-  // Solo orienta: el servidor vuelve a validar todo.
+  // Límites de compra, efectivo/banco y compras excepcionales: los valores vienen de
+  // "Reglas de fondos". Solo orienta: el servidor vuelve a validar todo.
   function evaluarCuantiaUI() {
     var box = document.getElementById('sReglasAviso'), wrap = document.getElementById('sAcuerdoWrap');
     var selP = document.getElementById('sFormaPago');
@@ -2229,27 +2269,38 @@
       return;
     }
     var circ = f.tipo === 'circulante', total = totalItemsSolicitud();
-    // Formas de pago permitidas: caja chica = solo efectivo; circulante = efectivo solo hasta $500 por compra.
+    var formasOk = R.formasPago || ['efectivo', 'transferencia', 'cheque'];
+    // Formas de pago permitidas por las reglas del fondo (y tope de efectivo por compra).
     Array.prototype.forEach.call(selP.options, function (o) {
       if (!o.value) { o.disabled = false; return; }
-      o.disabled = circ ? (o.value === 'efectivo' && total > R.efectivoMaxCompra) : (o.value !== 'efectivo');
+      o.disabled = formasOk.indexOf(o.value) === -1 || (o.value === 'efectivo' && R.efectivoMaxCompra > 0 && total > R.efectivoMaxCompra);
     });
     if (selP.value && selP.options[selP.selectedIndex] && selP.options[selP.selectedIndex].disabled) selP.value = '';
-    if (!circ && !selP.value) selP.value = 'efectivo';
+    var habil = Array.prototype.filter.call(selP.options, function (o) { return o.value && !o.disabled; });
+    if (!selP.value && habil.length === 1) selP.value = habil[0].value;
     var exc = total > R.limiteCompra;
-    var html = '<div class="regla-t">Reglas del ' + (circ ? 'fondo circulante' : 'fondo de caja chica') + '</div>' + (circ
-      ? '<div>Compra ordinaria hasta <b>$' + money(R.limiteCompra) + '</b>. En <b>efectivo</b> solo hasta <b>$' + money(R.efectivoMaxCompra) + '</b> por compra; lo demás por <b>transferencia o cheque</b> (el 40% del fondo se mantiene en efectivo y el 60% en banco).</div>'
-      : '<div>Compra ordinaria hasta <b>$' + money(R.limiteCompra) + '</b>. La caja chica se maneja <b>toda en efectivo</b>.</div>');
-    if (exc) {
-      html += circ
-        ? '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + '): exige el <b>acuerdo administrativo del Alcalde Municipal en PDF</b> (adjúntalo más abajo), un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(REGLAS_FONDOS.excepcionMaxMonto) + ') y lo excepcional del mes no puede pasar el ' + R.excepcionMensualPct + '% de la referencia mensual del fondo (Art. 7).' +
-          (total > REGLAS_FONDOS.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>'
-        : '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + '): el total excepcional del mes no puede pasar el ' + R.excepcionMensualPct + '% de la referencia mensual del fondo y, <b>antes de la compra</b>, el administrador debe tramitar con Tesorería el <b>comprobante de retención</b>; su número se registra al desembolsar (Art. 8).</div>';
+    var permiteExc = R.excepcionesPermitidas !== false;
+    var etiquetas = { efectivo: 'efectivo', transferencia: 'transferencia', cheque: 'cheque' };
+    var html = '<div class="regla-t">Reglas del ' + (circ ? 'fondo circulante' : 'fondo de caja chica') + '</div>' +
+      '<div>Compra ordinaria hasta <b>$' + money(R.limiteCompra) + '</b>. Formas de pago permitidas: <b>' + formasOk.map(function (x) { return etiquetas[x] || x; }).join(', ') + '</b>.' +
+      (formasOk.indexOf('efectivo') !== -1 && R.efectivoMaxCompra > 0 ? ' El efectivo solo hasta <b>$' + money(R.efectivoMaxCompra) + '</b> por compra.' : '') +
+      (formasOk.indexOf('efectivo') !== -1 && fondoTieneBanco(R) ? ' Reparto del fondo: <b>' + R.efectivoPct + '% efectivo / ' + (Math.round((100 - R.efectivoPct) * 100) / 100) + '% banco</b>.' : '') +
+      '</div>';
+    if (exc && !permiteExc) {
+      html += '<div class="regla-estado wait"><b style="color:#a92626">Esta compra supera el límite ordinario y no se permiten compras excepcionales.</b></div>';
+    } else if (exc) {
+      var reqs = [];
+      if (R.exigeAcuerdo) reqs.push('el <b>acuerdo administrativo en PDF</b> (adjúntalo más abajo)');
+      if (R.excepcionMaxSalarios > 0) reqs.push('un máximo de ' + R.excepcionMaxSalarios + ' salarios mínimos ($' + money(R.excepcionMaxMonto) + ')');
+      if (R.excepcionMensualPct > 0) reqs.push('que lo excepcional del mes no pase del ' + R.excepcionMensualPct + '% de la referencia mensual del fondo');
+      if (R.exigeRetencion) reqs.push('tramitar con Tesorería el <b>comprobante de retención</b> antes de la compra (su número se registra al desembolsar)');
+      html += '<div class="regla-estado wait">Compra excepcional (supera $' + money(R.limiteCompra) + ')' + (reqs.length ? ': exige ' + reqs.join('; ') + '.' : '.') +
+        (R.excepcionMaxSalarios > 0 && total > R.excepcionMaxMonto ? ' <b style="color:#a92626">Esta compra supera ese máximo.</b>' : '') + '</div>';
     }
     box.className = 'regla-box ' + (exc ? 'wait' : '');
     box.innerHTML = html;
     box.style.display = 'block';
-    var pedirAcuerdo = exc && circ;
+    var pedirAcuerdo = exc && permiteExc && !!R.exigeAcuerdo;
     wrap.style.display = pedirAcuerdo ? 'block' : 'none';
     if (!pedirAcuerdo && sAcuerdo) { sAcuerdo = null; renderSAcuerdo(); }
   }
@@ -2418,10 +2469,14 @@
     var fSel = fondoSeleccionadoSolicitud();
     var RSel = fSel && REGLAS_FONDOS[fSel.tipo];
     var esExcepcional = !!RSel && totalItemsSolicitud() > RSel.limiteCompra;
-    var requiereAcuerdo = esExcepcional && fSel.tipo === 'circulante';
+    if (esExcepcional && RSel.excepcionesPermitidas === false) {
+      showMsg(msgEl, 'error', 'Esta compra supera el límite ordinario del fondo y no se permiten compras excepcionales.');
+      return;
+    }
+    var requiereAcuerdo = esExcepcional && !!RSel.exigeAcuerdo;
     if (requiereAcuerdo) {
       if (sAcuerdo && sAcuerdo.subiendo) { showMsg(msgEl, 'error', 'Espera a que termine de subir el acuerdo administrativo.'); return; }
-      if (!sAcuerdo) { showMsg(msgEl, 'error', 'Esta compra supera el límite ordinario del fondo circulante: adjunta el acuerdo administrativo del Alcalde Municipal en PDF.'); return; }
+      if (!sAcuerdo) { showMsg(msgEl, 'error', 'Esta compra supera el límite ordinario del fondo: adjunta el acuerdo administrativo en PDF.'); return; }
     }
 
     var items = [];
@@ -3357,10 +3412,12 @@
     var porDesembolsar = (s.estado || 'pendiente') === 'certificado';
     var exc = Number(s.monto_total) > R.limiteCompra;
     inp.value = s.retencion_comprobante || '';
-    if (exc && R.exigeRetencion && porDesembolsar) wrap.style.display = 'block';
+    if (exc && R.excepcionesPermitidas !== false && R.exigeRetencion && porDesembolsar) wrap.style.display = 'block';
     apiCall('fondos?action=saldo&fondoId=' + encodeURIComponent(s.fondo_id)).then(function (r) {
       if (!r || !r.ok || !r.saldo) return;
-      var sd = r.saldo, circ = f.tipo === 'circulante';
+      var sd = r.saldo;
+      var conBanco = sd.bancoCapC > 0 || fondoTieneBanco(R);
+      var pctEf = Number(R.efectivoPct) || 0;
       var medio = s.forma_pago === 'efectivo' ? 'efectivo' : 'banco';
       var necC = Math.round((Number(s.monto_total) || 0) * 100);
       var dispC = medio === 'efectivo' ? sd.efectivoDispC : sd.bancoDispC;
@@ -3373,11 +3430,11 @@
       box.className = 'regla-box ' + (porDesembolsar ? (necC <= dispC ? 'ok' : 'wait') : '');
       box.innerHTML = '<div class="regla-t">Saldo del fondo · referencia de ' + MESES_ES[sd.mes] + ' ' + centavos(sd.refC) + '</div>' +
         '<div class="regla-grid">' +
-          '<div><span>Efectivo' + (circ ? ' (40%)' : '') + ': límite</span><b>' + centavos(sd.efectivoCapC) + '</b></div>' +
+          '<div><span>Efectivo' + (conBanco ? ' (' + pctEf + '%)' : '') + ': límite</span><b>' + centavos(sd.efectivoCapC) + '</b></div>' +
           '<div><span>Efectivo en uso</span><b>' + centavos(sd.efectivoUsadoC) + '</b></div>' +
           '<div><span>Efectivo disponible</span><b>' + centavos(Math.max(0, sd.efectivoDispC)) + '</b></div>' +
-          (circ
-            ? '<div><span>Banco (60%): límite</span><b>' + centavos(sd.bancoCapC) + '</b></div><div><span>Banco en uso</span><b>' + centavos(sd.bancoUsadoC) + '</b></div><div><span>Banco disponible</span><b>' + centavos(Math.max(0, sd.bancoDispC)) + '</b></div>'
+          (conBanco
+            ? '<div><span>Banco (' + (Math.round((100 - pctEf) * 100) / 100) + '%): límite</span><b>' + centavos(sd.bancoCapC) + '</b></div><div><span>Banco en uso</span><b>' + centavos(sd.bancoUsadoC) + '</b></div><div><span>Banco disponible</span><b>' + centavos(Math.max(0, sd.bancoDispC)) + '</b></div>'
             : '<div><span>Banco</span><b>No aplica</b></div>') +
         '</div>' + linea +
         '<div class="gasto-line">Calculado con los desembolsos reales: cheque y transferencia afectan al banco; efectivo, al efectivo. Lo repuesto por un reintegro entregado ya no cuenta.</div>' +
@@ -3533,7 +3590,7 @@
     var retWrap = document.getElementById('dRetencionWrap');
     var retencion = document.getElementById('dRetencion').value.trim();
     if (retWrap.style.display !== 'none' && !retencion) {
-      showMsg(msgEl, 'error', 'Compra excepcional de caja chica: registra el N° de comprobante de retención tramitado con Tesorería antes de desembolsar.');
+      showMsg(msgEl, 'error', 'Compra excepcional: registra el N° de comprobante de retención tramitado con Tesorería antes de desembolsar.');
       document.getElementById('dRetencion').focus();
       return;
     }
@@ -4076,18 +4133,25 @@
   function fmtFechaCorta(d) { return String(d).slice(8, 10) + '/' + String(d).slice(5, 7) + '/' + String(d).slice(0, 4); }
   function centavos(c) { return '$' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
   // Referencia mensual = monto anual / 12, con redondeo acumulado para que los 12 meses sumen el total.
+  function reglasDeFondo(fondo) { return (fondo && REGLAS_FONDOS[fondo.tipo]) || REGLAS_FONDOS.circulante; }
+  function fondoTieneBanco(R) { return (R.formasPago || []).some(function (f) { return f === 'transferencia' || f === 'cheque'; }); }
   function evaluarReglaReintegro(fondo, gastosSel) {
+    var R = reglasDeFondo(fondo);
+    var pct = isFinite(Number(R.reintegroPct)) ? Number(R.reintegroPct) : 60;
     var hoy = hoyLocalStr(), mes = parseInt(hoy.slice(5, 7), 10);
     var total = Math.round((Number(fondo && fondo.monto_total) || 0) * 100);
     var refC = Math.floor(total * mes / 12) - Math.floor(total * (mes - 1) / 12);
-    var umbralC = Math.ceil((refC * 6) / 10);
+    var umbralC = Math.ceil((refC * Math.round(pct * 100)) / 10000);
     var montoC = gastosSel.reduce(function (a, g) { return a + Math.round((Number(g.monto_total) || 0) * 100); }, 0);
     var docC = gastosSel.filter(function (g) { return g.documento_fisico_recibido; }).reduce(function (a, g) { return a + Math.round((Number(g.monto_total) || 0) * 100); }, 0);
     var fechas = gastosSel.map(function (g) { return String(g.fecha); }).filter(Boolean).sort();
     var limite = fechas.length ? ultimoDiaMesStr(fechas[0]) : ultimoDiaMesStr(hoy);
     var plazo = hoy >= limite;
-    return { refC: refC, umbralC: umbralC, montoC: montoC, docC: docC, faltaC: Math.max(0, umbralC - montoC), plazo: plazo, limite: limite, ok: montoC >= umbralC || plazo,
-      sinDoc: gastosSel.filter(function (g) { return !g.documento_fisico_recibido; }) };
+    var plazoCuenta = R.reintegroFinDeMes !== false;
+    var exigeDoc = R.reintegroExigeDocumento !== false;
+    return { pct: pct, refC: refC, umbralC: umbralC, montoC: montoC, docC: docC, faltaC: Math.max(0, umbralC - montoC), plazo: plazo, plazoCuenta: plazoCuenta, limite: limite,
+      ok: montoC >= umbralC || (plazoCuenta && plazo), exigeDoc: exigeDoc,
+      sinDoc: exigeDoc ? gastosSel.filter(function (g) { return !g.documento_fisico_recibido; }) : [] };
   }
   var informeSaldo = null;
   function cargarSaldoInforme(fondoId) {
@@ -4096,14 +4160,16 @@
       if (r && r.ok) { informeSaldo = r.saldo; renderReglaReintegro(); }
     }).catch(function () {});
   }
-  function distribucionHtml(fondo, ev, efC, circ) {
+  function distribucionHtml(fondo, ev, efC, conBanco) {
+    var R = reglasDeFondo(fondo);
+    var pctEf = Number(R.efectivoPct) || 0;
     var sd = (informeSaldo && String(informeSaldo.fondoId) === String(fondo.id)) ? informeSaldo : null;
     if (!sd) {
-      return circ
-        ? '<b>Efectivo (40%) ' + centavos(efC) + '</b> · <b>Banco (60%) ' + centavos(ev.refC - efC) + '</b> (Reglamento, Art. 11).'
-        : '<b>Todo en efectivo ' + centavos(efC) + '</b> (Reglamento, Art. 12).';
+      return conBanco
+        ? '<b>Efectivo (' + pctEf + '%) ' + centavos(efC) + '</b> · <b>Banco (' + (Math.round((100 - pctEf) * 100) / 100) + '%) ' + centavos(ev.refC - efC) + '</b>.'
+        : '<b>Todo en efectivo ' + centavos(efC) + '</b>.';
     }
-    return (circ
+    return (conBanco
       ? '<b>Efectivo</b> en uso ' + centavos(sd.efectivoUsadoC) + ' de ' + centavos(sd.efectivoCapC) + ' (disponible ' + centavos(Math.max(0, sd.efectivoDispC)) + ') · <b>Banco</b> en uso ' + centavos(sd.bancoUsadoC) + ' de ' + centavos(sd.bancoCapC) + ' (disponible ' + centavos(Math.max(0, sd.bancoDispC)) + ')'
       : '<b>Todo en efectivo</b>: en uso ' + centavos(sd.efectivoUsadoC) + ' de ' + centavos(sd.efectivoCapC) + ' (disponible ' + centavos(Math.max(0, sd.efectivoDispC)) + ')') +
       ' — según los desembolsos reales (cheque y transferencia afectan al banco; efectivo, al efectivo).';
@@ -4115,26 +4181,28 @@
     if (!fondo) { el.style.display = 'none'; return; }
     var sel = informeGastos.filter(function (g) { return informeSel[g.id]; });
     var ev = evaluarReglaReintegro(fondo, sel);
-    var circ = fondo.tipo === 'circulante';
-    var efC = circ ? Math.round(ev.refC * 0.4) : ev.refC;
+    var R = reglasDeFondo(fondo);
+    var conBanco = fondoTieneBanco(R);
+    var efC = Math.round((ev.refC * Math.round((Number(R.efectivoPct) || 0) * 100)) / 10000);
     var mesHoy = MESES_ES[parseInt(hoyLocalStr().slice(5, 7), 10)];
+    var plazoTxt = ev.plazoCuenta ? ' También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(ev.limite) + ').' : '';
     var estado;
     if (!sel.length) estado = '<div class="regla-estado wait">Selecciona gastos para evaluar el reintegro.</div>';
-    else if (ev.sinDoc.length && !ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para el 60% (o hasta el último día del mes: ' + fmtFechaCorta(ev.limite) + '). ' + ev.sinDoc.length + ' gasto(s) sin documento físico recibido.</div>';
-    else if (!ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para alcanzar el 60% de la referencia mensual. También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(ev.limite) + ').</div>';
-    else estado = '<div class="regla-estado ok">' + (ev.montoC >= ev.umbralC ? 'Alcanzó el 60% de la referencia mensual: ya puedes solicitar el reintegro.' : 'Se cumplió el plazo del mes (' + fmtFechaCorta(ev.limite) + '): ya puedes solicitar el reintegro.') +
+    else if (ev.sinDoc.length && !ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para el ' + ev.pct + '%' + (ev.plazoCuenta ? ' (o hasta el último día del mes: ' + fmtFechaCorta(ev.limite) + ')' : '') + '. ' + ev.sinDoc.length + ' gasto(s) sin documento físico recibido.</div>';
+    else if (!ev.ok) estado = '<div class="regla-estado wait">Faltan ' + centavos(ev.faltaC) + ' para alcanzar el ' + ev.pct + '% de la referencia mensual.' + plazoTxt + '</div>';
+    else estado = '<div class="regla-estado ok">' + (ev.montoC >= ev.umbralC ? 'Alcanzó el ' + ev.pct + '% de la referencia mensual: ya puedes solicitar el reintegro.' : 'Se cumplió el plazo del mes (' + fmtFechaCorta(ev.limite) + '): ya puedes solicitar el reintegro.') +
       (ev.sinDoc.length ? ' Antes marca el documento físico de ' + ev.sinDoc.length + ' gasto(s).' : '') + '</div>';
     el.className = 'regla-box ' + (sel.length && ev.ok && !ev.sinDoc.length ? 'ok' : 'wait');
     el.innerHTML = '<div class="regla-t">Condiciones del reintegro · ' + esc(TIPO_FONDO_LABEL[fondo.tipo] || fondo.tipo) + ' ' + esc(fondo.anio) + '</div>' +
       '<div class="regla-grid">' +
         '<div><span>Monto anual del fondo</span><b>$' + money(fondo.monto_total) + '</b></div>' +
         '<div><span>Referencia de ' + mesHoy + '</span><b>' + centavos(ev.refC) + '</b></div>' +
-        '<div><span>60% mínimo para reintegro</span><b>' + centavos(ev.umbralC) + '</b></div>' +
+        '<div><span>' + ev.pct + '% mínimo para reintegro</span><b>' + centavos(ev.umbralC) + '</b></div>' +
         '<div><span>Gastos seleccionados</span><b>' + centavos(ev.montoC) + '</b></div>' +
-        '<div><span>Con documento físico recibido</span><b>' + centavos(ev.docC) + '</b></div>' +
+        (ev.exigeDoc ? '<div><span>Con documento físico recibido</span><b>' + centavos(ev.docC) + '</b></div>' : '') +
       '</div>' + estado +
-      '<div class="gasto-line" style="margin-top:6px">Efectivo y banco del fondo: ' + distribucionHtml(fondo, ev, efC, circ) + '</div>' +
-      '<div class="gasto-line">Un reintegro solo admite gastos con el documento físico ya recibido. La liquidación no tiene estas restricciones.</div>';
+      '<div class="gasto-line" style="margin-top:6px">Efectivo y banco del fondo: ' + distribucionHtml(fondo, ev, efC, conBanco) + '</div>' +
+      '<div class="gasto-line">' + (ev.exigeDoc ? 'Un reintegro solo admite gastos con el documento físico ya recibido. ' : '') + 'La liquidación no tiene estas restricciones.</div>';
     el.style.display = 'block';
   }
 
@@ -4285,7 +4353,8 @@
           return;
         }
         if (!evR.ok) {
-          showMsg(msgEl, 'error', 'Aún no se puede solicitar el reintegro: los gastos seleccionados suman ' + centavos(evR.montoC) + ' y se necesita al menos el 60% de la referencia mensual (' + centavos(evR.umbralC) + '); faltan ' + centavos(evR.faltaC) + '. También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(evR.limite) + ').');
+          showMsg(msgEl, 'error', 'Aún no se puede solicitar el reintegro: los gastos seleccionados suman ' + centavos(evR.montoC) + ' y se necesita al menos el ' + evR.pct + '% de la referencia mensual (' + centavos(evR.umbralC) + '); faltan ' + centavos(evR.faltaC) + '.' +
+            (evR.plazoCuenta ? ' También podrás solicitarlo a más tardar el último día del mes (' + fmtFechaCorta(evR.limite) + ').' : ''));
           return;
         }
       }
@@ -4621,6 +4690,160 @@
     });
     doc.save('Resumen_Fondos_' + todayStr() + '.pdf');
   });
+
+  // ==================================================================
+  // Reglas de fondos (parámetros del reglamento, solo administrador del portal)
+  // ==================================================================
+  var reglasCfg = null; // { reglas, meta, defaults, historial }
+  var CAMPOS_REGLAS = [
+    { t: 'Montos y cuantías', c: [
+      { k: 'montoMaximoAnual', tipo: 'num', l: 'Monto máximo anual del fondo ($)', h: 'Tope al crear o editar un fondo de este tipo. 0 = sin tope. La referencia mensual del fondo es su monto entre 12.' },
+      { k: 'limiteCompra', tipo: 'num', l: 'Límite de compra ordinaria ($, impuestos incluidos)', h: 'Una compra que lo supera es excepcional.' } ] },
+    { t: 'Formas de pago y reparto efectivo / banco', c: [
+      { k: 'formasPago', tipo: 'formas', l: 'Formas de pago permitidas', h: 'Efectivo afecta al efectivo del fondo; transferencia y cheque afectan al banco.' },
+      { k: 'efectivoMaxCompra', tipo: 'num', l: 'Efectivo: máximo por compra ($)', h: '0 = sin tope.' },
+      { k: 'efectivoPct', tipo: 'num', l: 'Parte del fondo que se mantiene en efectivo (%)', h: 'El resto queda en banco. Se ajusta solo: 100% si no se permite banco, 0% si no se permite efectivo.' } ] },
+    { t: 'Compras excepcionales', c: [
+      { k: 'excepcionesPermitidas', tipo: 'bool', l: 'Permitir compras excepcionales (sobre el límite ordinario)' },
+      { k: 'exigeAcuerdo', tipo: 'bool', l: 'Exigir acuerdo administrativo en PDF' },
+      { k: 'excepcionMaxSalarios', tipo: 'num', l: 'Máximo por compra excepcional (salarios mínimos)', h: '0 = sin tope. Se multiplica por el salario mínimo de referencia.' },
+      { k: 'excepcionMensualPct', tipo: 'num', l: 'Tope mensual de compras excepcionales (% de la referencia mensual)', h: '0 = sin tope. Lo no utilizado no se acumula.' },
+      { k: 'exigeRetencion', tipo: 'bool', l: 'Exigir comprobante de retención antes del desembolso' } ] },
+    { t: 'Reintegro', c: [
+      { k: 'reintegroPct', tipo: 'num', l: '% de la referencia mensual para poder solicitar el reintegro', h: 'Los gastos seleccionados deben alcanzar este porcentaje.' },
+      { k: 'reintegroFinDeMes', tipo: 'bool', l: 'Permitir el reintegro al cierre del mes aunque no se alcance ese porcentaje' },
+      { k: 'reintegroExigeDocumento', tipo: 'bool', l: 'Exigir documento físico recibido para incluir un gasto en un reintegro' } ] }
+  ];
+  var ETIQUETAS_REGLAS = { salarioMinimo: 'Salario mínimo ($)' };
+  CAMPOS_REGLAS.forEach(function (sec) { sec.c.forEach(function (c) { ETIQUETAS_REGLAS[c.k] = c.l; }); });
+  var FORMAS_REGLAS = [['efectivo', 'Efectivo'], ['transferencia', 'Transferencia'], ['cheque', 'Cheque']];
+  // Misma forma que entrega el servidor a la app (incluye el máximo excepcional en $).
+  function reglasPublicasDesdeCfg(reglas) {
+    var sm = Number(reglas.global.salarioMinimo) || 0;
+    function conMax(t) { return Object.assign({}, reglas[t], { excepcionMaxMonto: Math.round((Number(reglas[t].excepcionMaxSalarios) || 0) * sm * 100) / 100 }); }
+    return { salarioMinimo: sm, circulante: conMax('circulante'), caja_chica: conMax('caja_chica') };
+  }
+  function rgId(tipo, k) { return 'rg_' + tipo + '_' + k; }
+
+  function initReglas() {
+    document.getElementById('reglasLoading').style.display = 'block';
+    document.getElementById('reglasLoading').textContent = 'Cargando...';
+    document.getElementById('reglasContent').style.display = 'none';
+    apiCall('fondos?action=reglas').then(function (r) {
+      if (!r || !r.ok) { document.getElementById('reglasLoading').textContent = (r && r.error) || 'No se pudieron cargar las reglas.'; return; }
+      reglasCfg = r;
+      REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas);
+      document.getElementById('reglasLoading').style.display = 'none';
+      document.getElementById('reglasContent').style.display = 'block';
+      hideMsg(document.getElementById('reglasMsg'));
+      renderReglas();
+    }).catch(function () { document.getElementById('reglasLoading').textContent = 'Error de conexión al cargar las reglas.'; });
+  }
+
+  function htmlCampoRegla(tipo, c, v) {
+    var id = rgId(tipo, c.k);
+    var ayuda = c.h ? '<div class="rg-help">' + esc(c.h) + '</div>' : '';
+    if (c.tipo === 'num') return '<div class="rg-field"><label for="' + id + '">' + esc(c.l) + '</label><input type="number" id="' + id + '" min="0" step="0.01" value="' + esc(v[c.k]) + '" />' + ayuda + '</div>';
+    if (c.tipo === 'bool') return '<label class="rg-check"><input type="checkbox" id="' + id + '"' + (v[c.k] ? ' checked' : '') + ' /><span>' + esc(c.l) + '</span></label>';
+    return '<div class="rg-field"><label>' + esc(c.l) + '</label><div class="rg-formas">' + FORMAS_REGLAS.map(function (f) {
+      return '<label class="rg-check"><input type="checkbox" id="' + rgId(tipo, 'forma_' + f[0]) + '"' + ((v.formasPago || []).indexOf(f[0]) !== -1 ? ' checked' : '') + ' /><span>' + f[1] + '</span></label>';
+    }).join('') + '</div>' + ayuda + '</div>';
+  }
+  function textoMetaRegla(meta) {
+    if (!meta) return 'Valores iniciales del reglamento (nunca modificados).';
+    return 'Última modificación: ' + (meta.updated_at ? new Date(meta.updated_at).toLocaleString('es-HN') : '—') + ' · ' + esc(meta.updated_by_nombre || '—');
+  }
+
+  function renderReglas() {
+    var cfg = reglasCfg;
+    document.getElementById('reglasGlobal').innerHTML = '<div class="rg-card"><div class="rg-head">Salario mínimo de referencia</div><div class="rg-body">' +
+      '<div class="rg-field"><label for="' + rgId('global', 'salarioMinimo') + '">Salario mínimo mensual de comercio y servicios ($)</label>' +
+      '<input type="number" id="' + rgId('global', 'salarioMinimo') + '" min="0" step="0.01" value="' + esc(cfg.reglas.global.salarioMinimo) + '" />' +
+      '<div class="rg-help">Se usa para calcular el máximo de las compras excepcionales (salarios mínimos × este monto). Actualízalo cuando el Gobierno lo ajuste.</div></div>' +
+      '<div class="rg-meta">' + textoMetaRegla(cfg.meta && cfg.meta.global) + '</div>' +
+      '<div class="rg-actions"><button type="button" data-rg-guardar="global">Guardar salario mínimo</button></div></div></div>';
+    var tipos = [['circulante', 'Fondo circulante'], ['caja_chica', 'Fondo de caja chica']];
+    document.getElementById('reglasTipos').innerHTML = tipos.map(function (t) {
+      var v = cfg.reglas[t[0]];
+      return '<div class="rg-card"><div class="rg-head">' + t[1] + '</div><div class="rg-body">' +
+        CAMPOS_REGLAS.map(function (sec) {
+          return '<div class="rg-sec">' + sec.t + '</div>' + sec.c.map(function (c) { return htmlCampoRegla(t[0], c, v); }).join('');
+        }).join('') +
+        '<div class="rg-meta">' + textoMetaRegla(cfg.meta && cfg.meta[t[0]]) + '</div>' +
+        '<div class="rg-actions"><button type="button" class="secondary" data-rg-defaults="' + t[0] + '">Cargar valores iniciales</button>' +
+        '<button type="button" data-rg-guardar="' + t[0] + '">Guardar reglas</button></div></div></div>';
+    }).join('');
+    document.querySelectorAll('[data-rg-guardar]').forEach(function (b) { b.addEventListener('click', function () { guardarReglasTipo(b.getAttribute('data-rg-guardar')); }); });
+    document.querySelectorAll('[data-rg-defaults]').forEach(function (b) { b.addEventListener('click', function () { cargarValoresIniciales(b.getAttribute('data-rg-defaults')); }); });
+    renderHistorialReglas();
+  }
+
+  function leerReglasForm(tipo) {
+    if (tipo === 'global') return { salarioMinimo: parseFloat(document.getElementById(rgId('global', 'salarioMinimo')).value) };
+    var v = {};
+    CAMPOS_REGLAS.forEach(function (sec) {
+      sec.c.forEach(function (c) {
+        if (c.tipo === 'formas') {
+          v.formasPago = FORMAS_REGLAS.map(function (f) { return f[0]; }).filter(function (f) { return document.getElementById(rgId(tipo, 'forma_' + f)).checked; });
+        } else {
+          var el = document.getElementById(rgId(tipo, c.k));
+          v[c.k] = c.tipo === 'bool' ? el.checked : parseFloat(el.value);
+        }
+      });
+    });
+    return v;
+  }
+  function cargarValoresIniciales(tipo) {
+    var d = reglasCfg.defaults[tipo];
+    CAMPOS_REGLAS.forEach(function (sec) {
+      sec.c.forEach(function (c) {
+        if (c.tipo === 'formas') FORMAS_REGLAS.forEach(function (f) { document.getElementById(rgId(tipo, 'forma_' + f[0])).checked = (d.formasPago || []).indexOf(f[0]) !== -1; });
+        else if (c.tipo === 'bool') document.getElementById(rgId(tipo, c.k)).checked = !!d[c.k];
+        else document.getElementById(rgId(tipo, c.k)).value = d[c.k];
+      });
+    });
+    showMsg(document.getElementById('reglasMsg'), 'info', 'Se cargaron los valores iniciales del reglamento en el formulario. Pulsa "Guardar reglas" para aplicarlos.');
+  }
+  function guardarReglasTipo(tipo) {
+    var msgEl = document.getElementById('reglasMsg');
+    hideMsg(msgEl);
+    var nombre = tipo === 'global' ? 'el salario mínimo' : (tipo === 'circulante' ? 'las reglas del fondo circulante' : 'las reglas de la caja chica');
+    customConfirm('¿Guardar ' + nombre + '? Se aplican de inmediato a nuevas solicitudes, desembolsos y reintegros, y queda registrado quién lo cambió.', { okText: 'Guardar' }).then(function (ok) {
+      if (!ok) return;
+      apiCall('fondos', { method: 'POST', body: { action: 'guardar_reglas', tipo: tipo, valores: leerReglasForm(tipo), actor_id: currentUser.ID, actor_nombre: fullName(currentUser) } }).then(function (r) {
+        if (!r.ok) { showMsg(msgEl, 'error', r.error || 'No se pudieron guardar las reglas.'); return; }
+        reglasCfg = Object.assign({}, reglasCfg, { reglas: r.reglas, meta: r.meta, historial: r.historial });
+        renderReglas();
+        showMsg(msgEl, 'success', 'Reglas guardadas y aplicadas.');
+        // el resto de la app toma los nuevos valores sin recargar
+        REGLAS_FONDOS = reglasPublicasDesdeCfg(r.reglas);
+      }).catch(function () { showMsg(msgEl, 'error', 'Error de conexión al guardar.'); });
+    });
+  }
+
+  function valorReglaTxt(k, v) {
+    if (v === undefined || v === null) return '—';
+    if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+    if (Array.isArray(v)) return v.join(', ') || '—';
+    return String(v);
+  }
+  function resumenCambiosReglas(h) {
+    var a = h.valor_anterior || {}, n = h.valor_nuevo || {};
+    var lista = Object.keys(n).filter(function (k) { return JSON.stringify(a[k]) !== JSON.stringify(n[k]); }).map(function (k) {
+      return esc(ETIQUETAS_REGLAS[k] || (k === 'formasPago' ? 'Formas de pago permitidas' : k)) + ': ' + esc(valorReglaTxt(k, a[k])) + ' → <b>' + esc(valorReglaTxt(k, n[k])) + '</b>';
+    });
+    return lista.length ? lista.join('<br>') : 'Sin cambios en los valores.';
+  }
+  function renderHistorialReglas() {
+    var el = document.getElementById('reglasHistorial');
+    var hist = (reglasCfg && reglasCfg.historial) || [];
+    if (!hist.length) { el.innerHTML = '<div class="empty-state">Todavía no se ha modificado ninguna regla.</div>'; return; }
+    var ET = { global: 'Salario mínimo', circulante: 'Fondo circulante', caja_chica: 'Caja chica' };
+    el.innerHTML = '<div class="table-wrap corp"><table class="data-table table-corp"><thead><tr><th>Fecha</th><th>Quién</th><th>Reglas</th><th>Cambios</th></tr></thead><tbody>' +
+      hist.map(function (h) {
+        return '<tr><td>' + esc(new Date(h.created_at).toLocaleString('es-HN')) + '</td><td>' + esc(h.cambiado_por_nombre || '—') + '</td><td>' + esc(ET[h.tipo] || h.tipo) + '</td><td class="col-desc">' + resumenCambiosReglas(h) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
 
   // ==================================================================
   // Configurar usuarios / Fondos (solo admin)
@@ -5070,6 +5293,7 @@
     // Consulta y administración
     ocultar('tabReportesBtn', !(accesoAlgunModulo || isAdmin || puedeTesoreria || puedeVerInforme));
     ocultar('tabConfigBtn', !isAdmin);
+    ocultar('tabReglasBtn', !isAdmin);
     // Un grupo solo se muestra si tiene al menos una opción visible.
     document.querySelectorAll('.drawer-group').forEach(function (g) {
       g.classList.toggle('hidden', !g.querySelector('.tab:not(.hidden)'));

@@ -729,7 +729,43 @@ acción `crear`), no solo la pantalla.
   puede marcar el administrador del fondo (o un administrador del portal
   verificado contra Bitrix24) y solo mientras el gasto siga "registrado". Los
   gastos anteriores a esta regla quedan como "pendiente de recibir".
+### Reglas de fondos (parámetros editables)
+
+Ningún número del reglamento está escrito en el código: todos viven en la
+tabla `gastos_reglas` y se cambian desde el menú **Consulta y administración →
+Reglas de fondos** (solo **administrador del portal**, verificado contra
+Bitrix24). Si el reglamento se reforma, basta con editar ahí; los cambios se
+aplican **de inmediato** a nuevas solicitudes, desembolsos y reintegros (el
+servidor guarda los valores en memoria hasta 15 s) y cada cambio queda en un
+**historial** (quién, cuándo, valor anterior → nuevo). Hay un bloque por tipo
+de fondo (circulante y caja chica) más el salario mínimo de referencia.
+
+| Parámetro (por tipo de fondo) | Qué controla |
+|---|---|
+| Monto máximo anual | tope al crear o editar un fondo de ese tipo (0 = sin tope) |
+| Límite de compra ordinaria | lo que lo supera es compra excepcional |
+| Formas de pago permitidas | efectivo / transferencia / cheque |
+| Efectivo: máximo por compra | tope por compra en efectivo (0 = sin tope) |
+| Parte del fondo en efectivo (%) | el resto queda en banco; se ajusta solo a 100% si solo hay efectivo y a 0% si no se permite efectivo |
+| Permitir compras excepcionales | si no, toda compra sobre el límite se rechaza |
+| Exigir acuerdo administrativo (PDF) | para compras excepcionales |
+| Máximo excepcional (salarios mínimos) | × salario mínimo de referencia (0 = sin tope) |
+| Tope mensual excepcional (% de la referencia) | 0 = sin tope |
+| Exigir comprobante de retención | antes del desembolso de una compra excepcional |
+| % de la referencia para poder pedir reintegro | umbral del reintegro |
+| Permitir reintegro al cierre del mes | aunque no se llegue al % |
+| Exigir documento físico recibido | para incluir un gasto en un reintegro |
+
+"Cargar valores iniciales" vuelve a poner en el formulario los valores del
+reglamento de 2025 (sin guardar hasta pulsar "Guardar reglas"). Los valores
+iniciales están también en `api/gestiones.js` (`DEFAULTS`) y sirven de respaldo
+si la tabla no se puede leer. Migración: `migracion-reglas-parametros.sql`.
+API: `GET fondos?action=reglas` y `POST fondos` con `action=guardar_reglas`.
+
 ### Límites de compra, efectivo/banco y compras excepcionales
+
+Los valores de la tabla de abajo son los **iniciales** (reglamento de 2025);
+los vigentes son los que estén en "Reglas de fondos".
 
 Las valida el **servidor** (`api/gestiones.js`: `evaluarCuantia` y
 `calcularSaldoFondo`) al **crear** la solicitud, al **certificarla** si cambian
@@ -758,9 +794,9 @@ pero no es la que decide. Migración: `migracion-limites-excepcionales.sql`.
 - **Comprobante de retención (caja chica)**: en una compra excepcional el
   administrador registra el **N° de comprobante** en el Desembolso (queda con
   quién y cuándo); sin él no se desembolsa.
-- **Salario mínimo** (Art. 7): $408.80 (comercio y servicios, vigente en 2026;
-  20 salarios = $8,176.00). Se puede cambiar con la variable de entorno
-  `SALARIO_MINIMO_COMERCIO` en Vercel si el Gobierno lo ajusta.
+- **Salario mínimo** (Art. 7): inicia en $408.80 (comercio y servicios, vigente
+  en 2026; 20 salarios = $8,176.00). Se cambia en "Reglas de fondos" si el
+  Gobierno lo ajusta (ya no se usa la variable de entorno).
 - Las solicitudes anteriores a estas reglas no se tocan, pero una compra
   excepcional de circulante sin acuerdo no se puede desembolsar.
 - Siguen **sin controlarse**: el plazo de 3 días hábiles para presentar
